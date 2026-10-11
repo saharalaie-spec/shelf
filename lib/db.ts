@@ -1,9 +1,10 @@
 import "server-only";
 import { mkdirSync } from "node:fs";
 import { createClient, type Client } from "@libsql/client";
+import { databaseToken, databaseUrl } from "./config";
 
-// Local SQLite file by default; point DATABASE_URL at a Turso/libSQL URL to deploy.
-const url = process.env.DATABASE_URL ?? "file:data/shelf.db";
+/** Thrown when the app is deployed but no database is connected yet. */
+export class SetupError extends Error {}
 
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
@@ -51,18 +52,23 @@ const SCHEMA = [
     views INTEGER NOT NULL DEFAULT 0,
     UNIQUE (user_id, category)
   )`,
+  // Server-generated values that must stay stable across restarts (e.g. the code-signing secret).
+  `CREATE TABLE IF NOT EXISTS settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+  )`,
 ];
 
 type DbState = { client: Client; ready: Promise<void> };
 const globalForDb = globalThis as unknown as { __shelfDb?: DbState };
 
-function init(): DbState {
+function init(url: string): DbState {
   if (url.startsWith("file:")) {
     const path = url.slice("file:".length);
     const dir = path.includes("/") ? path.slice(0, path.lastIndexOf("/")) : "";
     if (dir) mkdirSync(dir, { recursive: true });
   }
-  const client = createClient({ url, authToken: process.env.DATABASE_AUTH_TOKEN });
+  const client = createClient({ url, authToken: databaseToken() });
   const ready = (async () => {
     await client.execute("PRAGMA foreign_keys = ON");
     if (url.startsWith("file:")) await client.execute("PRAGMA journal_mode = WAL");
@@ -72,7 +78,16 @@ function init(): DbState {
 }
 
 export async function db(): Promise<Client> {
-  globalForDb.__shelfDb ??= init();
-  await globalForDb.__shelfDb.ready;
-  return globalForDb.__shelfDb.client;
+  const url = databaseUrl();
+  if (!url) throw new SetupError("This deployment has no database connected yet.");
+  const state = (globalForDb.__shelfDb ??= init(url));
+  try {
+    await state.ready;
+  } catch (err) {
+    // Don't cache a failed connection (bad token, network blip); the next request retries.
+    if (globalForDb.__shelfDb === state) globalForDb.__shelfDb = undefined;
+    state.client.close();
+    throw err;
+  }
+  return state.client;
 }

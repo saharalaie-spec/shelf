@@ -21,14 +21,29 @@ export class AuthError extends Error {
   }
 }
 
-const secret = () => {
-  const s = process.env.AUTH_SECRET;
-  if (!s && process.env.NODE_ENV === "production") throw new Error("AUTH_SECRET must be set in production");
-  return s ?? "dev-only-secret";
-};
+let storedSecret: Promise<string> | undefined;
 
-const hashCode = (identifier: string, code: string) =>
-  createHmac("sha256", secret()).update(`${identifier}:${code}`).digest("hex");
+/** AUTH_SECRET if set; otherwise a random secret created on first use and kept in the database. */
+function secret(): Promise<string> {
+  if (process.env.AUTH_SECRET) return Promise.resolve(process.env.AUTH_SECRET);
+  storedSecret ??= (async () => {
+    const client = await db();
+    // Several server instances may race here; the first insert wins and everyone reads it back.
+    await client.execute({
+      sql: "INSERT INTO settings (key, value) VALUES ('auth_secret', ?) ON CONFLICT (key) DO NOTHING",
+      args: [randomBytes(32).toString("hex")],
+    });
+    const row = (await client.execute("SELECT value FROM settings WHERE key = 'auth_secret'")).rows[0];
+    return String(row.value);
+  })().catch((err) => {
+    storedSecret = undefined;
+    throw err;
+  });
+  return storedSecret;
+}
+
+const hashCode = async (identifier: string, code: string) =>
+  createHmac("sha256", await secret()).update(`${identifier}:${code}`).digest("hex");
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -61,7 +76,7 @@ export async function startLogin(to: Identifier) {
           ON CONFLICT (identifier) DO UPDATE SET
             code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0,
             sends = excluded.sends, window_start = excluded.window_start, last_sent_at = excluded.last_sent_at`,
-    args: [to.value, hashCode(to.value, code), now + CODE_TTL_MS, sends, windowStart, now],
+    args: [to.value, await hashCode(to.value, code), now + CODE_TTL_MS, sends, windowStart, now],
   });
 
   try {
@@ -86,7 +101,7 @@ export async function verifyLogin(to: Identifier, code: string) {
   }
 
   const expected = Buffer.from(String(row.code_hash), "hex");
-  const actual = Buffer.from(hashCode(to.value, code.replace(/\D/g, "")), "hex");
+  const actual = Buffer.from(await hashCode(to.value, code.replace(/\D/g, "")), "hex");
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
     await client.execute({
       sql: "UPDATE login_codes SET attempts = attempts + 1 WHERE identifier = ?",

@@ -34,6 +34,19 @@ npm run lint
 npm run build
 ```
 
+## Put it online (Vercel, free, works from your phone)
+
+1. **Merge the pull request** into `main`. Vercel publishes `main` as the live site.
+2. Go to [vercel.com/new](https://vercel.com/new), sign in with GitHub, and **import the `shelf` repository**. Leave every setting as it is and tap **Deploy**.
+3. Open the site it gives you. You'll see an **Almost live** page: the app needs a database.
+   In the Vercel project, open **Storage → Create Database → Turso**, create the free database and connect it to the project. This adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for you.
+4. Still in the project, open **Settings → Environment Variables** and add
+   `ALLOW_DEV_CODES` = your phone number with country code, for example `+14155550123` (add your email too, separated by a comma, if you like).
+   Until you connect Twilio or Resend, sign-in codes for those numbers and emails appear on screen. Anyone else gets "not set up yet". Friends opening your share links don't need to sign in at all.
+5. Open **Deployments**, tap **⋯ → Redeploy** on the latest one, then open the site on your phone. In Safari, **Share → Add to Home Screen** makes it open like an app.
+
+After that, every push to `main` goes live by itself. Optional extras, in the same Environment Variables screen: `ANTHROPIC_API_KEY` turns on "Snap your shelf", and the Twilio or Resend keys below send real codes (then remove `ALLOW_DEV_CODES`).
+
 ## Configuration
 
 Copy `.env.example` to `.env.local`. Everything is optional in development.
@@ -42,13 +55,13 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | --- | --- |
 | Text login codes | `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM` (or `TWILIO_MESSAGING_SERVICE_SID`) |
 | Email login codes | `RESEND_API_KEY`, `EMAIL_FROM` |
-| Production secret | `AUTH_SECRET` (required when `NODE_ENV=production`) |
-| Share links & previews | `APP_URL` (your public URL) |
-| Hosted database | `DATABASE_URL`, `DATABASE_AUTH_TOKEN` (Turso / libSQL; defaults to `data/shelf.db`) |
+| Code-signing secret | `AUTH_SECRET` (optional: one is generated and kept in the database if unset) |
+| Public URL | `APP_URL` (optional on Vercel, which provides its own) |
+| Hosted database | `DATABASE_URL` + `DATABASE_AUTH_TOKEN`, or `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (any libSQL database; defaults to `data/shelf.db` locally) |
 | Shelf photo | `ANTHROPIC_API_KEY` |
 | Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
 
-In production, codes are never shown on screen unless you set `ALLOW_DEV_CODES=1` for a private demo.
+In production, codes are only shown on screen for the numbers and emails listed in `ALLOW_DEV_CODES` (comma-separated, phone numbers with country code). `ALLOW_DEV_CODES=1` allows anyone, which lets anyone sign in as anyone, so use it only for a private demo.
 
 ## How it's built
 
@@ -74,4 +87,4 @@ Share links are unguessable, one per shelf or category, and stay live: books you
 ## Before a public launch
 
 - Add per-IP rate limiting on `/api/auth/start` (or use Twilio Verify's fraud protection) so nobody can run up your SMS bill.
-- Host on a platform with a persistent database (for example Vercel with Turso) and set `APP_URL` and `AUTH_SECRET`.
+- Connect Twilio and/or Resend and remove `ALLOW_DEV_CODES`.

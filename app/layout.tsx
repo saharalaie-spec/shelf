@@ -7,7 +7,8 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axes: ["opsz", "SOFT"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.APP_URL ?? "http://localhost:3000"),
+  // Without APP_URL, Next.js uses the Vercel production domain (or localhost) for preview images.
+  metadataBase: process.env.APP_URL ? new URL(process.env.APP_URL) : undefined,
   title: "Shelf",
   description: "Every book you've read, in one place. Share your shelf with a link.",
   appleWebApp: { capable: true, title: "Shelf", statusBarStyle: "default" },

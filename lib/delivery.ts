@@ -1,36 +1,19 @@
 import "server-only";
+import { appHost, devCodesAllowedFor, emailConfigured, smsConfigured } from "./config";
 import type { Identifier } from "./identifier";
 
 export type DeliveryResult = { devCode?: string };
 
 const appName = "Shelf";
 
-function appHost() {
-  try {
-    return new URL(process.env.APP_URL ?? "http://localhost:3000").host;
-  } catch {
-    return "localhost:3000";
-  }
-}
-
-const smsConfigured = () =>
-  Boolean(
-    process.env.TWILIO_ACCOUNT_SID &&
-      process.env.TWILIO_AUTH_TOKEN &&
-      (process.env.TWILIO_FROM || process.env.TWILIO_MESSAGING_SERVICE_SID),
-  );
-
-const emailConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
-
-/** Codes are shown on screen (and logged) when no real provider is set up. Never in production unless opted in. */
-const devCodesAllowed = () =>
-  process.env.NODE_ENV !== "production" || process.env.ALLOW_DEV_CODES === "1";
-
 export async function deliverCode(to: Identifier, code: string): Promise<DeliveryResult> {
   const configured = to.kind === "phone" ? smsConfigured() : emailConfigured();
   if (!configured) {
-    if (!devCodesAllowed()) {
-      throw new Error(`${to.kind === "phone" ? "SMS" : "Email"} sign-in isn’t set up yet.`);
+    if (!devCodesAllowedFor(to.value)) {
+      console.warn(
+        `No ${to.kind === "phone" ? "SMS (Twilio)" : "email (Resend)"} provider is configured, and ALLOW_DEV_CODES doesn’t include ${to.display}.`,
+      );
+      throw new Error(`${to.kind === "phone" ? "Texting" : "Emailing"} sign-in codes isn’t set up on this server yet.`);
     }
     console.log(`\n  🔑 Login code for ${to.display}: ${code}\n`);
     return { devCode: code };
@@ -43,7 +26,7 @@ export async function deliverCode(to: Identifier, code: string): Promise<Deliver
 async function sendSms(phone: string, code: string) {
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   // The last line lets Android Chrome autofill the code (WebOTP); iOS picks up "code" automatically.
-  const body = `${code} is your ${appName} code.\n\n@${appHost().split(":")[0]} #${code}`;
+  const body = `${code} is your ${appName} code.\n\n@${appHost()} #${code}`;
   const form = new URLSearchParams({ To: phone, Body: body });
   if (process.env.TWILIO_MESSAGING_SERVICE_SID) {
     form.set("MessagingServiceSid", process.env.TWILIO_MESSAGING_SERVICE_SID);

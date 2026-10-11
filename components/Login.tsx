@@ -20,7 +20,10 @@ const RESEND_SECONDS = 20;
 
 const ease = [0.32, 0.72, 0, 1] as const;
 
-export function Login() {
+/** Which ways of receiving a code this server can deliver. */
+export type Channels = Record<Mode, boolean>;
+
+export function Login({ channels }: { channels: Channels }) {
   const [step, setStep] = useState<"enter" | "code">("enter");
   const [to, setTo] = useState<Identifier | null>(null);
   const [devCode, setDevCode] = useState<string>();
@@ -41,6 +44,7 @@ export function Login() {
             transition={{ duration: 0.28, ease }}
           >
             <EnterStep
+              channels={channels}
               onSent={(identifier, code) => {
                 setTo(identifier);
                 setDevCode(code);
@@ -64,8 +68,10 @@ export function Login() {
   );
 }
 
-function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => void }) {
-  const [mode, setMode] = useState<Mode>("phone");
+function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Identifier, devCode?: string) => void }) {
+  const [mode, setMode] = useState<Mode>(channels.phone || !channels.email ? "phone" : "email");
+  const both = channels.phone && channels.email;
+  const none = !channels.phone && !channels.email;
   const [country, setCountry] = useState<CountryCode>("US");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
@@ -81,15 +87,15 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
     setCountry(guessCountry());
     try {
       const last = JSON.parse(localStorage.getItem(REMEMBER_KEY) ?? "null");
-      if (last?.mode === "email") {
+      if (last?.mode === "email" && channels.email) {
         setMode("email");
         setEmail(last.value ?? "");
-      } else if (last?.mode === "phone") {
+      } else if (last?.mode === "phone" && channels.phone) {
         setPhone(last.value ?? "");
         if (last.country) setCountry(last.country);
       }
     } catch {}
-  }, []);
+  }, [channels.email, channels.phone]);
 
   const parsed = useMemo(
     () => (mode === "phone" ? parseIdentifier(phone, country) : parseIdentifier(email)),
@@ -97,6 +103,7 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
   );
 
   const switchMode = (next: Mode, carry?: string) => {
+    if (!channels[next]) return;
     setMode(next);
     setError(undefined);
     if (carry !== undefined) (next === "email" ? setEmail : setPhone)(carry);
@@ -106,7 +113,7 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
   const onPhoneChange = (raw: string) => {
     setError(undefined);
     // Typed a letter or @? They meant email; take them there without losing a keystroke.
-    if (looksLikeEmail(raw)) return switchMode("email", raw);
+    if (looksLikeEmail(raw) && channels.email) return switchMode("email", raw);
     // Autofilled "+44 7700 900123": adopt the number's own country and show it nationally.
     if (raw.startsWith("+")) {
       const p = parsePhoneNumberFromString(raw);
@@ -154,9 +161,18 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
       <h1 className="font-serif text-[40px] leading-[1.05] font-medium tracking-tight text-balance">
         Every book you&rsquo;ve read. One link to share.
       </h1>
-      <p className="mt-4 text-[17px] text-muted">Sign in with your phone or email. No passwords, ever.</p>
+      <p className="mt-4 text-[17px] text-muted">
+        Sign in with your {both ? "phone or email" : mode === "phone" ? "phone number" : "email address"}. No passwords, ever.
+      </p>
 
-      <div className="mt-9 flex gap-1 rounded-full bg-surface-2 p-1 text-[15px] font-medium" role="tablist">
+      {none && (
+        <p className="mt-6 rounded-2xl border border-dashed border-line p-4 text-[14px] text-ink-2">
+          Sign-in codes aren&rsquo;t switched on for this server yet. Its owner needs to add a texting or email provider,
+          or set <code className="font-mono">ALLOW_DEV_CODES</code> for a demo.
+        </p>
+      )}
+
+      <div className={`mt-9 gap-1 rounded-full bg-surface-2 p-1 text-[15px] font-medium ${both ? "flex" : "hidden"}`} role="tablist">
         {(["phone", "email"] as const).map((m) => (
           <button
             key={m}
@@ -182,7 +198,7 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
       </div>
 
       <div
-        className={`mt-3 flex h-16 items-center rounded-2xl border bg-surface transition-colors focus-within:border-ink ${
+        className={`${both ? "mt-3" : "mt-9"} flex h-16 items-center rounded-2xl border bg-surface transition-colors focus-within:border-ink ${
           error ? "border-accent" : "border-line"
         }`}
       >
@@ -232,7 +248,7 @@ function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => v
         {error}
       </div>
 
-      <Button type="submit" className="mt-2 w-full" loading={sending} disabled={!parsed}>
+      <Button type="submit" className="mt-2 w-full" loading={sending} disabled={!parsed || none}>
         Send me a code
       </Button>
       <p className="mt-4 text-center text-[13px] text-muted">

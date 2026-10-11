@@ -1,5 +1,6 @@
 import "server-only";
 import { AuthError } from "./auth";
+import { SetupError } from "./db";
 
 /** Wraps a route handler so thrown errors become `{ error }` JSON with a sensible status. */
 export function route<A extends unknown[]>(fn: (...args: A) => Promise<Response>) {
@@ -8,6 +9,7 @@ export function route<A extends unknown[]>(fn: (...args: A) => Promise<Response>
       return await fn(...args);
     } catch (err) {
       if (err instanceof AuthError) return Response.json({ error: err.message }, { status: err.status });
+      if (err instanceof SetupError) return Response.json({ error: err.message }, { status: 503 });
       console.error(err);
       return Response.json({ error: "Something went wrong. Try again?" }, { status: 500 });
     }
