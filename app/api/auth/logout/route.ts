@@ -1,7 +1,8 @@
 import { signOut } from "@/lib/auth";
-import { route } from "@/lib/api";
+import { readJson, route } from "@/lib/api";
 
-export const POST = route(async () => {
-  await signOut();
+export const POST = route(async (req: Request) => {
+  const body = await readJson<{ everywhere: boolean }>(req);
+  await signOut({ everywhere: body.everywhere === true });
   return Response.json({ ok: true });
 });

@@ -23,10 +23,13 @@ const ease = [0.32, 0.72, 0, 1] as const;
 /** Which ways of receiving a code this server can deliver. */
 export type Channels = Record<Mode, boolean>;
 
+/** Where the code went when there's no texting/email provider (see lib/delivery.ts). */
+type Delivery = { devCode?: string; codeInLogs?: boolean };
+
 export function Login({ channels }: { channels: Channels }) {
   const [step, setStep] = useState<"enter" | "code">("enter");
   const [to, setTo] = useState<Identifier | null>(null);
-  const [devCode, setDevCode] = useState<string>();
+  const [delivery, setDelivery] = useState<Delivery>({});
 
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-[max(3rem,12vh)] pb-safe">
@@ -45,9 +48,9 @@ export function Login({ channels }: { channels: Channels }) {
           >
             <EnterStep
               channels={channels}
-              onSent={(identifier, code) => {
+              onSent={(identifier, sent) => {
                 setTo(identifier);
-                setDevCode(code);
+                setDelivery(sent);
                 setStep("code");
               }}
             />
@@ -60,7 +63,7 @@ export function Login({ channels }: { channels: Channels }) {
             exit={{ opacity: 0, x: 24 }}
             transition={{ duration: 0.28, ease }}
           >
-            <CodeStep to={to!} devCode={devCode} onDevCode={setDevCode} onBack={() => setStep("enter")} />
+            <CodeStep to={to!} delivery={delivery} onDelivery={setDelivery} onBack={() => setStep("enter")} />
           </motion.div>
         )}
       </AnimatePresence>
@@ -68,7 +71,7 @@ export function Login({ channels }: { channels: Channels }) {
   );
 }
 
-function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Identifier, devCode?: string) => void }) {
+function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Identifier, delivery: Delivery) => void }) {
   const [mode, setMode] = useState<Mode>(channels.phone || !channels.email ? "phone" : "email");
   const both = channels.phone && channels.email;
   const none = !channels.phone && !channels.email;
@@ -149,7 +152,7 @@ function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Iden
           JSON.stringify({ mode, value: mode === "phone" ? phone : email, country }),
         );
       } catch {}
-      onSent(data.to, data.devCode);
+      onSent(data.to, { devCode: data.devCode, codeInLogs: data.codeInLogs });
     } catch (err) {
       setError((err as Error).message || "Couldn't send the code.");
       setSending(false);
@@ -168,7 +171,7 @@ function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Iden
       {none && (
         <p className="mt-6 rounded-2xl border border-dashed border-line p-4 text-[14px] text-ink-2">
           Sign-in codes aren&rsquo;t switched on for this server yet. Its owner needs to add a texting or email provider,
-          or set <code className="font-mono">ALLOW_DEV_CODES</code> for a demo.
+          or set <code className="font-mono">ALLOW_DEV_CODES</code> to their phone number, then redeploy.
         </p>
       )}
 
@@ -291,13 +294,13 @@ function flag(country: string) {
 
 function CodeStep({
   to,
-  devCode,
-  onDevCode,
+  delivery: { devCode, codeInLogs },
+  onDelivery,
   onBack,
 }: {
   to: Identifier;
-  devCode?: string;
-  onDevCode: (c?: string) => void;
+  delivery: Delivery;
+  onDelivery: (d: Delivery) => void;
   onBack: () => void;
 }) {
   const router = useRouter();
@@ -372,7 +375,7 @@ function CodeStep({
     });
     const data = await res.json();
     if (!res.ok) setError(data.error);
-    else onDevCode(data.devCode);
+    else onDelivery({ devCode: data.devCode, codeInLogs: data.codeInLogs });
     inputRef.current?.focus();
   };
 
@@ -385,9 +388,12 @@ function CodeStep({
       >
         <Icon name="back" size={18} /> Back
       </button>
-      <h1 className="font-serif text-[36px] leading-[1.1] font-medium tracking-tight">Check your {to.kind === "phone" ? "messages" : "inbox"}</h1>
+      <h1 className="font-serif text-[36px] leading-[1.1] font-medium tracking-tight">
+        {codeInLogs ? "Enter your code" : `Check your ${to.kind === "phone" ? "messages" : "inbox"}`}
+      </h1>
       <p className="mt-3 text-[17px] text-muted">
-        Enter the code we sent to <span className="font-medium text-ink">{to.display}</span>
+        {codeInLogs ? "Enter the code for " : "Enter the code we sent to "}
+        <span className="font-medium text-ink">{to.display}</span>
       </p>
 
       <div key={shakeKey} className={`relative mt-8 ${shakeKey ? "animate-shake" : ""}`}>
@@ -454,6 +460,14 @@ function CodeStep({
           </span>
           <span className="rounded-full bg-surface-2 px-3 py-1.5 font-medium text-ink">Fill</span>
         </button>
+      )}
+
+      {codeInLogs && (
+        <p className="mt-8 rounded-2xl border border-dashed border-line px-4 py-3 text-[14px] text-muted">
+          <span className="block font-medium text-ink-2">No {to.kind === "phone" ? "texting" : "email"} provider connected yet</span>
+          Your code is in the server log. On Vercel: your project → <b className="font-medium text-ink-2">Logs</b>, then look
+          for &ldquo;Login code&rdquo;.
+        </p>
       )}
     </div>
   );

@@ -1,22 +1,24 @@
 import "server-only";
-import { appHost, devCodesAllowedFor, emailConfigured, smsConfigured } from "./config";
+import { appHost, devCodeDelivery, emailConfigured, smsConfigured } from "./config";
 import type { Identifier } from "./identifier";
 
-export type DeliveryResult = { devCode?: string };
+/** `devCode`: show it on screen. `codeInLogs`: it's in the server log for the owner to read. */
+export type DeliveryResult = { devCode?: string; codeInLogs?: boolean };
 
 const appName = "Shelf";
 
 export async function deliverCode(to: Identifier, code: string): Promise<DeliveryResult> {
   const configured = to.kind === "phone" ? smsConfigured() : emailConfigured();
   if (!configured) {
-    if (!devCodesAllowedFor(to.value)) {
+    const delivery = devCodeDelivery(to.value);
+    if (!delivery) {
       console.warn(
         `No ${to.kind === "phone" ? "SMS (Twilio)" : "email (Resend)"} provider is configured, and ALLOW_DEV_CODES doesn’t include ${to.display}.`,
       );
       throw new Error(`${to.kind === "phone" ? "Texting" : "Emailing"} sign-in codes isn’t set up on this server yet.`);
     }
     console.log(`\n  🔑 Login code for ${to.display}: ${code}\n`);
-    return { devCode: code };
+    return delivery === "screen" ? { devCode: code } : { codeInLogs: true };
   }
   if (to.kind === "phone") await sendSms(to.value, code);
   else await sendEmail(to.value, code);

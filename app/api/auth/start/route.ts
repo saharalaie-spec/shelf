@@ -7,6 +7,6 @@ export const POST = route(async (req: Request) => {
   const body = await readJson<{ identifier: string; country: CountryCode }>(req);
   const to = parseIdentifier(String(body.identifier ?? ""), body.country);
   if (!to) throw new AuthError("That doesn’t look like a phone number or email.");
-  const { devCode } = await startLogin(to);
-  return Response.json({ to, devCode });
+  const { devCode, codeInLogs } = await startLogin(to);
+  return Response.json({ to, devCode, codeInLogs });
 });

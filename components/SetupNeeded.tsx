@@ -16,6 +16,12 @@ export function SetupNeeded() {
         {[
           <>Open this project and go to <b className="font-medium text-ink">Storage</b>.</>,
           <>Choose <b className="font-medium text-ink">Create Database → Turso</b> (free), and connect it to this project.</>,
+          <>
+            In <b className="font-medium text-ink">Settings → Environment Variables</b>, add{" "}
+            <code className="font-mono text-ink">ALLOW_DEV_CODES</code> = your phone number starting with + and your country
+            code. Until you connect texting or email, your sign-in code appears in the project&rsquo;s{" "}
+            <b className="font-medium text-ink">Logs</b>.
+          </>,
           <>Go to <b className="font-medium text-ink">Deployments</b> and redeploy the latest one.</>,
         ].map((step, i) => (
           <li key={i} className="flex gap-3">

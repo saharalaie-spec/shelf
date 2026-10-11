@@ -4,9 +4,6 @@ import { readJson, route } from "@/lib/api";
 
 const TYPES = ["image/jpeg", "image/png", "image/webp"] as const;
 
-// Reading a shelf photo can take a while; give it more than the platform default.
-export const maxDuration = 60;
-
 export const POST = route(async (req: Request) => {
   await requireUser();
   if (!aiEnabled()) throw new AuthError("Photo recognition isn't set up on this server.", 501);

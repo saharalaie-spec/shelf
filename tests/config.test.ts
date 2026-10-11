@@ -1,29 +1,39 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { databaseUrl, devCodesAllowedFor, signInChannels } from "@/lib/config";
+import { databaseUrl, devCodeDelivery, signInChannels } from "@/lib/config";
 
 afterEach(() => vi.unstubAllEnvs());
 
-describe("devCodesAllowedFor", () => {
-  it("always allows on-screen codes in development", () => {
+describe("devCodeDelivery", () => {
+  it("shows codes on screen in development", () => {
     vi.stubEnv("NODE_ENV", "development");
-    expect(devCodesAllowedFor("+14155550132")).toBe(true);
+    expect(devCodeDelivery("+14155550132")).toBe("screen");
   });
 
-  it("refuses them in production unless ALLOW_DEV_CODES is set", () => {
+  it("refuses in production unless ALLOW_DEV_CODES is set, and '1' means anyone, on screen", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("ALLOW_DEV_CODES", "");
-    expect(devCodesAllowedFor("+14155550132")).toBe(false);
+    expect(devCodeDelivery("+14155550132")).toBeNull();
     vi.stubEnv("ALLOW_DEV_CODES", "1");
-    expect(devCodesAllowedFor("+14155550132")).toBe(true);
+    expect(devCodeDelivery("+14155550132")).toBe("screen");
   });
 
-  it("limits them to listed numbers and emails, however they're written", () => {
+  it("sends listed numbers and emails to the server log, never the screen, however they're written", () => {
     vi.stubEnv("NODE_ENV", "production");
-    vi.stubEnv("ALLOW_DEV_CODES", "+1 (415) 555-0132, Me@Example.com");
-    expect(devCodesAllowedFor("+14155550132")).toBe(true);
-    expect(devCodesAllowedFor("me@example.com")).toBe(true);
-    expect(devCodesAllowedFor("+14155550199")).toBe(false);
-    expect(devCodesAllowedFor("someone@else.com")).toBe(false);
+    vi.stubEnv("ALLOW_DEV_CODES", "1 (415) 555-0132, Me@Example.com, +44 7911 123456");
+    expect(devCodeDelivery("+14155550132")).toBe("log");
+    expect(devCodeDelivery("me@example.com")).toBe("log");
+    expect(devCodeDelivery("+447911123456")).toBe("log");
+    expect(devCodeDelivery("+14155550199")).toBeNull();
+    expect(devCodeDelivery("someone@else.com")).toBeNull();
+  });
+
+  it("warns about entries it can't read instead of guessing a country", () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("ALLOW_DEV_CODES", "(415) 555-0132");
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(devCodeDelivery("+14155550132")).toBeNull();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("+<country code><number>"));
+    warn.mockRestore();
   });
 });
 

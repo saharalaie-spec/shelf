@@ -50,82 +50,94 @@ const hashToken = (token: string) => createHash("sha256").update(token).digest("
 export async function startLogin(to: Identifier) {
   const client = await db();
   const now = Date.now();
-  const existing = (
-    await client.execute({ sql: "SELECT * FROM login_codes WHERE identifier = ?", args: [to.value] })
-  ).rows[0];
+  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
+  const windowOpen = now - SEND_WINDOW_MS;
 
-  let sends = 1;
-  let windowStart = now;
-  if (existing) {
-    if (now - Number(existing.last_sent_at) < RESEND_COOLDOWN_MS) {
+  // One statement claims the send, so simultaneous requests can't slip past the limits:
+  // a first code inserts the row; a later one only replaces it when the cooldown has passed
+  // and this 15-minute window still has sends left.
+  const claimed = await client.execute({
+    sql: `INSERT INTO login_codes (identifier, code_hash, expires_at, attempts, sends, window_start, last_sent_at)
+          VALUES (?1, ?2, ?3, 0, 1, ?4, ?4)
+          ON CONFLICT (identifier) DO UPDATE SET
+            code_hash = excluded.code_hash,
+            expires_at = excluded.expires_at,
+            attempts = 0,
+            sends = CASE WHEN login_codes.window_start > ?5 THEN login_codes.sends + 1 ELSE 1 END,
+            window_start = CASE WHEN login_codes.window_start > ?5 THEN login_codes.window_start ELSE excluded.window_start END,
+            last_sent_at = excluded.last_sent_at
+          WHERE login_codes.last_sent_at <= ?6
+            AND (login_codes.window_start <= ?5 OR login_codes.sends < ?7)
+          RETURNING identifier`,
+    args: [to.value, await hashCode(to.value, code), now + CODE_TTL_MS, now, windowOpen, now - RESEND_COOLDOWN_MS, MAX_SENDS_PER_WINDOW],
+  });
+  if (!claimed.rows.length) {
+    const row = (
+      await client.execute({ sql: "SELECT last_sent_at FROM login_codes WHERE identifier = ?", args: [to.value] })
+    ).rows[0];
+    if (row && now - Number(row.last_sent_at) < RESEND_COOLDOWN_MS) {
       throw new AuthError("Hang on a few seconds before asking for another code.", 429);
     }
-    if (now - Number(existing.window_start) < SEND_WINDOW_MS) {
-      sends = Number(existing.sends) + 1;
-      windowStart = Number(existing.window_start);
-      if (sends > MAX_SENDS_PER_WINDOW) {
-        throw new AuthError("Too many codes requested. Try again in a few minutes.", 429);
-      }
-    }
+    throw new AuthError("Too many codes requested. Try again in a few minutes.", 429);
   }
-
-  const code = randomInt(0, 1_000_000).toString().padStart(6, "0");
-  await client.execute({
-    sql: `INSERT INTO login_codes (identifier, code_hash, expires_at, attempts, sends, window_start, last_sent_at)
-          VALUES (?, ?, ?, 0, ?, ?, ?)
-          ON CONFLICT (identifier) DO UPDATE SET
-            code_hash = excluded.code_hash, expires_at = excluded.expires_at, attempts = 0,
-            sends = excluded.sends, window_start = excluded.window_start, last_sent_at = excluded.last_sent_at`,
-    args: [to.value, await hashCode(to.value, code), now + CODE_TTL_MS, sends, windowStart, now],
-  });
 
   try {
     return await deliverCode(to, code);
   } catch (err) {
-    await client.execute({ sql: "DELETE FROM login_codes WHERE identifier = ?", args: [to.value] });
+    // Void the code but keep the send count, so failed sends still count toward the limit.
+    await client.execute({
+      sql: "UPDATE login_codes SET expires_at = 0, last_sent_at = 0 WHERE identifier = ?",
+      args: [to.value],
+    });
     throw new AuthError(err instanceof Error ? err.message : "Couldn’t send the code.", 502);
   }
 }
 
 export async function verifyLogin(to: Identifier, code: string) {
   const client = await db();
-  const row = (
-    await client.execute({ sql: "SELECT * FROM login_codes WHERE identifier = ?", args: [to.value] })
-  ).rows[0];
+  const now = Date.now();
 
-  if (!row || Number(row.expires_at) < Date.now()) {
+  // Spend one of the 5 tries before comparing, in a single statement, so parallel guesses
+  // can't all see "0 tries used".
+  const claim = await client.execute({
+    sql: `UPDATE login_codes SET attempts = attempts + 1
+          WHERE identifier = ? AND attempts < ? AND expires_at > ?
+          RETURNING code_hash`,
+    args: [to.value, MAX_ATTEMPTS, now],
+  });
+  const row = claim.rows[0];
+  if (!row) {
+    const current = (
+      await client.execute({ sql: "SELECT expires_at FROM login_codes WHERE identifier = ?", args: [to.value] })
+    ).rows[0];
+    if (current && Number(current.expires_at) > now) throw new AuthError("Too many tries. Tap “Send a new code”.", 429);
     throw new AuthError("That code expired. Tap “Send a new code”.");
-  }
-  if (Number(row.attempts) >= MAX_ATTEMPTS) {
-    throw new AuthError("Too many tries. Tap “Send a new code”.", 429);
   }
 
   const expected = Buffer.from(String(row.code_hash), "hex");
   const actual = Buffer.from(await hashCode(to.value, code.replace(/\D/g, "")), "hex");
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
-    await client.execute({
-      sql: "UPDATE login_codes SET attempts = attempts + 1 WHERE identifier = ?",
-      args: [to.value],
-    });
     throw new AuthError("That code didn’t match. Try again.");
   }
 
-  await client.execute({ sql: "DELETE FROM login_codes WHERE identifier = ?", args: [to.value] });
+  // A code signs in once: only the request that deletes it goes on.
+  const used = await client.execute({
+    sql: "DELETE FROM login_codes WHERE identifier = ? AND code_hash = ? RETURNING identifier",
+    args: [to.value, String(row.code_hash)],
+  });
+  if (!used.rows.length) throw new AuthError("That code was already used. Tap “Send a new code”.");
 
   const column = to.kind === "email" ? "email" : "phone";
-  const found = (
-    await client.execute({ sql: `SELECT id FROM users WHERE ${column} = ?`, args: [to.value] })
-  ).rows[0];
-  const userId = found ? String(found.id) : randomUUID();
-  if (!found) {
-    await client.execute({
-      sql: `INSERT INTO users (id, ${column}, created_at) VALUES (?, ?, ?)`,
-      args: [userId, to.value, Date.now()],
-    });
-  }
+  const created = await client.execute({
+    sql: `INSERT INTO users (id, ${column}, created_at) VALUES (?, ?, ?) ON CONFLICT (${column}) DO NOTHING RETURNING id`,
+    args: [randomUUID(), to.value, now],
+  });
+  const userId = created.rows.length
+    ? String(created.rows[0].id)
+    : String((await client.execute({ sql: `SELECT id FROM users WHERE ${column} = ?`, args: [to.value] })).rows[0].id);
 
   await createSession(userId);
-  return { isNew: !found };
+  return { isNew: created.rows.length > 0 };
 }
 
 async function createSession(userId: string) {
@@ -172,12 +184,20 @@ export async function requireUser(): Promise<User> {
   return user;
 }
 
-export async function signOut() {
+/** Signs out this browser, or with `everywhere`, every device signed in to this account. */
+export async function signOut({ everywhere = false } = {}) {
   const jar = await cookies();
   const token = jar.get(SESSION_COOKIE)?.value;
   if (token) {
     const client = await db();
-    await client.execute({ sql: "DELETE FROM sessions WHERE token_hash = ?", args: [hashToken(token)] });
+    await client.execute(
+      everywhere
+        ? {
+            sql: "DELETE FROM sessions WHERE user_id = (SELECT user_id FROM sessions WHERE token_hash = ?)",
+            args: [hashToken(token)],
+          }
+        : { sql: "DELETE FROM sessions WHERE token_hash = ?", args: [hashToken(token)] },
+    );
   }
   jar.delete(SESSION_COOKIE);
 }

@@ -22,22 +22,41 @@ export const emailConfigured = () => Boolean(process.env.RESEND_API_KEY && proce
 const isProduction = () => process.env.NODE_ENV === "production";
 const devCodesSetting = () => process.env.ALLOW_DEV_CODES?.trim() ?? "";
 
-/** Whether some sign-ins may get their code on screen instead of by SMS/email. */
+/** Whether some sign-ins can get a code without a texting or email provider. */
 export const devCodesEnabled = () => !isProduction() || devCodesSetting() !== "";
 
-/**
- * On-screen codes: always in development. In production only when ALLOW_DEV_CODES is set,
- * either to "1" (anyone, for a private demo) or to a comma-separated list of the phone numbers
- * (with country code) and emails that may sign in that way.
- */
-export function devCodesAllowedFor(identifier: string) {
-  if (!isProduction()) return true;
-  const setting = devCodesSetting();
-  if (setting === "1") return true;
-  return setting
+const warned = new Set<string>();
+
+/** ALLOW_DEV_CODES entries, normalized like sign-in identifiers. "14155550123" reads as "+14155550123". */
+function allowList() {
+  return devCodesSetting()
     .split(",")
-    .map((entry) => parseIdentifier(entry)?.value)
-    .some((value) => value === identifier);
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+    .flatMap((entry) => {
+      const parsed =
+        parseIdentifier(entry) ?? (/^[\d\s().-]+$/.test(entry) ? parseIdentifier(`+${entry.replace(/\D/g, "")}`) : null);
+      if (!parsed && !warned.has(entry)) {
+        warned.add(entry);
+        console.warn(
+          `ALLOW_DEV_CODES entry "${entry}" isn’t a phone number or email. Write phone numbers as +<country code><number>, e.g. +14155550123.`,
+        );
+      }
+      return parsed ? [parsed.value] : [];
+    });
+}
+
+/**
+ * How a sign-in code reaches someone when no texting/email provider is set up:
+ * - "screen": shown in the app. Always in development; in production only with ALLOW_DEV_CODES=1,
+ *   which lets anyone sign in as anyone (private demos only).
+ * - "log": written to the server log (Vercel → Logs), for the numbers and emails listed in
+ *   ALLOW_DEV_CODES. Only people who can open the project's logs can read it.
+ * - null: no way to deliver it.
+ */
+export function devCodeDelivery(identifier: string): "screen" | "log" | null {
+  if (!isProduction() || devCodesSetting() === "1") return "screen";
+  return allowList().includes(identifier) ? "log" : null;
 }
 
 /** Which sign-in tabs can actually deliver a code on this server. */

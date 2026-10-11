@@ -41,11 +41,12 @@ npm run build
 3. Open the site it gives you. You'll see an **Almost live** page: the app needs a database.
    In the Vercel project, open **Storage → Create Database → Turso**, create the free database and connect it to the project. This adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for you.
 4. Still in the project, open **Settings → Environment Variables** and add
-   `ALLOW_DEV_CODES` = your phone number with country code, for example `+14155550123` (add your email too, separated by a comma, if you like).
-   Until you connect Twilio or Resend, sign-in codes for those numbers and emails appear on screen. Anyone else gets "not set up yet". Friends opening your share links don't need to sign in at all.
-5. Open **Deployments**, tap **⋯ → Redeploy** on the latest one, then open the site on your phone. In Safari, **Share → Add to Home Screen** makes it open like an app.
+   `ALLOW_DEV_CODES` = your phone number starting with `+` and your country code, for example `+14155550123`. You can add your email too, separated by a comma.
+   This lets you sign in before Twilio or Resend is connected: your code isn't shown on screen; it's written to the project's **Logs**, which only you can open. Anyone else who tries to sign in gets "not set up yet". Friends opening your share links never need to sign in.
+5. Open **Deployments** and tap **⋯ → Redeploy** on the latest one. Then, on your phone:
+   open the site, enter your number, switch to the Vercel project's **Logs** tab and find the line "Login code for +1 …", then type the code. You stay signed in for 400 days. In Safari, **Share → Add to Home Screen** makes Shelf open like an app.
 
-After that, every push to `main` goes live by itself. Optional extras, in the same Environment Variables screen: `ANTHROPIC_API_KEY` turns on "Snap your shelf", and the Twilio or Resend keys below send real codes (then remove `ALLOW_DEV_CODES`).
+After that, every push to `main` goes live by itself. Optional extras, in the same Environment Variables screen: `ANTHROPIC_API_KEY` turns on "Snap your shelf", and the Twilio or Resend keys below send real codes (then remove `ALLOW_DEV_CODES`). **Variables only take effect after a redeploy** (Deployments → ⋯ → Redeploy).
 
 ## Configuration
 
@@ -61,7 +62,7 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | Shelf photo | `ANTHROPIC_API_KEY` |
 | Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
 
-In production, codes are only shown on screen for the numbers and emails listed in `ALLOW_DEV_CODES` (comma-separated, phone numbers with country code). `ALLOW_DEV_CODES=1` allows anyone, which lets anyone sign in as anyone, so use it only for a private demo.
+Without a texting or email provider, production sign-in only works for the numbers and emails listed in `ALLOW_DEV_CODES` (comma-separated, phone numbers starting with `+` and the country code), and their codes go to the server log, never the screen. `ALLOW_DEV_CODES=1` instead shows every code on screen, which lets anyone sign in as anyone: only use it for a throwaway demo, and afterwards use **You → Sign out on all devices**.
 
 ## How it's built
 
