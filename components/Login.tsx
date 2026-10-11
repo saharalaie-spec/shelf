@@ -1,0 +1,444 @@
+"use client";
+
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react";
+import { getCountries, parsePhoneNumberFromString, type CountryCode } from "libphonenumber-js/min";
+import {
+  dialCode,
+  formatPhoneAsYouType,
+  guessCountry,
+  looksLikeEmail,
+  parseIdentifier,
+  type Identifier,
+} from "@/lib/identifier";
+import { Button, Icon, Logo, useHydrated } from "./ui";
+
+type Mode = "phone" | "email";
+const REMEMBER_KEY = "shelf:last-login";
+const RESEND_SECONDS = 20;
+
+const ease = [0.32, 0.72, 0, 1] as const;
+
+export function Login() {
+  const [step, setStep] = useState<"enter" | "code">("enter");
+  const [to, setTo] = useState<Identifier | null>(null);
+  const [devCode, setDevCode] = useState<string>();
+
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-[max(3rem,12vh)] pb-safe">
+      <div className="mb-10 flex items-center gap-2.5">
+        <Logo />
+        <span className="font-serif text-[22px] font-semibold tracking-tight">Shelf</span>
+      </div>
+      <AnimatePresence mode="wait" initial={false}>
+        {step === "enter" ? (
+          <motion.div
+            key="enter"
+            initial={{ opacity: 0, x: -24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -24 }}
+            transition={{ duration: 0.28, ease }}
+          >
+            <EnterStep
+              onSent={(identifier, code) => {
+                setTo(identifier);
+                setDevCode(code);
+                setStep("code");
+              }}
+            />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="code"
+            initial={{ opacity: 0, x: 24 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 24 }}
+            transition={{ duration: 0.28, ease }}
+          >
+            <CodeStep to={to!} devCode={devCode} onDevCode={setDevCode} onBack={() => setStep("enter")} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </main>
+  );
+}
+
+function EnterStep({ onSent }: { onSent: (to: Identifier, devCode?: string) => void }) {
+  const [mode, setMode] = useState<Mode>("phone");
+  const [country, setCountry] = useState<CountryCode>("US");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  const [error, setError] = useState<string>();
+  const [sending, setSending] = useState(false);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+
+  // Remember how this person signed in last time, so returning is one tap.
+  // (Browser-only values, so they're read after hydration.)
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setCountry(guessCountry());
+    try {
+      const last = JSON.parse(localStorage.getItem(REMEMBER_KEY) ?? "null");
+      if (last?.mode === "email") {
+        setMode("email");
+        setEmail(last.value ?? "");
+      } else if (last?.mode === "phone") {
+        setPhone(last.value ?? "");
+        if (last.country) setCountry(last.country);
+      }
+    } catch {}
+  }, []);
+
+  const parsed = useMemo(
+    () => (mode === "phone" ? parseIdentifier(phone, country) : parseIdentifier(email)),
+    [mode, phone, email, country],
+  );
+
+  const switchMode = (next: Mode, carry?: string) => {
+    setMode(next);
+    setError(undefined);
+    if (carry !== undefined) (next === "email" ? setEmail : setPhone)(carry);
+    requestAnimationFrame(() => (next === "email" ? emailRef : phoneRef).current?.focus());
+  };
+
+  const onPhoneChange = (raw: string) => {
+    setError(undefined);
+    // Typed a letter or @? They meant email; take them there without losing a keystroke.
+    if (looksLikeEmail(raw)) return switchMode("email", raw);
+    // Autofilled "+44 7700 900123": adopt the number's own country and show it nationally.
+    if (raw.startsWith("+")) {
+      const p = parsePhoneNumberFromString(raw);
+      if (p?.isValid() && p.country) {
+        setCountry(p.country);
+        setPhone(p.formatNational());
+        return;
+      }
+    }
+    // Only reformat while typing forward, so backspace never fights the formatter.
+    setPhone(raw.length > phone.length ? formatPhoneAsYouType(raw, country) : raw);
+  };
+
+  const submit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!parsed || sending) {
+      if (!parsed) setError(mode === "phone" ? "Check the number." : "Check the email address.");
+      return;
+    }
+    setSending(true);
+    setError(undefined);
+    try {
+      const res = await fetch("/api/auth/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: parsed.value, country }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      try {
+        localStorage.setItem(
+          REMEMBER_KEY,
+          JSON.stringify({ mode, value: mode === "phone" ? phone : email, country }),
+        );
+      } catch {}
+      onSent(data.to, data.devCode);
+    } catch (err) {
+      setError((err as Error).message || "Couldn't send the code.");
+      setSending(false);
+    }
+  };
+
+  return (
+    <form onSubmit={submit} noValidate>
+      <h1 className="font-serif text-[40px] leading-[1.05] font-medium tracking-tight text-balance">
+        Every book you&rsquo;ve read. One link to share.
+      </h1>
+      <p className="mt-4 text-[17px] text-muted">Sign in with your phone or email. No passwords, ever.</p>
+
+      <div className="mt-9 flex gap-1 rounded-full bg-surface-2 p-1 text-[15px] font-medium" role="tablist">
+        {(["phone", "email"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={mode === m}
+            onClick={() => switchMode(m)}
+            className="relative flex h-10 flex-1 items-center justify-center gap-2 rounded-full"
+          >
+            {mode === m && (
+              <motion.span
+                layoutId="mode-pill"
+                className="absolute inset-0 rounded-full bg-surface shadow-book"
+                transition={{ type: "spring", bounce: 0.15, duration: 0.4 }}
+              />
+            )}
+            <span className={`relative flex items-center gap-2 ${mode === m ? "text-ink" : "text-muted"}`}>
+              <Icon name={m === "phone" ? "phone" : "mail"} size={17} />
+              {m === "phone" ? "Phone" : "Email"}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div
+        className={`mt-3 flex h-16 items-center rounded-2xl border bg-surface transition-colors focus-within:border-ink ${
+          error ? "border-accent" : "border-line"
+        }`}
+      >
+        {mode === "phone" ? (
+          <>
+            <label className="relative flex h-full shrink-0 items-center gap-1.5 border-r border-line pr-3 pl-4 text-[17px]">
+              <span aria-hidden>{flag(country)}</span>
+              <span className="text-ink-2 tabular-nums">{dialCode(country)}</span>
+              <CountrySelect value={country} onChange={setCountry} />
+            </label>
+            <input
+              ref={phoneRef}
+              key="phone"
+              autoFocus
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="Phone number"
+              value={phone}
+              onChange={(e) => onPhoneChange(e.target.value)}
+              className="h-full min-w-0 flex-1 bg-transparent px-3 text-[19px] tracking-wide outline-none placeholder:text-muted/70"
+            />
+          </>
+        ) : (
+          <input
+            ref={emailRef}
+            key="email"
+            autoFocus
+            type="email"
+            inputMode="email"
+            autoComplete="email"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => {
+              setError(undefined);
+              setEmail(e.target.value);
+            }}
+            className="h-full min-w-0 flex-1 bg-transparent px-4 text-[19px] outline-none placeholder:text-muted/70"
+          />
+        )}
+      </div>
+
+      <div className="mt-2 min-h-6 text-[14px] text-accent" aria-live="polite">
+        {error}
+      </div>
+
+      <Button type="submit" className="mt-2 w-full" loading={sending} disabled={!parsed}>
+        Send me a code
+      </Button>
+      <p className="mt-4 text-center text-[13px] text-muted">
+        We&rsquo;ll {mode === "phone" ? "text" : "email"} you a 6-digit code. That&rsquo;s it.
+      </p>
+    </form>
+  );
+}
+
+function CountrySelect({ value, onChange }: { value: CountryCode; onChange: (c: CountryCode) => void }) {
+  // Country names come from the visitor's own locale, which the server can't know; list them after hydration.
+  const hydrated = useHydrated();
+  const options = useMemo(() => {
+    if (!hydrated) return [{ code: value, name: value }];
+    const names = new Intl.DisplayNames(undefined, { type: "region" });
+    return getCountries()
+      .map((c) => ({ code: c, name: names.of(c) ?? c }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [hydrated, value]);
+  // The native picker is the smoothest on phones; it sits invisibly over the flag.
+  return (
+    <select
+      aria-label="Country"
+      value={value}
+      onChange={(e) => onChange(e.target.value as CountryCode)}
+      className="absolute inset-0 cursor-pointer opacity-0"
+    >
+      {options.map((o) => (
+        <option key={o.code} value={o.code}>
+          {`${o.name} (${dialCode(o.code)})`}
+        </option>
+      ))}
+    </select>
+  );
+}
+
+function flag(country: string) {
+  return String.fromCodePoint(...[...country].map((c) => 0x1f1e6 + c.charCodeAt(0) - 65));
+}
+
+function CodeStep({
+  to,
+  devCode,
+  onDevCode,
+  onBack,
+}: {
+  to: Identifier;
+  devCode?: string;
+  onDevCode: (c?: string) => void;
+  onBack: () => void;
+}) {
+  const router = useRouter();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string>();
+  const [shakeKey, setShakeKey] = useState(0);
+  const [verifying, setVerifying] = useState(false);
+  const [done, setDone] = useState(false);
+  const [, startTransition] = useTransition();
+  const [cooldown, setCooldown] = useState(RESEND_SECONDS);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [cooldown]);
+
+  const verify = async (value: string) => {
+    setVerifying(true);
+    setError(undefined);
+    try {
+      const res = await fetch("/api/auth/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: to.value, code: value }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDone(true);
+      startTransition(() => router.refresh());
+    } catch (err) {
+      setError((err as Error).message);
+      setShakeKey((k) => k + 1);
+      setCode("");
+      setVerifying(false);
+      navigator.vibrate?.(40);
+      inputRef.current?.focus();
+    }
+  };
+
+  // Submit the moment the sixth digit lands — no button to hunt for.
+  const enter = (value: string) => {
+    const digits = value.replace(/\D/g, "").slice(0, 6);
+    setError(undefined);
+    setCode(digits);
+    if (digits.length === 6 && !verifying && !done) verify(digits);
+  };
+
+  // Android Chrome can read the code straight from the SMS (WebOTP).
+  const onSmsCode = useEffectEvent(enter);
+  useEffect(() => {
+    if (to.kind !== "phone" || !("OTPCredential" in window)) return;
+    const ac = new AbortController();
+    navigator.credentials
+      .get({ otp: { transport: ["sms"] }, signal: ac.signal } as CredentialRequestOptions)
+      .then((cred) => {
+        const otp = (cred as unknown as { code?: string } | null)?.code;
+        if (otp) onSmsCode(otp);
+      })
+      .catch(() => {});
+    return () => ac.abort();
+  }, [to.kind]);
+
+  const resend = async () => {
+    setCooldown(RESEND_SECONDS);
+    setError(undefined);
+    const res = await fetch("/api/auth/start", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: to.value }),
+    });
+    const data = await res.json();
+    if (!res.ok) setError(data.error);
+    else onDevCode(data.devCode);
+    inputRef.current?.focus();
+  };
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="-ml-2 mb-6 flex h-10 items-center gap-1 rounded-full pr-3 pl-2 text-[15px] text-muted active:bg-surface-2"
+      >
+        <Icon name="back" size={18} /> Back
+      </button>
+      <h1 className="font-serif text-[36px] leading-[1.1] font-medium tracking-tight">Check your {to.kind === "phone" ? "messages" : "inbox"}</h1>
+      <p className="mt-3 text-[17px] text-muted">
+        Enter the code we sent to <span className="font-medium text-ink">{to.display}</span>
+      </p>
+
+      <div key={shakeKey} className={`relative mt-8 ${shakeKey ? "animate-shake" : ""}`}>
+        <input
+          ref={inputRef}
+          autoFocus
+          value={code}
+          onChange={(e) => enter(e.target.value)}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          pattern="[0-9]*"
+          maxLength={6}
+          disabled={verifying || done}
+          aria-label="6-digit code"
+          className="absolute inset-0 z-10 w-full cursor-text bg-transparent text-[16px] text-transparent caret-transparent outline-none selection:bg-transparent"
+        />
+        <div className="grid grid-cols-6 gap-2" aria-hidden>
+          {Array.from({ length: 6 }, (_, i) => {
+            const char = code[i];
+            const active = i === code.length && !verifying && !done;
+            return (
+              <div
+                key={i}
+                className={`flex aspect-[4/5] items-center justify-center rounded-2xl border bg-surface font-serif text-[30px] tabular-nums transition-colors ${
+                  done ? "border-good text-good" : error ? "border-accent" : active ? "border-ink" : "border-line"
+                }`}
+              >
+                {char ? (
+                  <motion.span initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}>
+                    {char}
+                  </motion.span>
+                ) : active ? (
+                  <span className="h-7 w-[2px] animate-caret rounded bg-ink" />
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mt-3 min-h-6 text-[14px] text-accent" aria-live="polite">
+        {done ? <span className="text-good">You&rsquo;re in. Opening your shelf…</span> : error}
+      </div>
+
+      <div className="mt-3 text-[15px] text-muted">
+        {cooldown > 0 ? (
+          <span>Didn&rsquo;t get it? You can resend in {cooldown}s</span>
+        ) : (
+          <button type="button" onClick={resend} className="font-medium text-ink underline-offset-4 hover:underline">
+            Send a new code
+          </button>
+        )}
+      </div>
+
+      {devCode && (
+        <button
+          type="button"
+          onClick={() => enter(devCode)}
+          className="mt-8 flex w-full items-center justify-between gap-3 rounded-2xl border border-dashed border-line px-4 py-3 text-left text-[14px] text-muted active:bg-surface-2"
+        >
+          <span>
+            <span className="block font-medium text-ink-2">Dev mode: no {to.kind === "phone" ? "SMS" : "email"} provider set up</span>
+            Your code is <span className="font-mono text-ink">{devCode}</span>
+          </span>
+          <span className="rounded-full bg-surface-2 px-3 py-1.5 font-medium text-ink">Fill</span>
+        </button>
+      )}
+    </div>
+  );
+}

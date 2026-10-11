@@ -1,0 +1,84 @@
+import { ImageResponse } from "next/og";
+import { plural, shelfTitle } from "@/lib/client";
+import { getSharedShelf } from "@/lib/shelf";
+
+export const alt = "A shelf of books on Shelf";
+export const size = { width: 1200, height: 630 };
+export const contentType = "image/png";
+
+const PALETTE = ["#2f4b3a", "#34466b", "#7a2e2e", "#9a6c22", "#4b5960", "#5b3a5e"];
+
+/** Inline covers as data URLs; a cover that's slow or missing just becomes a typeset one. */
+async function inline(url: string | null) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url.replace("-M.jpg", "-L.jpg"), { signal: AbortSignal.timeout(2500) });
+    if (!res.ok) return null;
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 1000) return null;
+    return `data:${res.headers.get("content-type") ?? "image/jpeg"};base64,${buf.toString("base64")}`;
+  } catch {
+    return null;
+  }
+}
+
+export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const shelf = await getSharedShelf(slug);
+  const books = shelf?.books.slice(0, 5) ?? [];
+  const covers = await Promise.all(books.map((b) => inline(b.coverUrl)));
+  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category) : "Shelf";
+  const mid = (books.length - 1) / 2;
+
+  return new ImageResponse(
+    (
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#f6f1e8", padding: 72, color: "#1d1a16" }}>
+        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 500, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 30, fontWeight: 600 }}>
+            <div style={{ display: "flex", gap: 4, alignItems: "flex-end" }}>
+              <div style={{ width: 10, height: 34, background: "#1d1a16", borderRadius: 2 }} />
+              <div style={{ width: 10, height: 40, background: "#b5532c", borderRadius: 2 }} />
+              <div style={{ width: 10, height: 32, background: "#4a453e", borderRadius: 2 }} />
+            </div>
+            Shelf
+          </div>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>
+            <div style={{ fontSize: 32, color: "#7a7368", marginTop: 20 }}>
+              {`${plural(shelf?.books.length ?? 0, "book")} read`}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flex: 1, alignItems: "center", justifyContent: "center", paddingLeft: 24 }}>
+          {books.map((b, i) => (
+            <div
+              key={b.id}
+              style={{
+                display: "flex",
+                width: 136,
+                height: 204,
+                flexShrink: 0,
+                marginLeft: i === 0 ? 0 : -34,
+                transform: `rotate(${(i - mid) * 6}deg) translateY(${Math.abs(i - mid) * 14}px)`,
+                borderRadius: 8,
+                overflow: "hidden",
+                boxShadow: "0 18px 40px -12px rgba(28,22,14,0.45)",
+                background: PALETTE[i % PALETTE.length],
+              }}
+            >
+              {covers[i] ? (
+                <img src={covers[i]!} width={136} height={204} style={{ objectFit: "cover" }} alt="" />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: 14, color: "#f6efe2" }}>
+                  <div style={{ fontSize: 19, lineHeight: 1.1, fontWeight: 600 }}>{b.title.slice(0, 48)}</div>
+                  <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75, textTransform: "uppercase" }}>{(b.author ?? "").slice(0, 30)}</div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+    size,
+  );
+}
