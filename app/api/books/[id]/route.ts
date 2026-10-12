@@ -1,15 +1,17 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
-import { removeBook, updateCategories } from "@/lib/shelf";
+import { removeBook, updateBook } from "@/lib/shelf";
+import { isStatus, type Status } from "@/lib/types";
 
 export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/books/[id]">) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const body = await readJson<{ categories: string[] }>(req);
-  if (!Array.isArray(body.categories)) throw new AuthError("categories must be a list.");
-  const categories = await updateCategories(user.id, id, body.categories.map(String));
-  if (!categories) throw new AuthError("Book not found.", 404);
-  return Response.json({ categories });
+  const body = await readJson<{ categories: string[]; status: Status }>(req);
+  if (body.categories !== undefined && !Array.isArray(body.categories)) throw new AuthError("categories must be a list.");
+  if (body.status !== undefined && !isStatus(body.status)) throw new AuthError("Unknown status.");
+  const saved = await updateBook(user.id, id, { categories: body.categories?.map(String), status: body.status });
+  if (!saved) throw new AuthError("Book not found.", 404);
+  return Response.json(saved);
 });
 
 export const DELETE = route(async (_req: Request, ctx: RouteContext<"/api/books/[id]">) => {

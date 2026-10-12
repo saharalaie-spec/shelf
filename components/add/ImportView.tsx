@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { plural } from "@/lib/client";
+import { plural, STATUS_LABEL } from "@/lib/client";
 import { parseLibraryExport, type ImportResult } from "@/lib/parse";
 import type { Candidate } from "@/lib/types";
 import { Button, Icon } from "../ui";
@@ -24,10 +24,18 @@ export function ImportView({ onReview }: { onReview: (items: Candidate[]) => voi
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       {result ? (
         <div className="rounded-3xl bg-surface-2 p-5">
-          <p className="font-serif text-[28px] leading-tight">{plural(result.items.length, "book")} you’ve read</p>
+          <p className="font-serif text-[28px] leading-tight">{plural(result.items.length, "book")} found</p>
+          {result.counts.read + result.counts.reading + result.counts.want > 0 && (
+            <p className="mt-1 text-[15px] text-ink-2">
+              {(["read", "reading", "want"] as const)
+                .filter((s) => result.counts[s])
+                .map((s) => `${result.counts[s].toLocaleString()} ${STATUS_LABEL[s].toLowerCase()}`)
+                .join(" · ")}
+            </p>
+          )}
           <p className="mt-1 text-[14px] text-muted">
             From {result.source === "goodreads" ? "Goodreads" : result.source === "storygraph" ? "StoryGraph" : "your file"}
-            {result.skipped ? ` · skipped ${result.skipped} not marked as read` : ""}
+            {result.skipped ? ` · skipped ${result.skipped} on other shelves` : ""}
           </p>
           <Button className="mt-4 w-full" onClick={() => onReview(result.items)}>
             Match and review
@@ -74,7 +82,7 @@ export function ImportView({ onReview }: { onReview: (items: Candidate[]) => voi
           </span>
         )}
         <span className="text-[16px] font-medium">{result ? "Use a different file" : "Choose your export file"}</span>
-        {!result && <span className="text-[13px] text-muted">The .csv from Goodreads, StoryGraph, or any list with a Title column. Only books marked as read come in.</span>}
+        {!result && <span className="text-[13px] text-muted">The .csv from Goodreads, StoryGraph, or any list with a Title column. Read, currently-reading and to-read shelves each go to their own section.</span>}
         <input type="file" accept=".csv,text/csv" className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
 

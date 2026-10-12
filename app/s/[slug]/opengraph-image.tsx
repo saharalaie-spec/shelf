@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { plural, shelfTitle } from "@/lib/client";
+import { shelfCount, shelfTitle } from "@/lib/client";
 import { getSharedShelf } from "@/lib/shelf";
 
 export const alt = "A shelf of books on Shelf";
@@ -27,7 +27,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const shelf = await getSharedShelf(slug);
   const books = shelf?.books.slice(0, 5) ?? [];
   const covers = await Promise.all(books.map((b) => inline(b.coverUrl)));
-  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category) : "Shelf";
+  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category, shelf.status) : "Shelf";
   const mid = (books.length - 1) / 2;
 
   return new ImageResponse(
@@ -45,7 +45,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>
             <div style={{ fontSize: 32, color: "#7a7368", marginTop: 20 }}>
-              {`${plural(shelf?.books.length ?? 0, "book")} read`}
+              {shelfCount(shelf?.books.length ?? 0, shelf?.status ?? "read")}
             </div>
           </div>
         </div>

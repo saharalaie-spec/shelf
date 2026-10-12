@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
 import { db } from "./db";
-import type { Book, BookHit } from "./types";
+import { isStatus, type Book, type BookHit, type Status } from "./types";
 
 const toBook = (r: Row): Book => ({
   id: String(r.id),
@@ -13,55 +13,85 @@ const toBook = (r: Row): Book => ({
   coverUrl: r.cover_url ? String(r.cover_url) : null,
   categories: JSON.parse(String(r.categories)),
   addedAt: Number(r.added_at),
+  status: isStatus(r.status) ? r.status : "read",
+  statusAt: Number(r.status_at),
 });
 
-export async function listBooks(userId: string, category?: string): Promise<Book[]> {
+export async function listBooks(userId: string, filter: { status?: Status; category?: string } = {}): Promise<Book[]> {
   const client = await db();
-  const { rows } = await client.execute(
-    category
-      ? {
-          sql: `SELECT * FROM books WHERE user_id = ?
-                AND EXISTS (SELECT 1 FROM json_each(books.categories) WHERE value = ?)
-                ORDER BY added_at DESC`,
-          args: [userId, category],
-        }
-      : { sql: "SELECT * FROM books WHERE user_id = ? ORDER BY added_at DESC", args: [userId] },
-  );
+  const where = ["user_id = ?"];
+  const args: string[] = [userId];
+  if (filter.status) {
+    where.push("status = ?");
+    args.push(filter.status);
+  }
+  if (filter.category) {
+    where.push("EXISTS (SELECT 1 FROM json_each(books.categories) WHERE value = ?)");
+    args.push(filter.category);
+  }
+  const { rows } = await client.execute({
+    sql: `SELECT * FROM books WHERE ${where.join(" AND ")} ORDER BY status_at DESC, added_at DESC`,
+    args,
+  });
   return rows.map(toBook);
 }
 
+export type NewBook = BookHit & { status: Status; addedAt?: number; statusAt?: number };
+
 /** Adds books, skipping ones already on the shelf. Returns only the newly added. */
-export async function addBooks(
-  userId: string,
-  hits: (BookHit & { addedAt?: number })[],
-): Promise<Book[]> {
+export async function addBooks(userId: string, hits: NewBook[]): Promise<Book[]> {
   const client = await db();
   const now = Date.now();
   // Newest first in the grid, so the first item of a batch gets the latest timestamp.
-  const prepared = hits.map((h, i) => ({ ...h, id: randomUUID(), addedAt: h.addedAt ?? now - i }));
+  const prepared = hits.map((h, i) => {
+    const addedAt = h.addedAt ?? now - i;
+    return { ...h, id: randomUUID(), addedAt, statusAt: h.statusAt ?? addedAt };
+  });
   const results = await client.batch(
     prepared.map((b) => ({
-      sql: `INSERT INTO books (id, user_id, work_key, title, author, year, cover_url, categories, added_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
-      args: [b.id, userId, b.key, b.title, b.author, b.year, b.coverUrl, JSON.stringify(b.categories), b.addedAt],
+      sql: `INSERT INTO books (id, user_id, work_key, title, author, year, cover_url, categories, added_at, status, status_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
+      args: [b.id, userId, b.key, b.title, b.author, b.year, b.coverUrl, JSON.stringify(b.categories), b.addedAt, b.status, b.statusAt],
     })),
     "write",
   );
   return prepared
     .filter((_, i) => results[i].rowsAffected > 0)
-    .map(({ id, key, title, author, year, coverUrl, categories, addedAt }) => ({
-      id, key, title, author, year, coverUrl, categories, addedAt,
+    .map(({ id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt }) => ({
+      id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt,
     }));
 }
 
-export async function updateCategories(userId: string, bookId: string, categories: string[]) {
+/** Changes a book's categories and/or section. Returns what was saved, or null if it isn't yours. */
+export async function updateBook(
+  userId: string,
+  bookId: string,
+  patch: { categories?: string[]; status?: Status },
+): Promise<{ categories?: string[]; status?: Status; statusAt?: number } | null> {
   const client = await db();
-  const clean = [...new Set(categories.map((c) => c.trim()).filter(Boolean))].slice(0, 8);
+  const sets: string[] = [];
+  const args: (string | number)[] = [];
+  const saved: { categories?: string[]; status?: Status; statusAt?: number } = {};
+  if (patch.categories) {
+    saved.categories = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))].slice(0, 8);
+    sets.push("categories = ?");
+    args.push(JSON.stringify(saved.categories));
+  }
+  if (patch.status) {
+    saved.status = patch.status;
+    saved.statusAt = Date.now();
+    // Only restamp when the section actually changes, so re-saving doesn't reorder a list.
+    sets.push("status_at = CASE WHEN status = ? THEN status_at ELSE ? END", "status = ?");
+    args.push(patch.status, saved.statusAt, patch.status);
+  }
+  if (!sets.length) return saved;
   const res = await client.execute({
-    sql: "UPDATE books SET categories = ? WHERE id = ? AND user_id = ?",
-    args: [JSON.stringify(clean), bookId, userId],
+    sql: `UPDATE books SET ${sets.join(", ")} WHERE id = ? AND user_id = ? RETURNING status_at`,
+    args: [...args, bookId, userId],
   });
-  return res.rowsAffected > 0 ? clean : null;
+  if (!res.rows.length) return null;
+  if (patch.status) saved.statusAt = Number(res.rows[0].status_at);
+  return saved;
 }
 
 export async function removeBook(userId: string, bookId: string) {
@@ -76,31 +106,31 @@ export async function setName(userId: string, name: string) {
   return clean;
 }
 
-/** One stable, unguessable link per (user, category). '' = the whole shelf. */
-export async function getOrCreateShare(userId: string, category: string) {
+/** One stable, unguessable link per (user, section, category). Category '' = every category. */
+export async function getOrCreateShare(userId: string, status: Status, category: string): Promise<string> {
   const client = await db();
   const existing = (
     await client.execute({
-      sql: "SELECT slug FROM shares WHERE user_id = ? AND category = ?",
-      args: [userId, category],
+      sql: "SELECT slug FROM shares WHERE user_id = ? AND status = ? AND category = ?",
+      args: [userId, status, category],
     })
   ).rows[0];
   if (existing) return String(existing.slug);
   const slug = randomBytes(6).toString("base64url");
   await client.execute({
-    sql: "INSERT INTO shares (slug, user_id, category, created_at) VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING",
-    args: [slug, userId, category, Date.now()],
+    sql: "INSERT INTO shares (slug, user_id, status, category, created_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
+    args: [slug, userId, status, category, Date.now()],
   });
-  return getOrCreateShare(userId, category);
+  return getOrCreateShare(userId, status, category);
 }
 
-export type SharedShelf = { ownerName: string | null; category: string | null; books: Book[] };
+export type SharedShelf = { ownerName: string | null; status: Status; category: string | null; books: Book[] };
 
 export async function getSharedShelf(slug: string, { countView = false } = {}): Promise<SharedShelf | null> {
   const client = await db();
   const row = (
     await client.execute({
-      sql: "SELECT s.user_id, s.category, u.name FROM shares s JOIN users u ON u.id = s.user_id WHERE s.slug = ?",
+      sql: "SELECT s.user_id, s.status, s.category, u.name FROM shares s JOIN users u ON u.id = s.user_id WHERE s.slug = ?",
       args: [slug],
     })
   ).rows[0];
@@ -108,10 +138,12 @@ export async function getSharedShelf(slug: string, { countView = false } = {}): 
   if (countView) {
     client.execute({ sql: "UPDATE shares SET views = views + 1 WHERE slug = ?", args: [slug] }).catch(() => {});
   }
+  const status = isStatus(row.status) ? row.status : "read";
   const category = row.category ? String(row.category) : null;
   return {
     ownerName: row.name ? String(row.name) : null,
+    status,
     category,
-    books: await listBooks(String(row.user_id), category ?? undefined),
+    books: await listBooks(String(row.user_id), { status, category: category ?? undefined }),
   };
 }

@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { Candidate } from "@/lib/types";
+import type { Candidate, Status } from "@/lib/types";
 import { ImportView } from "./add/ImportView";
 import { PasteView } from "./add/PasteView";
 import { PhotoView } from "./add/PhotoView";
@@ -10,7 +10,8 @@ import { ReviewView } from "./add/ReviewView";
 import { ScanView } from "./add/ScanView";
 import { SearchView, type Method } from "./add/SearchView";
 import { VoiceView } from "./add/VoiceView";
-import type { ShelfActions } from "./ShelfApp";
+import { SectionTabs } from "./SectionTabs";
+import type { ShelfActions, ShelfApi } from "./ShelfApp";
 import { Sheet } from "./Sheet";
 import { Icon } from "./ui";
 
@@ -29,15 +30,32 @@ const TITLES: Record<View, string> = {
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  shelf: ShelfActions;
+  /** The section on screen; new books go there unless the picker says otherwise. */
+  section: Status;
+  shelf: ShelfApi;
   empty: boolean;
   features: { photo: boolean };
 };
 
-export function AddSheet({ open, onOpenChange, shelf, empty, features }: Props) {
+export function AddSheet({ open, onOpenChange, section, shelf, empty, features }: Props) {
   const [view, setView] = useState<View>("search");
   const [direction, setDirection] = useState(1);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  const [target, setTarget] = useState<Status>(section);
+
+  // Each time the sheet opens, start from the section being viewed.
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setTarget(section);
+  }
+
+  const actions: ShelfActions = {
+    books: shelf.books,
+    statusOf: shelf.statusOf,
+    target,
+    add: (hits, opts) => shelf.add(hits, { status: target, ...opts }),
+  };
 
   // Come back to search next time; wait for the close animation first.
   useEffect(() => {
@@ -81,6 +99,12 @@ export function AddSheet({ open, onOpenChange, shelf, empty, features }: Props) 
         </button>
       }
     >
+      <div className="flex shrink-0 items-center gap-3 px-5 pb-3">
+        <span className="text-[13px] font-medium text-muted">Add to</span>
+        <div className="flex-1">
+          <SectionTabs value={target} onChange={setTarget} layoutId="add-target-pill" />
+        </div>
+      </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
         <AnimatePresence mode="popLayout" initial={false} custom={direction}>
           <motion.div
@@ -92,14 +116,14 @@ export function AddSheet({ open, onOpenChange, shelf, empty, features }: Props) 
             transition={{ type: "spring", stiffness: 380, damping: 36 }}
             className="flex min-h-0 flex-1 flex-col"
           >
-            {view === "search" && <SearchView shelf={shelf} empty={empty} features={features} onMethod={go} />}
+            {view === "search" && <SearchView shelf={actions} empty={empty} features={features} onMethod={go} />}
             {view === "paste" && <PasteView onReview={review} />}
             {view === "voice" && <VoiceView onReview={review} />}
-            {view === "scan" && <ScanView shelf={shelf} />}
+            {view === "scan" && <ScanView shelf={actions} />}
             {view === "photo" && <PhotoView onReview={review} />}
             {view === "import" && <ImportView onReview={review} />}
             {view === "review" && (
-              <ReviewView items={candidates} shelf={shelf} onAdded={() => onOpenChange(false)} />
+              <ReviewView items={candidates} shelf={actions} onAdded={() => onOpenChange(false)} />
             )}
           </motion.div>
         </AnimatePresence>

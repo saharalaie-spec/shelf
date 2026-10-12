@@ -3,8 +3,8 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { plural } from "@/lib/client";
-import type { Book } from "@/lib/types";
+import { shelfCount } from "@/lib/client";
+import type { Book, Status } from "@/lib/types";
 import { BookCover } from "./BookCover";
 import { Sheet } from "./Sheet";
 import { Logo } from "./ui";
@@ -12,12 +12,13 @@ import { Logo } from "./ui";
 type Props = {
   title: string;
   ownerName: string | null;
+  status: Status;
   category: string | null;
   books: Book[];
   viewerSignedIn: boolean;
 };
 
-export function SharedShelf({ title, ownerName, category, books, viewerSignedIn }: Props) {
+export function SharedShelf({ title, ownerName, status, category, books, viewerSignedIn }: Props) {
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<Book | null>(null);
   const [lastOpen, setLastOpen] = useState<Book | null>(null);
@@ -52,7 +53,7 @@ export function SharedShelf({ title, ownerName, category, books, viewerSignedIn 
           {(ownerName ?? "?").charAt(0).toUpperCase()}
         </div>
         <h1 className="mt-4 font-serif text-[38px] leading-[1.05] font-medium tracking-tight text-balance">{title}</h1>
-        <p className="mt-2 text-[16px] text-muted">{plural(books.length, "book")} read</p>
+        <p className="mt-2 text-[16px] text-muted">{shelfCount(books.length, status)}</p>
       </section>
 
       {categories.length > 1 && (

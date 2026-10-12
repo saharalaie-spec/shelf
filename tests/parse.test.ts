@@ -45,19 +45,22 @@ describe("parseCsv", () => {
 });
 
 describe("parseLibraryExport", () => {
-  it("reads a Goodreads export, keeping only read books and cleaning ISBNs and series", () => {
+  it("reads a Goodreads export into the three sections, cleaning ISBNs and series", () => {
     const csv = [
       "Book Id,Title,Author,ISBN,ISBN13,Exclusive Shelf",
       '1,"The Hobbit (Middle-earth, #0)",J.R.R. Tolkien,"=""0547928220""","=""9780547928227""",read',
       '2,Dune Messiah,Frank Herbert,"=""""","=""""",to-read',
-      '3,Siddhartha,Hermann Hesse,"=""""","=""""",read',
+      '3,Siddhartha,Hermann Hesse,"=""""","=""""",currently-reading',
+      '4,Ulysses,James Joyce,"=""""","=""""",did-not-finish',
     ].join("\n");
     expect(parseLibraryExport(csv)).toEqual({
       source: "goodreads",
       skipped: 1,
+      counts: { read: 1, reading: 1, want: 1 },
       items: [
-        { title: "The Hobbit", author: "J.R.R. Tolkien", isbn: "9780547928227" },
-        { title: "Siddhartha", author: "Hermann Hesse", isbn: undefined },
+        { title: "The Hobbit", author: "J.R.R. Tolkien", isbn: "9780547928227", status: "read" },
+        { title: "Dune Messiah", author: "Frank Herbert", isbn: undefined, status: "want" },
+        { title: "Siddhartha", author: "Hermann Hesse", isbn: undefined, status: "reading" },
       ],
     });
   });
@@ -66,7 +69,16 @@ describe("parseLibraryExport", () => {
     const csv = "Title,Authors,ISBN/UID,Read Status\nDune,\"Frank Herbert, Someone\",9780441172719,read\nX,Y,,to-read";
     const result = parseLibraryExport(csv)!;
     expect(result.source).toBe("storygraph");
-    expect(result.items).toEqual([{ title: "Dune", author: "Frank Herbert", isbn: "9780441172719" }]);
+    expect(result.items).toEqual([
+      { title: "Dune", author: "Frank Herbert", isbn: "9780441172719", status: "read" },
+      { title: "X", author: "Y", isbn: undefined, status: "want" },
+    ]);
+  });
+
+  it("leaves the status open when the file has no shelf column", () => {
+    expect(parseLibraryExport("Title,Author\nDune,Frank Herbert")!.items).toEqual([
+      { title: "Dune", author: "Frank Herbert", isbn: undefined },
+    ]);
   });
 
   it("rejects files without a title column", () => {

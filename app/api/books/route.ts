@@ -1,7 +1,9 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
 import { addBooks, listBooks } from "@/lib/shelf";
-import type { BookHit } from "@/lib/types";
+import { isStatus, type BookHit, type Status } from "@/lib/types";
+
+type Incoming = BookHit & { addedAt?: number; statusAt?: number; status?: Status };
 
 export const GET = route(async () => {
   const user = await requireUser();
@@ -10,7 +12,7 @@ export const GET = route(async () => {
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser();
-  const body = await readJson<{ books: (BookHit & { addedAt?: number })[] }>(req);
+  const body = await readJson<{ books: Incoming[] }>(req);
   const hits = (Array.isArray(body.books) ? body.books : []).filter(isHit).slice(0, 1000);
   if (!hits.length) throw new AuthError("No books to add.");
   const added = await addBooks(
@@ -23,12 +25,14 @@ export const POST = route(async (req: Request) => {
       coverUrl: typeof h.coverUrl === "string" && /^https:\/\//.test(h.coverUrl) ? h.coverUrl : null,
       categories: Array.isArray(h.categories) ? h.categories.filter((c) => typeof c === "string").slice(0, 8) : [],
       addedAt: typeof h.addedAt === "number" ? h.addedAt : undefined,
+      statusAt: typeof h.statusAt === "number" ? h.statusAt : undefined,
+      status: isStatus(h.status) ? h.status : "read",
     })),
   );
   return Response.json({ added });
 });
 
-function isHit(h: unknown): h is BookHit & { addedAt?: number } {
+function isHit(h: unknown): h is Incoming {
   const b = h as BookHit;
   return Boolean(b && typeof b.key === "string" && typeof b.title === "string" && b.title.trim());
 }
