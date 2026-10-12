@@ -13,7 +13,14 @@ const SEND_WINDOW_MS = 15 * 60 * 1000;
 const MAX_SENDS_PER_WINDOW = 5;
 const RESEND_COOLDOWN_MS = 20 * 1000;
 
-export type User = { id: string; name: string | null; email: string | null; phone: string | null };
+export type User = {
+  id: string;
+  name: string | null;
+  email: string | null;
+  phone: string | null;
+  handle: string | null;
+  isPublic: boolean;
+};
 
 export class AuthError extends Error {
   constructor(message: string, readonly status = 400) {
@@ -164,7 +171,7 @@ export async function getCurrentUser(): Promise<User | null> {
   const client = await db();
   const row = (
     await client.execute({
-      sql: `SELECT u.id, u.name, u.email, u.phone FROM sessions s JOIN users u ON u.id = s.user_id
+      sql: `SELECT u.id, u.name, u.email, u.phone, u.handle, u.is_public FROM sessions s JOIN users u ON u.id = s.user_id
             WHERE s.token_hash = ? AND s.expires_at > ?`,
       args: [hashToken(token), Date.now()],
     })
@@ -175,6 +182,8 @@ export async function getCurrentUser(): Promise<User | null> {
     name: row.name ? String(row.name) : null,
     email: row.email ? String(row.email) : null,
     phone: row.phone ? String(row.phone) : null,
+    handle: row.handle ? String(row.handle) : null,
+    isPublic: Boolean(row.is_public),
   };
 }
 

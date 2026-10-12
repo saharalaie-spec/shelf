@@ -15,12 +15,21 @@ const toBook = (r: Row): Book => ({
   addedAt: Number(r.added_at),
   status: isStatus(r.status) ? r.status : "read",
   statusAt: Number(r.status_at),
+  private: Boolean(r.private),
 });
 
-export async function listBooks(userId: string, filter: { status?: Status; category?: string } = {}): Promise<Book[]> {
+/**
+ * A user's books. Private books are only included when `includePrivate` is set, which only the
+ * owner's own views should do: friends, public profiles and share links never see them.
+ */
+export async function listBooks(
+  userId: string,
+  filter: { status?: Status; category?: string; includePrivate?: boolean } = {},
+): Promise<Book[]> {
   const client = await db();
   const where = ["user_id = ?"];
   const args: string[] = [userId];
+  if (!filter.includePrivate) where.push("private = 0");
   if (filter.status) {
     where.push("status = ?");
     args.push(filter.status);
@@ -36,7 +45,7 @@ export async function listBooks(userId: string, filter: { status?: Status; categ
   return rows.map(toBook);
 }
 
-export type NewBook = BookHit & { status: Status; addedAt?: number; statusAt?: number };
+export type NewBook = BookHit & { status: Status; addedAt?: number; statusAt?: number; private?: boolean };
 
 /** Adds books, skipping ones already on the shelf. Returns only the newly added. */
 export async function addBooks(userId: string, hits: NewBook[]): Promise<Book[]> {
@@ -45,33 +54,40 @@ export async function addBooks(userId: string, hits: NewBook[]): Promise<Book[]>
   // Newest first in the grid, so the first item of a batch gets the latest timestamp.
   const prepared = hits.map((h, i) => {
     const addedAt = h.addedAt ?? now - i;
-    return { ...h, id: randomUUID(), addedAt, statusAt: h.statusAt ?? addedAt };
+    return { ...h, id: randomUUID(), addedAt, statusAt: h.statusAt ?? addedAt, private: Boolean(h.private) };
   });
   const results = await client.batch(
     prepared.map((b) => ({
-      sql: `INSERT INTO books (id, user_id, work_key, title, author, year, cover_url, categories, added_at, status, status_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
-      args: [b.id, userId, b.key, b.title, b.author, b.year, b.coverUrl, JSON.stringify(b.categories), b.addedAt, b.status, b.statusAt],
+      sql: `INSERT INTO books (id, user_id, work_key, title, author, year, cover_url, categories, added_at, status, status_at, private)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
+      args: [b.id, userId, b.key, b.title, b.author, b.year, b.coverUrl, JSON.stringify(b.categories), b.addedAt, b.status, b.statusAt, b.private ? 1 : 0],
     })),
     "write",
   );
   return prepared
     .filter((_, i) => results[i].rowsAffected > 0)
-    .map(({ id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt }) => ({
-      id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt,
+    .map(({ id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt, private: p }) => ({
+      id, key, title, author, year, coverUrl, categories, addedAt, status, statusAt, private: p,
     }));
 }
 
-/** Changes a book's categories and/or section. Returns what was saved, or null if it isn't yours. */
+type BookPatch = { categories?: string[]; status?: Status; private?: boolean };
+
+/** Changes a book's categories, section and/or privacy. Returns what was saved, or null if it isn't yours. */
 export async function updateBook(
   userId: string,
   bookId: string,
-  patch: { categories?: string[]; status?: Status },
-): Promise<{ categories?: string[]; status?: Status; statusAt?: number } | null> {
+  patch: BookPatch,
+): Promise<(BookPatch & { statusAt?: number }) | null> {
   const client = await db();
   const sets: string[] = [];
   const args: (string | number)[] = [];
-  const saved: { categories?: string[]; status?: Status; statusAt?: number } = {};
+  const saved: BookPatch & { statusAt?: number } = {};
+  if (patch.private !== undefined) {
+    saved.private = patch.private;
+    sets.push("private = ?");
+    args.push(patch.private ? 1 : 0);
+  }
   if (patch.categories) {
     saved.categories = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))].slice(0, 8);
     sets.push("categories = ?");
@@ -97,13 +113,6 @@ export async function updateBook(
 export async function removeBook(userId: string, bookId: string) {
   const client = await db();
   await client.execute({ sql: "DELETE FROM books WHERE id = ? AND user_id = ?", args: [bookId, userId] });
-}
-
-export async function setName(userId: string, name: string) {
-  const client = await db();
-  const clean = name.trim().slice(0, 40) || null;
-  await client.execute({ sql: "UPDATE users SET name = ? WHERE id = ?", args: [clean, userId] });
-  return clean;
 }
 
 /** One stable, unguessable link per (user, section, category). Category '' = every category. */

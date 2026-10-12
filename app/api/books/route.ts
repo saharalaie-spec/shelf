@@ -3,11 +3,11 @@ import { readJson, route } from "@/lib/api";
 import { addBooks, listBooks } from "@/lib/shelf";
 import { isStatus, type BookHit, type Status } from "@/lib/types";
 
-type Incoming = BookHit & { addedAt?: number; statusAt?: number; status?: Status };
+type Incoming = BookHit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean };
 
 export const GET = route(async () => {
   const user = await requireUser();
-  return Response.json({ books: await listBooks(user.id) });
+  return Response.json({ books: await listBooks(user.id, { includePrivate: true }) });
 });
 
 export const POST = route(async (req: Request) => {
@@ -27,6 +27,7 @@ export const POST = route(async (req: Request) => {
       addedAt: typeof h.addedAt === "number" ? h.addedAt : undefined,
       statusAt: typeof h.statusAt === "number" ? h.statusAt : undefined,
       status: isStatus(h.status) ? h.status : "read",
+      private: h.private === true,
     })),
   );
   return Response.json({ added });

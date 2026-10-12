@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { shelfCount } from "@/lib/client";
+import { catalogLink, shelfCount } from "@/lib/client";
 import type { Book, Status } from "@/lib/types";
 import { BookCover } from "./BookCover";
 import { Sheet } from "./Sheet";
@@ -149,10 +149,4 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
       </Sheet>
     </div>
   );
-}
-
-function catalogLink(b: Book) {
-  if (b.key.startsWith("ol:/works/")) return `https://openlibrary.org${b.key.slice(3)}`;
-  if (b.key.startsWith("gb:")) return `https://books.google.com/books?id=${b.key.slice(3)}`;
-  return `https://openlibrary.org/search?q=${encodeURIComponent(`${b.title} ${b.author ?? ""}`.trim())}`;
 }

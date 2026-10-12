@@ -23,3 +23,6 @@ export async function readJson<T>(req: Request): Promise<Partial<T>> {
     return {};
   }
 }
+
+/** The public base URL for links we hand out: APP_URL if set, else whatever host the request came in on. */
+export const origin = (req: Request) => process.env.APP_URL?.replace(/\/$/, "") ?? new URL(req.url).origin;

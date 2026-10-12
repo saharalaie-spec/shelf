@@ -26,17 +26,25 @@ export type Channels = Record<Mode, boolean>;
 /** Where the code went when there's no texting/email provider (see lib/delivery.ts). */
 type Delivery = { devCode?: string; codeInLogs?: boolean };
 
-export function Login({ channels }: { channels: Channels }) {
+type Intro = {
+  /** Replaces the sign-in headline, e.g. on an invite or a private profile. */
+  heading?: string;
+  subheading?: string;
+};
+
+export function Login({ channels, heading, subheading, compact }: { channels: Channels; compact?: boolean } & Intro) {
   const [step, setStep] = useState<"enter" | "code">("enter");
   const [to, setTo] = useState<Identifier | null>(null);
   const [delivery, setDelivery] = useState<Delivery>({});
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-[max(3rem,12vh)] pb-safe">
-      <div className="mb-10 flex items-center gap-2.5">
-        <Logo />
-        <span className="font-serif text-[22px] font-semibold tracking-tight">Shelf</span>
-      </div>
+    <main className={`mx-auto flex w-full max-w-md flex-col px-6 pb-safe ${compact ? "pt-4" : "min-h-dvh pt-[max(3rem,12vh)]"}`}>
+      {!compact && (
+        <div className="mb-10 flex items-center gap-2.5">
+          <Logo />
+          <span className="font-serif text-[22px] font-semibold tracking-tight">Shelf</span>
+        </div>
+      )}
       <AnimatePresence mode="wait" initial={false}>
         {step === "enter" ? (
           <motion.div
@@ -48,6 +56,8 @@ export function Login({ channels }: { channels: Channels }) {
           >
             <EnterStep
               channels={channels}
+              heading={heading}
+              subheading={subheading}
               onSent={(identifier, sent) => {
                 setTo(identifier);
                 setDelivery(sent);
@@ -71,7 +81,12 @@ export function Login({ channels }: { channels: Channels }) {
   );
 }
 
-function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Identifier, delivery: Delivery) => void }) {
+function EnterStep({
+  channels,
+  heading,
+  subheading,
+  onSent,
+}: { channels: Channels; onSent: (to: Identifier, delivery: Delivery) => void } & Intro) {
   const [mode, setMode] = useState<Mode>(channels.phone || !channels.email ? "phone" : "email");
   const both = channels.phone && channels.email;
   const none = !channels.phone && !channels.email;
@@ -162,10 +177,11 @@ function EnterStep({ channels, onSent }: { channels: Channels; onSent: (to: Iden
   return (
     <form onSubmit={submit} noValidate>
       <h1 className="font-serif text-[40px] leading-[1.05] font-medium tracking-tight text-balance">
-        Every book you&rsquo;ve read. One link to share.
+        {heading ?? "Every book you’ve read. One link to share."}
       </h1>
       <p className="mt-4 text-[17px] text-muted">
-        Sign in with your {both ? "phone or email" : mode === "phone" ? "phone number" : "email address"}. No passwords, ever.
+        {subheading ?? `Sign in with your ${both ? "phone or email" : mode === "phone" ? "phone number" : "email address"}.`} No
+        passwords, ever.
       </p>
 
       {none && (

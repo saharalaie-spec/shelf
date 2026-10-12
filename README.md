@@ -15,6 +15,13 @@ Every book you've read, in one place, and one link to share them.
   The add sheet has an **Add to** picker (it starts on the section you're looking at), and every bulk method ends on one review screen, where you untick or swap any wrong match.
 - **Categories are automatic.** They come from the catalog's subjects, so a philosophy book lands in *Philosophy*. You can change them, or add your own, on any book.
 - **Share a link.** Share any section, whole or one category: "Sahar's Philosophy shelf", "What Sahar's reading", "Sahar's want-to-read list". Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own shelf" invitation; that's where the "get the app" hook will go.
+- **Friends.** Friendships go both ways, and both people agree. Tap the people icon to:
+  - send your invite link: whoever opens it becomes your friend with one tap, signing up first if they're new;
+  - or ask by phone number or email. If they're not on Shelf yet, the request waits until they join, and the answer never reveals whether a number is registered.
+
+  Friends see your Read, Reading and Want to read sections. Tap one of their books to put it on your own Want to read.
+- **Private books.** Switch on **Private** on any book and only you will ever see it. It's left out of what friends see, of your public profile, and of share links, including links you sent before.
+- **Your profile is private unless you make it public.** By default only friends can see your shelf, and anyone else opening your profile link sees "This shelf is private". The page looks the same whether or not the account exists. In **You → Who sees your shelf** you can switch on a public profile at `/u/yourname`. It isn't listed anywhere and is hidden from search engines. **See what friends see** previews it.
 
 ## Run it
 
@@ -72,19 +79,23 @@ Next.js 16 (App Router) with React 19 and Tailwind CSS 4, plus [vaul](https://va
 ```
 app/page.tsx              signed out → Login, signed in → ShelfApp
 app/s/[slug]/             the public share page + its link-preview image
+app/u/[ref]/              a profile: friends (or anyone, if public) see the three sections
+app/f/[token]/            an invite link: sign in, then one tap to become friends
 app/api/auth/*            start (send code) · verify (check code, set session) · logout
 app/api/books, search, match, shares, me, ai/photo
+app/api/friends, friends/requests/[id], invites/[token]
 components/Login.tsx      phone/email → 6-digit code (auto-submits, SMS autofill on iOS/Android)
 components/ShelfApp.tsx   the shelf: cover grid, category chips, add/share/book sheets
 components/add/*          one view per way of adding books, plus the shared review screen
 lib/auth.ts               codes (hashed, 10-min expiry, 5 tries, resend limits) and sessions
+lib/social.ts             who can see whom, friend requests, invite links, profile settings
 lib/books.ts              catalog search & matching (Open Library → Google Books → offline list)
 lib/categories.ts         catalog subjects → friendly categories
 lib/parse.ts              pasted lists, dictation and CSV exports → candidate titles
 lib/db.ts                 schema and migrations (applied automatically on first run)
 ```
 
-Share links are unguessable, one per shelf or category, and stay live: books you add later show up on links you've already sent.
+Share links are unguessable, one per shelf or category, and stay live: books you add later show up on links you've already sent. Private books are filtered out on the server for everyone except their owner, so they never reach a friend's browser.
 
 ## Before a public launch
 
