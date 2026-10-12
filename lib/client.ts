@@ -1,4 +1,4 @@
-import type { Status } from "./types";
+import type { BookHit, Status } from "./types";
 
 /** Small fetch wrapper for our JSON API. Throws with the server's friendly message. */
 export async function api<T>(path: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
@@ -32,3 +32,19 @@ export function shelfTitle(name: string | null, category: string | null, status:
 /** "12 books read", "2 books in progress", "15 books to read". */
 export const shelfCount = (n: number, status: Status) =>
   `${plural(n, "book")} ${status === "read" ? "read" : status === "reading" ? "in progress" : "to read"}`;
+
+/** The book's page in the catalog it came from, or a search for typed-in books. */
+export function catalogLink(b: Pick<BookHit, "key" | "title" | "author">) {
+  if (b.key.startsWith("ol:/works/")) return `https://openlibrary.org${b.key.slice(3)}`;
+  if (b.key.startsWith("gb:")) return `https://books.google.com/books?id=${b.key.slice(3)}`;
+  return `https://openlibrary.org/search?q=${encodeURIComponent(`${b.title} ${b.author ?? ""}`.trim())}`;
+}
+
+/** "3 days ago", "last week": for dates only the browser should format (locale, clock). */
+export function ago(ts: number) {
+  const days = Math.round((ts - Date.now()) / 86_400_000);
+  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  if (Math.abs(days) < 7) return rtf.format(days, "day");
+  if (Math.abs(days) < 60) return rtf.format(Math.round(days / 7), "week");
+  return rtf.format(Math.round(days / 30), "month");
+}

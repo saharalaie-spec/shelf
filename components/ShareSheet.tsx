@@ -35,12 +35,14 @@ type BodyProps = Omit<Props, "open" | "onOpenChange"> & {
   setLinks: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 };
 
-function ShareBody({ books, initialStatus, initialCategory, name, onName, links, setLinks }: BodyProps) {
+function ShareBody({ books: all, initialStatus, initialCategory, name, onName, links, setLinks }: BodyProps) {
   const [status, setStatus] = useState<Status>(initialStatus);
   const [scope, setScope] = useState<string | null>(initialCategory);
   const [draftName, setDraftName] = useState("");
   const [copied, setCopied] = useState(false);
   const inflight = useRef(new Set<string>());
+  // Share links never include private books, so neither does anything shown here.
+  const books = all.filter((b) => !b.private);
 
   const inSection = books.filter((b) => b.status === status);
   const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
@@ -64,6 +66,7 @@ function ShareBody({ books, initialStatus, initialCategory, name, onName, links,
 
   const url = links[scopeKey];
   const shown = category ? inSection.filter((b) => b.categories.includes(category)) : inSection;
+  const hidden = all.filter((b) => b.private && b.status === status && (!category || b.categories.includes(category))).length;
   const displayName = name ?? (draftName.trim() || null);
   const title = shelfTitle(displayName, category, status);
 
@@ -170,7 +173,10 @@ function ShareBody({ books, initialStatus, initialCategory, name, onName, links,
             Preview
           </a>
         </div>
-        <p className="mx-5 mb-2 text-center text-[13px] text-muted">Anyone with the link can see these books. No app needed.</p>
+        <p className="mx-5 mb-2 text-center text-[13px] text-muted">
+          Anyone with the link can see these books. No app needed.
+          {hidden > 0 && ` ${hidden === 1 ? "Your private book is" : `Your ${hidden} private books are`} left out.`}
+        </p>
     </div>
   );
 }

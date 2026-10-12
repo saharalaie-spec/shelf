@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { BookHit } from "@/lib/types";
+import { Icon } from "./ui";
 
 const PALETTE = ["#2f4b3a", "#34466b", "#7a2e2e", "#9a6c22", "#4b5960", "#5b3a5e", "#8a4b2f", "#285a5f", "#6b5b3a", "#3d3a4f"];
 
@@ -11,10 +12,16 @@ function hash(s: string) {
   return Math.abs(h);
 }
 
-type Props = { book: Pick<BookHit, "title" | "author" | "coverUrl">; className?: string; rounded?: string };
+type Props = {
+  book: Pick<BookHit, "title" | "author" | "coverUrl">;
+  className?: string;
+  rounded?: string;
+  /** Shows a lock: a private book only its owner can see. */
+  locked?: boolean;
+};
 
 /** The real cover when we have one; otherwise a typeset cover so the shelf always looks like books. */
-export function BookCover({ book, className = "", rounded = "rounded-[5px]" }: Props) {
+export function BookCover({ book, className = "", rounded = "rounded-[5px]", locked }: Props) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const showImage = book.coverUrl && !failed;
@@ -41,6 +48,12 @@ export function BookCover({ book, className = "", rounded = "rounded-[5px]" }: P
       )}
       {/* spine crease */}
       <div className="pointer-events-none absolute inset-y-0 left-0 w-[6%] bg-gradient-to-r from-black/25 via-white/10 to-transparent" />
+      {locked && (
+        <span className="absolute top-[5%] right-[6%] flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm">
+          <Icon name="lock" size={13} />
+          <span className="sr-only">Private</span>
+        </span>
+      )}
     </div>
   );
 }

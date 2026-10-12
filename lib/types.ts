@@ -13,8 +13,8 @@ export const STATUSES = ["read", "reading", "want"] as const;
 export type Status = (typeof STATUSES)[number];
 export const isStatus = (s: unknown): s is Status => STATUSES.includes(s as Status);
 
-/** A book on the signed-in user's shelf. `statusAt` is when it last changed section. */
-export type Book = BookHit & { id: string; addedAt: number; status: Status; statusAt: number };
+/** A book on someone's shelf. `statusAt` is when it last changed section; `private` books are owner-only. */
+export type Book = BookHit & { id: string; addedAt: number; status: Status; statusAt: number; private: boolean };
 
 /** One line of a pasted list, dictation, photo or import, before matching. Imports know the status. */
 export type Candidate = { title: string; author?: string; isbn?: string; status?: Status };

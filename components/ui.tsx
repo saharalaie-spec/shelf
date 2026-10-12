@@ -150,4 +150,84 @@ const ICONS = {
   sparkle: <path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" />,
   arrow: <path d="M5 12h14M13 6l6 6-6 6" />,
   edit: <path d="M14.5 5.5l4 4M4 20l1-4.5L15.5 5a2.1 2.1 0 0 1 3 0l.5.5a2.1 2.1 0 0 1 0 3L8.5 19z" />,
+  people: (
+    <>
+      <circle cx="9" cy="8.5" r="3.5" />
+      <path d="M2.5 19.5a6.5 6.5 0 0 1 13 0" />
+      <path d="M15.5 5.2a3.5 3.5 0 0 1 0 6.6M18 13.6a6.5 6.5 0 0 1 3.5 5.9" />
+    </>
+  ),
+  addPerson: (
+    <>
+      <circle cx="10" cy="8.5" r="3.5" />
+      <path d="M3.5 19.5a6.5 6.5 0 0 1 11.6-4M18.5 14v6M15.5 17h6" />
+    </>
+  ),
+  lock: (
+    <>
+      <rect x="5" y="10.5" width="14" height="10" rx="2.5" />
+      <path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" />
+    </>
+  ),
+  globe: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M3.5 12h17M12 3.5c2.4 2.4 3.5 5.2 3.5 8.5s-1.1 6.1-3.5 8.5c-2.4-2.4-3.5-5.2-3.5-8.5s1.1-6.1 3.5-8.5z" />
+    </>
+  ),
+  eye: (
+    <>
+      <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z" />
+      <circle cx="12" cy="12" r="2.8" />
+    </>
+  ),
+  chevron: <path d="M9 5l7 7-7 7" />,
 };
+
+/** An iOS-style on/off switch. */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  disabled,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={`relative h-[31px] w-[51px] shrink-0 rounded-full transition-colors duration-200 disabled:opacity-50 ${
+        checked ? "bg-good" : "bg-line"
+      }`}
+    >
+      <span
+        className={`absolute top-[2px] left-[2px] h-[27px] w-[27px] rounded-full bg-white shadow-[0_2px_6px_rgba(0,0,0,0.2)] transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+          checked ? "translate-x-5" : ""
+        }`}
+      />
+    </button>
+  );
+}
+
+/** A round initial, standing in for a profile photo. */
+export function Avatar({ name, size = 40, className = "" }: { name: string | null; size?: number; className?: string }) {
+  const letter = (name ?? "").trim().charAt(0).toUpperCase() || "?";
+  const hue = [...(name ?? "?")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
+  return (
+    <span
+      aria-hidden
+      className={`flex shrink-0 items-center justify-center rounded-full font-serif text-white ${className}`}
+      style={{ width: size, height: size, fontSize: size * 0.44, background: `oklch(0.52 0.09 ${hue})` }}
+    >
+      {letter}
+    </span>
+  );
+}

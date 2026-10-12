@@ -88,6 +88,36 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `ALTER TABLE shares_v2 RENAME TO shares`,
     ],
   },
+  {
+    id: "2026-10-12-friends-and-privacy",
+    statements: [
+      // Private books are seen by their owner only: not friends, not public profiles, not share links.
+      `ALTER TABLE books ADD COLUMN private INTEGER NOT NULL DEFAULT 0`,
+      // Profiles are private (friends only) until their owner makes them public.
+      `ALTER TABLE users ADD COLUMN is_public INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE users ADD COLUMN handle TEXT`,
+      `ALTER TABLE users ADD COLUMN invite_token TEXT`,
+      `CREATE UNIQUE INDEX users_by_handle ON users (handle)`,
+      `CREATE UNIQUE INDEX users_by_invite ON users (invite_token)`,
+      // One row per direction, so "my friends" is a single indexed lookup.
+      `CREATE TABLE friendships (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, friend_id)
+      )`,
+      // Requests are addressed to a phone number or email, so they can wait for people not on Shelf yet.
+      `CREATE TABLE friend_requests (
+        id TEXT PRIMARY KEY,
+        from_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_identifier TEXT NOT NULL,
+        to_display TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        UNIQUE (from_user, to_identifier)
+      )`,
+      `CREATE INDEX friend_requests_by_target ON friend_requests (to_identifier)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

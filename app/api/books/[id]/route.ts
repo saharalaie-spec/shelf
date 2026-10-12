@@ -6,10 +6,15 @@ import { isStatus, type Status } from "@/lib/types";
 export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/books/[id]">) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const body = await readJson<{ categories: string[]; status: Status }>(req);
+  const body = await readJson<{ categories: string[]; status: Status; private: boolean }>(req);
   if (body.categories !== undefined && !Array.isArray(body.categories)) throw new AuthError("categories must be a list.");
   if (body.status !== undefined && !isStatus(body.status)) throw new AuthError("Unknown status.");
-  const saved = await updateBook(user.id, id, { categories: body.categories?.map(String), status: body.status });
+  if (body.private !== undefined && typeof body.private !== "boolean") throw new AuthError("private must be true or false.");
+  const saved = await updateBook(user.id, id, {
+    categories: body.categories?.map(String),
+    status: body.status,
+    private: body.private,
+  });
   if (!saved) throw new AuthError("Book not found.", 404);
   return Response.json(saved);
 });

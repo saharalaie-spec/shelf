@@ -3,12 +3,13 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, plural, STATUS_LABEL } from "@/lib/client";
+import { ago, api, plural, STATUS_LABEL } from "@/lib/client";
 import { STATUSES, type Book, type BookHit, type Status } from "@/lib/types";
-import { AccountSheet } from "./AccountSheet";
+import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { BookCover } from "./BookCover";
 import { BookSheet } from "./BookSheet";
+import { FriendsSheet } from "./FriendsSheet";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
 import { Button, Icon, Logo, useHydrated } from "./ui";
@@ -30,7 +31,9 @@ export type ShelfActions = Omit<ShelfApi, "add"> & {
 };
 
 type Props = {
-  user: { name: string | null; contact: string };
+  user: Profile & { contact: string };
+  /** Friend requests waiting for an answer, for the badge on the Friends button. */
+  pendingRequests: number;
   initialBooks: Book[];
   features: { photo: boolean };
 };
@@ -38,9 +41,12 @@ type Props = {
 const SECTION_KEY = "shelf:section";
 const byNewest = (a: Book, b: Book) => b.statusAt - a.statusAt || b.addedAt - a.addedAt;
 
-export function ShelfApp({ user, initialBooks, features }: Props) {
+export function ShelfApp({ user, pendingRequests, initialBooks, features }: Props) {
   const [books, setBooks] = useState(initialBooks);
-  const [name, setName] = useState(user.name);
+  const [profile, setProfile] = useState<Profile>({ id: user.id, name: user.name, handle: user.handle, isPublic: user.isPublic });
+  const { name } = profile;
+  const [pending, setPending] = useState(pendingRequests);
+  const [friendsOpen, setFriendsOpen] = useState(false);
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
   const [adding, setAdding] = useState(initialBooks.length === 0);
@@ -85,6 +91,10 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
     return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [inSection]);
   const allCategories = useMemo(() => [...new Set(books.flatMap((b) => b.categories))], [books]);
+  const privateCount = useMemo(() => books.filter((b) => b.private).length, [books]);
+
+  const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
+  const setName = useCallback((n: string | null) => updateProfile({ name: n }), [updateProfile]);
 
   // If the last book in a category goes, fall back to everything.
   const filter = chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
@@ -169,6 +179,7 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
         id: `tmp:${h.key}`,
         addedAt: now - i,
         statusAt: now - i,
+        private: false,
       }));
       // Update the ref right away too, so a second quick add sees these as already on the shelf.
       booksRef.current = [...temp, ...booksRef.current];
@@ -231,6 +242,20 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
     [patchBook],
   );
 
+  const setPrivate = useCallback(
+    async (book: Book, value: boolean) => {
+      patchBook(book.id, { private: value });
+      try {
+        await api(`/api/books/${book.id}`, { method: "PATCH", body: { private: value } });
+        toast(value ? `Only you can see “${book.title}”` : `“${book.title}” is back on your shared shelf`);
+      } catch (err) {
+        patchBook(book.id, { private: book.private });
+        toast.error((err as Error).message);
+      }
+    },
+    [patchBook],
+  );
+
   // After adding to another section, show that section when the sheet closes.
   const onAddSheet = (open: boolean) => {
     setAdding(open);
@@ -260,6 +285,25 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
                 {filter ? `Share ${filter}` : "Share"}
               </button>
             )}
+            <button
+              onClick={() => setFriendsOpen(true)}
+              aria-label={pending ? `Friends, ${pending} new ${pending === 1 ? "request" : "requests"}` : "Friends"}
+              className="relative flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 transition-transform active:scale-95"
+            >
+              <Icon name="people" size={19} />
+              <AnimatePresence>
+                {pending > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    exit={{ scale: 0 }}
+                    className="absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-accent px-1 text-[11px] font-semibold text-accent-ink tabular-nums"
+                  >
+                    {pending}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
             <button
               onClick={() => setAccount(true)}
               aria-label="Account"
@@ -327,7 +371,7 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
                           className="block w-full text-left transition-transform duration-150 active:scale-[0.96]"
                           aria-label={`${book.title}${book.author ? ` by ${book.author}` : ""}`}
                         >
-                          <BookCover book={book} />
+                          <BookCover book={book} locked={book.private} />
                         </button>
                       </motion.li>
                     ))}
@@ -369,7 +413,9 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
         onClose={() => setOpenBookId(null)}
         onCategories={setCategories}
         onStatus={(book, status) => changeStatus(book, status)}
+        onPrivate={setPrivate}
         onRemove={remove}
+        publicProfile={profile.isPublic}
       />
       <ShareSheet
         open={sharing}
@@ -380,7 +426,16 @@ export function ShelfApp({ user, initialBooks, features }: Props) {
         name={name}
         onName={setName}
       />
-      <AccountSheet open={account} onOpenChange={setAccount} name={name} contact={user.contact} onName={setName} count={books.length} />
+      <AccountSheet
+        open={account}
+        onOpenChange={setAccount}
+        profile={profile}
+        contact={user.contact}
+        count={books.length}
+        privateCount={privateCount}
+        onProfile={updateProfile}
+      />
+      <FriendsSheet open={friendsOpen} onOpenChange={setFriendsOpen} name={name} onName={setName} onPending={setPending} />
     </div>
   );
 }
@@ -413,7 +468,7 @@ function ReadingCard({ book, onOpen, onFinish }: { book: Book; onOpen: () => voi
       className="flex items-center gap-4 rounded-3xl bg-surface p-3 pr-4 shadow-book"
     >
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-4 text-left active:opacity-80">
-        <BookCover book={book} className="w-16 shrink-0" rounded="rounded-[4px]" />
+        <BookCover book={book} className="w-16 shrink-0" rounded="rounded-[4px]" locked={book.private} />
         <span className="min-w-0">
           <span className="block font-serif text-[19px] leading-tight font-medium line-clamp-2">{book.title}</span>
           {book.author && <span className="mt-0.5 block truncate text-[14px] text-ink-2">{book.author}</span>}
@@ -430,14 +485,6 @@ function ReadingCard({ book, onOpen, onFinish }: { book: Book; onOpen: () => voi
       </button>
     </motion.li>
   );
-}
-
-function ago(ts: number) {
-  const days = Math.round((ts - Date.now()) / 86_400_000);
-  const rtf = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
-  if (Math.abs(days) < 7) return rtf.format(days, "day");
-  if (Math.abs(days) < 60) return rtf.format(Math.round(days / 7), "week");
-  return rtf.format(Math.round(days / 30), "month");
 }
 
 function SectionEmpty({ section, onAdd }: { section: Status; onAdd: () => void }) {
