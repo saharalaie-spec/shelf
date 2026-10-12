@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
-import type { Book } from "@/lib/types";
+import type { Book, Status } from "@/lib/types";
 import { BookCover } from "./BookCover";
+import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Icon } from "./ui";
 
@@ -12,10 +13,11 @@ type Props = {
   allCategories: string[];
   onClose: () => void;
   onCategories: (book: Book, categories: string[]) => void;
+  onStatus: (book: Book, status: Status) => void;
   onRemove: (book: Book) => void;
 };
 
-export function BookSheet({ book, allCategories, onClose, onCategories, onRemove }: Props) {
+export function BookSheet({ book, allCategories, onClose, onCategories, onStatus, onRemove }: Props) {
   // Keep showing the last book while the sheet animates closed.
   const [shown, setShown] = useState(book);
   if (book && book !== shown) setShown(book);
@@ -56,7 +58,11 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onRemove
             </div>
           </div>
 
-          <p className="mt-7 mb-2.5 text-[13px] font-medium tracking-wide text-muted uppercase">Categories</p>
+          <div className="mt-6">
+            <SectionTabs value={b.status} onChange={(s) => onStatus(b, s)} layoutId="book-status-pill" />
+          </div>
+
+          <p className="mt-6 mb-2.5 text-[13px] font-medium tracking-wide text-muted uppercase">Categories</p>
           <div className="flex flex-wrap gap-2">
             {options.map((c) => {
               const on = b.categories.includes(c);

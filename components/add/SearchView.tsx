@@ -2,8 +2,8 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { api } from "@/lib/client";
-import type { BookHit } from "@/lib/types";
+import { api, STATUS_LABEL } from "@/lib/client";
+import type { BookHit, Status } from "@/lib/types";
 import { BookCover } from "../BookCover";
 import type { ShelfActions } from "../ShelfApp";
 import { Icon, type IconName } from "../ui";
@@ -30,7 +30,8 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
   });
   const inputRef = useRef<HTMLInputElement>(null);
   const [openedAt] = useState(() => Date.now());
-  const justAdded = shelf.books.filter((b) => b.addedAt >= openedAt);
+  // Added or moved while this sheet is open.
+  const justAdded = shelf.books.filter((b) => b.addedAt >= openedAt || b.statusAt >= openedAt);
   const query = q.trim();
   const failed = failedFor === query;
   const loading = query.length >= 2 && resultsFor !== query && !failed;
@@ -123,7 +124,14 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
           <ul className={`transition-opacity duration-200 ${stale && results.length ? "opacity-60" : ""}`}>
             {results.length === 0 && loading && Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} />)}
             {results.map((hit, i) => (
-              <ResultRow key={hit.key} hit={hit} top={i === 0 && !stale} onShelf={shelf.keys.has(hit.key)} onAdd={() => shelf.add([hit])} />
+              <ResultRow
+                key={hit.key}
+                hit={hit}
+                top={i === 0 && !stale}
+                current={shelf.statusOf.get(hit.key)}
+                target={shelf.target}
+                onAdd={() => shelf.add([hit])}
+              />
             ))}
             {!loading && (
               <li>
@@ -210,30 +218,45 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
   );
 }
 
-function ResultRow({ hit, top, onShelf, onAdd }: { hit: BookHit; top: boolean; onShelf: boolean; onAdd: () => void }) {
+function ResultRow({
+  hit,
+  top,
+  current,
+  target,
+  onAdd,
+}: {
+  hit: BookHit;
+  top: boolean;
+  current: Status | undefined;
+  target: Status;
+  onAdd: () => void;
+}) {
+  const here = current === target;
   return (
     <li>
       <button
-        onClick={onShelf ? undefined : onAdd}
-        disabled={onShelf}
+        onClick={here ? undefined : onAdd}
+        disabled={here}
         className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors active:bg-surface-2 ${top ? "bg-surface-2/60" : ""}`}
       >
         <BookCover book={hit} className="w-9 shrink-0" rounded="rounded-[3px]" />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[16px] font-medium">{hit.title}</span>
           <span className="block truncate text-[14px] text-muted">
-            {[hit.author, hit.year && hit.year > 0 ? hit.year : null].filter(Boolean).join(" · ") || "Unknown author"}
+            {current && !here
+              ? `In ${STATUS_LABEL[current]} · tap to move`
+              : [hit.author, hit.year && hit.year > 0 ? hit.year : null].filter(Boolean).join(" · ") || "Unknown author"}
           </span>
         </span>
         <AnimatePresence mode="wait" initial={false}>
-          {onShelf ? (
+          {here ? (
             <motion.span
               key="on"
               initial={{ scale: 0.4, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: "spring", stiffness: 500, damping: 22 }}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-good text-white"
-              aria-label="On your shelf"
+              aria-label={`In ${STATUS_LABEL[target]}`}
             >
               <Icon name="check" size={18} />
             </motion.span>
@@ -243,7 +266,7 @@ function ResultRow({ hit, top, onShelf, onAdd }: { hit: BookHit; top: boolean; o
               exit={{ scale: 0.4, opacity: 0 }}
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-line text-ink"
             >
-              <Icon name="plus" size={18} />
+              <Icon name={current ? "arrow" : "plus"} size={18} />
             </motion.span>
           )}
         </AnimatePresence>

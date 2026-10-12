@@ -3,9 +3,10 @@
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { api, plural, shelfTitle } from "@/lib/client";
-import type { Book } from "@/lib/types";
+import { api, shelfCount, shelfTitle } from "@/lib/client";
+import type { Book, Status } from "@/lib/types";
 import { BookCover } from "./BookCover";
+import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Button, Icon } from "./ui";
 
@@ -13,14 +14,14 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   books: Book[];
-  categories: [string, number][];
+  initialStatus: Status;
   initialCategory: string | null;
   name: string | null;
   onName: (name: string | null) => void;
 };
 
 export function ShareSheet({ open, onOpenChange, ...rest }: Props) {
-  // Links are stable per category; remember them across opens.
+  // Links are stable per section and category; remember them across opens.
   const [links, setLinks] = useState<Record<string, string>>({});
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title="Share your shelf">
@@ -34,27 +35,37 @@ type BodyProps = Omit<Props, "open" | "onOpenChange"> & {
   setLinks: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 };
 
-function ShareBody({ books, categories, initialCategory, name, onName, links, setLinks }: BodyProps) {
+function ShareBody({ books, initialStatus, initialCategory, name, onName, links, setLinks }: BodyProps) {
+  const [status, setStatus] = useState<Status>(initialStatus);
   const [scope, setScope] = useState<string | null>(initialCategory);
   const [draftName, setDraftName] = useState("");
   const [copied, setCopied] = useState(false);
   const inflight = useRef(new Set<string>());
 
+  const inSection = books.filter((b) => b.status === status);
+  const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
+  for (const b of books) counts[b.status]++;
+  const tally = new Map<string, number>();
+  for (const b of inSection) for (const c of b.categories) tally.set(c, (tally.get(c) ?? 0) + 1);
+  const categories = [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  // A category picked in one section may not exist in another.
+  const category = scope && tally.has(scope) ? scope : null;
+
   // Fetch (or create) the link as soon as a scope is picked, so Share is instant.
-  const scopeKey = scope ?? "";
+  const scopeKey = `${status}|${category ?? ""}`;
   useEffect(() => {
     if (links[scopeKey] || inflight.current.has(scopeKey)) return;
     inflight.current.add(scopeKey);
-    api<{ url: string }>("/api/shares", { body: { category: scopeKey } })
+    api<{ url: string }>("/api/shares", { body: { status, category: category ?? "" } })
       .then(({ url }) => setLinks((l) => ({ ...l, [scopeKey]: url })))
       .catch((err) => toast.error(err.message))
       .finally(() => inflight.current.delete(scopeKey));
-  }, [scopeKey, links, setLinks]);
+  }, [scopeKey, status, category, links, setLinks]);
 
   const url = links[scopeKey];
-  const shown = scope ? books.filter((b) => b.categories.includes(scope)) : books;
+  const shown = category ? inSection.filter((b) => b.categories.includes(category)) : inSection;
   const displayName = name ?? (draftName.trim() || null);
-  const title = shelfTitle(displayName, scope);
+  const title = shelfTitle(displayName, category, status);
 
   const saveName = () => {
     const n = draftName.trim();
@@ -76,7 +87,7 @@ function ShareBody({ books, categories, initialCategory, name, onName, links, se
     saveName();
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: `${title}: ${plural(shown.length, "book")} I’ve read`, url });
+        await navigator.share({ title, text: `${title}: ${shelfCount(shown.length, status)}`, url });
         return;
       } catch (err) {
         if ((err as DOMException).name === "AbortError") return;
@@ -87,10 +98,13 @@ function ShareBody({ books, categories, initialCategory, name, onName, links, se
 
   return (
     <div className="overflow-y-auto pb-safe" data-vaul-no-drag="">
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-1 pb-4">
-          <ScopeChip active={!scope} onClick={() => setScope(null)} label="Everything" count={books.length} />
+        <div className="px-5 pt-1">
+          <SectionTabs value={status} counts={counts} onChange={setStatus} layoutId="share-status-pill" />
+        </div>
+        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3 pb-4">
+          <ScopeChip active={!category} onClick={() => setScope(null)} label="Everything" count={inSection.length} />
           {categories.map(([c, n]) => (
-            <ScopeChip key={c} active={scope === c} onClick={() => setScope(c)} label={c} count={n} />
+            <ScopeChip key={c} active={category === c} onClick={() => setScope(c)} label={c} count={n} />
           ))}
         </div>
 
@@ -114,7 +128,7 @@ function ShareBody({ books, categories, initialCategory, name, onName, links, se
             })}
           </div>
           <p className="mt-5 text-center font-serif text-[22px] leading-tight font-medium tracking-tight">{title}</p>
-          <p className="mt-0.5 text-center text-[14px] text-muted">{plural(shown.length, "book")}</p>
+          <p className="mt-0.5 text-center text-[14px] text-muted">{shelfCount(shown.length, status)}</p>
         </div>
 
         {!name && (

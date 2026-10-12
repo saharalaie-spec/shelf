@@ -1,4 +1,4 @@
-import type { Candidate } from "./types";
+import type { Candidate, Status } from "./types";
 
 const BULLET = /^\s*(?:[-*•·▪◦>]+|\(?\d{1,4}[.)\]:]|\[[ xX]?\])\s*/;
 
@@ -65,11 +65,27 @@ export function parseCsv(text: string): string[][] {
   return rows.filter((r) => r.some((f) => f.trim()));
 }
 
-export type ImportResult = { items: Candidate[]; source: "goodreads" | "storygraph" | "csv"; skipped: number };
+export type ImportResult = {
+  items: Candidate[];
+  source: "goodreads" | "storygraph" | "csv";
+  /** Books on shelves we don't map (e.g. "did-not-finish"). */
+  skipped: number;
+  counts: Record<Status, number>;
+};
+
+/** Goodreads "Exclusive Shelf" / StoryGraph "Read Status" → our sections. */
+function shelfStatus(value: string): Status | null {
+  const v = value.trim().toLowerCase().replace(/[\s_]+/g, "-");
+  if (v === "read") return "read";
+  if (v === "currently-reading" || v === "reading") return "reading";
+  if (v === "to-read" || v === "want-to-read") return "want";
+  return null;
+}
 
 /**
  * Read a Goodreads or StoryGraph library export (or any CSV with a Title column).
- * Only books marked as read are kept when the export says what's been read.
+ * Read, currently-reading and to-read shelves map onto the three sections; other shelves are skipped.
+ * Without a shelf column, items carry no status and land wherever the user is adding.
  */
 export function parseLibraryExport(text: string): ImportResult | null {
   const rows = parseCsv(text.replace(/^﻿/, ""));
@@ -90,23 +106,27 @@ export function parseLibraryExport(text: string): ImportResult | null {
       : "csv";
 
   let skipped = 0;
+  const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
   const items: Candidate[] = [];
   for (const r of rows.slice(1)) {
     const t = r[title]?.trim();
     if (!t) continue;
-    if (shelf !== -1 && r[shelf] && !/^read$/i.test(r[shelf].trim())) {
+    const status = shelf !== -1 && r[shelf]?.trim() ? shelfStatus(r[shelf]) : undefined;
+    if (status === null) {
       skipped++;
       continue;
     }
+    if (status) counts[status]++;
     const isbnValue = cleanIsbn(r[isbn13]) ?? cleanIsbn(r[isbn]);
     items.push({
       // Goodreads appends series info: "The Hobbit (Middle-earth, #0)"
       title: t.replace(/\s*\([^)]*#\d+(?:\.\d+)?\)\s*$/, ""),
       author: author !== -1 ? r[author]?.split(",")[0].trim() || undefined : undefined,
       isbn: isbnValue,
+      ...(status ? { status } : {}),
     });
   }
-  return { items, source, skipped };
+  return { items, source, skipped, counts };
 }
 
 function cleanIsbn(v?: string) {

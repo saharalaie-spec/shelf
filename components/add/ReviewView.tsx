@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
-import { api, plural } from "@/lib/client";
+import { api, plural, STATUS_LABEL } from "@/lib/client";
 import type { BookHit, Candidate, MatchResult } from "@/lib/types";
 import { BookCover } from "../BookCover";
 import type { ShelfActions } from "../ShelfApp";
@@ -54,23 +54,26 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
   const loading = done < items.length;
 
   const hitFor = (i: number) => picked[i] ?? results[i]?.match ?? typedHit(items[i]);
+  // Imports know each book's section; everything else goes where the picker says.
+  const statusFor = (i: number) => items[i].status ?? shelf.target;
+  const alreadyThere = (i: number) => shelf.statusOf.get(hitFor(i).key) === statusFor(i);
   const isTicked = (i: number) => {
     const r = results[i];
     if (!r) return false;
-    if (shelf.keys.has(hitFor(i).key)) return false;
+    if (alreadyThere(i)) return false;
     return ticked[i] ?? Boolean(r.match);
   };
 
   const selected = useMemo(
     () => results.map((_, i) => i).filter(isTicked),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [results, picked, ticked, shelf.keys],
+    [results, picked, ticked, shelf.statusOf, shelf.target],
   );
   const matched = results.filter((r) => r?.match).length;
 
   const addAll = async () => {
     setAdding(true);
-    const added = await shelf.add(selected.map(hitFor));
+    const added = await shelf.add(selected.map((i) => ({ ...hitFor(i), status: statusFor(i) })));
     setAdding(false);
     if (added.length) onAdded();
   };
@@ -99,7 +102,9 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
           const r = results[i];
           if (!r) return <PendingRow key={i} input={input} />;
           const hit = hitFor(i);
-          const onShelf = shelf.keys.has(hit.key);
+          const onShelf = alreadyThere(i);
+          const current = shelf.statusOf.get(hit.key);
+          const ownSection = input.status && input.status !== shelf.target ? ` · ${STATUS_LABEL[input.status]}` : "";
           const isTyped = hit.key.startsWith("typed:");
           const expanded = open === i;
           const options = [r.match, ...r.alternatives].filter((h): h is BookHit => Boolean(h));
@@ -127,12 +132,14 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
                     <span className={`block truncate text-[16px] font-medium ${isTicked(i) || onShelf ? "" : "text-muted"}`}>{hit.title}</span>
                     <span className="block truncate text-[14px] text-muted">
                       {onShelf
-                        ? "Already on your shelf"
-                        : !r.match && !picked[i]
-                          ? "No match. Tick to add as typed"
-                          : isTyped
-                            ? "Added as you typed it"
-                            : (hit.author ?? "Unknown author")}
+                        ? `Already in ${STATUS_LABEL[statusFor(i)]}`
+                        : current
+                          ? `Moves from ${STATUS_LABEL[current]} to ${STATUS_LABEL[statusFor(i)]}`
+                          : !r.match && !picked[i]
+                            ? "No match. Tick to add as typed"
+                            : isTyped
+                              ? `Added as you typed it${ownSection}`
+                              : `${hit.author ?? "Unknown author"}${ownSection}`}
                     </span>
                     {differs && <span className="block truncate text-[12px] text-muted/80">from “{input.title}”</span>}
                   </span>

@@ -43,7 +43,7 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
       const { results } = await api<{ results: BookHit[] }>(`/api/search?isbn=${code}`);
       const book = results[0];
       if (!book) return update(code, { state: "missing" });
-      if (shelf.keys.has(book.key)) return update(code, { book, state: "already" });
+      if (shelf.statusOf.get(book.key) === shelf.target) return update(code, { book, state: "already" });
       // Scanning a book means you've got it in hand: add straight away, no extra tap.
       const added = await shelf.add([book], { quiet: true });
       update(code, { book, state: added.length ? "added" : "already" });

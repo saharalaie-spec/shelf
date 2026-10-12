@@ -2,6 +2,7 @@
 
 Every book you've read, in one place, and one link to share them.
 
+- **Three sections: Read, Reading, Want to read.** Switch between them at the top of your shelf. Books you're reading get a one-tap **Finished** button; any book can be moved from its details sheet. Adding a book that's already in another section moves it there.
 - **Sign in with a code.** Phone number or email, then a 6-digit code. No passwords. You stay signed in for 400 days.
 - **Add books with as little effort as possible.**
   - Type a title and press Enter to add the top match, then type the next. The field clears and keeps focus.
@@ -9,11 +10,11 @@ Every book you've read, in one place, and one link to share them.
   - Say them out loud (dictation, in browsers that support it).
   - Scan barcodes. Each scanned book goes straight onto your shelf.
   - Snap your shelf: one photo, and Claude reads the spines (needs `ANTHROPIC_API_KEY`).
-  - Import a Goodreads or StoryGraph export. Only books marked as read come in.
+  - Import a Goodreads or StoryGraph export. Read, currently-reading and to-read shelves each land in their own section.
 
-  Every bulk method ends on one review screen, where you untick or swap any wrong match.
+  The add sheet has an **Add to** picker (it starts on the section you're looking at), and every bulk method ends on one review screen, where you untick or swap any wrong match.
 - **Categories are automatic.** They come from the catalog's subjects, so a philosophy book lands in *Philosophy*. You can change them, or add your own, on any book.
-- **Share a link.** Share the whole shelf or one category ("Sahar's Philosophy shelf"). Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own shelf" invitation; that's where the "get the app" hook will go.
+- **Share a link.** Share any section, whole or one category: "Sahar's Philosophy shelf", "What Sahar's reading", "Sahar's want-to-read list". Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own shelf" invitation; that's where the "get the app" hook will go.
 
 ## Run it
 
@@ -80,7 +81,7 @@ lib/auth.ts               codes (hashed, 10-min expiry, 5 tries, resend limits) 
 lib/books.ts              catalog search & matching (Open Library → Google Books → offline list)
 lib/categories.ts         catalog subjects → friendly categories
 lib/parse.ts              pasted lists, dictation and CSV exports → candidate titles
-lib/db.ts                 schema (created automatically on first run)
+lib/db.ts                 schema and migrations (applied automatically on first run)
 ```
 
 Share links are unguessable, one per shelf or category, and stay live: books you add later show up on links you've already sent.
