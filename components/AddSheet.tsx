@@ -2,7 +2,8 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import type { Candidate, Status } from "@/lib/types";
+import { vocab } from "@/lib/kinds";
+import type { Candidate, Kind, Status } from "@/lib/types";
 import { ImportView } from "./add/ImportView";
 import { PasteView } from "./add/PasteView";
 import { PhotoView } from "./add/PhotoView";
@@ -18,26 +19,35 @@ import { Icon } from "./ui";
 type View = "search" | Method | "review";
 
 const TITLES: Record<View, string> = {
-  search: "Add books",
+  search: "",
   paste: "Paste a list",
   voice: "Say them out loud",
   scan: "Scan barcodes",
-  photo: "Snap your shelf",
-  import: "Import your library",
+  photo: "",
+  import: "",
   review: "Look right?",
 };
 
+/** The titles that differ between collections. */
+const KIND_TITLES: Record<Kind, Partial<Record<View, string>>> = {
+  book: { photo: "Snap your shelf", import: "Import your library" },
+  podcast: { photo: "Screenshot your app", import: "Import subscriptions" },
+  screen: { photo: "Snap or screenshot", import: "Import your history" },
+};
+
 type Props = {
+  kind: Kind;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** The section on screen; new books go there unless the picker says otherwise. */
+  /** The section on screen; new items go there unless the picker says otherwise. */
   section: Status;
   shelf: ShelfApi;
   empty: boolean;
   features: { photo: boolean };
 };
 
-export function AddSheet({ open, onOpenChange, section, shelf, empty, features }: Props) {
+export function AddSheet({ kind, open, onOpenChange, section, shelf, empty, features }: Props) {
+  const v = vocab(kind);
   const [view, setView] = useState<View>("search");
   const [direction, setDirection] = useState(1);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -51,7 +61,8 @@ export function AddSheet({ open, onOpenChange, section, shelf, empty, features }
   }
 
   const actions: ShelfActions = {
-    books: shelf.books,
+    kind,
+    items: shelf.items,
     statusOf: shelf.statusOf,
     target,
     add: (hits, opts) => shelf.add(hits, { status: target, ...opts }),
@@ -77,7 +88,7 @@ export function AddSheet({ open, onOpenChange, section, shelf, empty, features }
     <Sheet
       open={open}
       onOpenChange={onOpenChange}
-      title={TITLES[view]}
+      title={view === "search" ? v.addLabel : (KIND_TITLES[kind][view] ?? TITLES[view])}
       tall
       headerLeft={
         view !== "search" ? (
@@ -102,7 +113,7 @@ export function AddSheet({ open, onOpenChange, section, shelf, empty, features }
       <div className="flex shrink-0 items-center gap-3 px-5 pb-3">
         <span className="text-[13px] font-medium text-muted">Add to</span>
         <div className="flex-1">
-          <SectionTabs value={target} onChange={setTarget} layoutId="add-target-pill" />
+          <SectionTabs value={target} labels={v.sections} onChange={setTarget} layoutId="add-target-pill" />
         </div>
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -117,11 +128,11 @@ export function AddSheet({ open, onOpenChange, section, shelf, empty, features }
             className="flex min-h-0 flex-1 flex-col"
           >
             {view === "search" && <SearchView shelf={actions} empty={empty} features={features} onMethod={go} />}
-            {view === "paste" && <PasteView onReview={review} />}
-            {view === "voice" && <VoiceView onReview={review} />}
+            {view === "paste" && <PasteView kind={kind} onReview={review} />}
+            {view === "voice" && <VoiceView kind={kind} onReview={review} />}
             {view === "scan" && <ScanView shelf={actions} />}
-            {view === "photo" && <PhotoView onReview={review} />}
-            {view === "import" && <ImportView onReview={review} />}
+            {view === "photo" && <PhotoView kind={kind} onReview={review} />}
+            {view === "import" && <ImportView kind={kind} onReview={review} />}
             {view === "review" && (
               <ReviewView items={candidates} shelf={actions} onAdded={() => onOpenChange(false)} />
             )}

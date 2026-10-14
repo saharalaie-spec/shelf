@@ -1,17 +1,18 @@
 "use client";
 
 import { motion } from "motion/react";
-import { STATUS_LABEL } from "@/lib/client";
 import { STATUSES, type Status } from "@/lib/types";
 
-/** Read · Reading · Want to read, as a segmented control with a sliding pill. */
+/** Read · Reading · Want to read (or each collection's own words), as a segmented control with a sliding pill. */
 export function SectionTabs({
   value,
+  labels,
   counts,
   onChange,
   layoutId = "section-pill",
 }: {
   value: Status;
+  labels: Record<Status, string>;
   counts?: Record<Status, number>;
   onChange: (s: Status) => void;
   layoutId?: string;
@@ -34,7 +35,7 @@ export function SectionTabs({
             />
           )}
           <span className={`relative flex items-center gap-1.5 ${value === s ? "text-ink" : "text-muted"}`}>
-            {STATUS_LABEL[s]}
+            {labels[s]}
             {counts && <span className="tabular-nums opacity-60">{counts[s]}</span>}
           </span>
         </button>

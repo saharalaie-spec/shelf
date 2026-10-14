@@ -6,7 +6,9 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { guessCountry, parseIdentifier } from "@/lib/identifier";
+import { VOCAB } from "@/lib/kinds";
 import type { Friend, IncomingRequest, OutgoingRequest } from "@/lib/social";
+import { KINDS } from "@/lib/types";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon } from "./ui";
 
@@ -144,7 +146,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
         </div>
       ) : data.friends.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-[15px] text-muted">
-          No friends yet. Send your invite link to the people you swap books with.
+          No friends yet. Send your invite link to the people you swap recommendations with.
         </p>
       ) : (
         <ul className="-mx-2">
@@ -155,7 +157,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[16px] font-medium">{f.name ?? "Shelf reader"}</span>
                   <span className="block truncate text-[13px] text-muted">
-                    {f.readingNow ? `Reading ${f.readingNow}` : summary(f.counts)}
+                    {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
                   </span>
                 </span>
                 <Icon name="chevron" size={16} className="shrink-0 text-muted" />
@@ -186,7 +188,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
 
       <p className="mt-6 mb-3 flex gap-2 text-[13px] leading-snug text-muted">
         <Icon name="lock" size={15} className="mt-px shrink-0" />
-        Friends see your Read, Reading and Want to read sections. Books you mark private stay yours.
+        Friends see everything you add: books, podcasts, movies and shows. Anything you mark private stays yours.
       </p>
     </div>
   );
@@ -243,7 +245,7 @@ function InviteCard({ url, name }: { url: string | null; name: string | null }) 
       try {
         await navigator.share({
           title: "Be my friend on Shelf",
-          text: `${name ? `${name} here. ` : ""}Let’s see each other’s books on Shelf:`,
+          text: `${name ? `${name} here. ` : ""}Let’s swap books, podcasts and shows on Shelf:`,
           url,
         });
         return;
@@ -341,6 +343,6 @@ function Heading({ children }: { children: React.ReactNode }) {
 }
 
 function summary(c: Friend["counts"]) {
-  const parts = [c.read && `${c.read} read`, c.reading && `${c.reading} reading`, c.want && `${c.want} to read`].filter(Boolean);
-  return parts.length ? parts.join(" · ") : "No books yet";
+  const parts = KINDS.filter((k) => c[k]).map((k) => VOCAB[k].noun(c[k]));
+  return parts.length ? parts.join(" · ") : "Nothing shared yet";
 }

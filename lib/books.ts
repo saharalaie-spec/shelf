@@ -1,15 +1,15 @@
 import "server-only";
 import { categorize } from "./categories";
 import { fixtureSearch } from "./fixture-books";
-import type { BookHit, Candidate, MatchResult } from "./types";
+import type { Hit, Candidate, MatchResult } from "./types";
 
 const TIMEOUT_MS = 7000;
-const cache = new Map<string, { at: number; hits: BookHit[] }>();
+const cache = new Map<string, { at: number; hits: Hit[] }>();
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
 type Query = { q?: string; title?: string; author?: string; isbn?: string };
 
-async function cached(key: string, run: () => Promise<BookHit[]>) {
+async function cached(key: string, run: () => Promise<Hit[]>) {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.hits;
   const hits = await run();
@@ -23,7 +23,7 @@ async function cached(key: string, run: () => Promise<BookHit[]>) {
  * Google Books is the fallback. BOOKS_PROVIDER=fixture uses a small built-in list
  * for offline development and tests.
  */
-export async function findBooks(query: Query, limit = 8): Promise<BookHit[]> {
+export async function findBooks(query: Query, limit = 8): Promise<Hit[]> {
   const key = JSON.stringify([query, limit]);
   return cached(key, async () => {
     if (process.env.BOOKS_PROVIDER === "fixture") return fixtureSearch(query, limit);
@@ -53,7 +53,7 @@ export function splitTitleAuthor(text: string): Query {
 
 export async function matchCandidates(items: Candidate[]): Promise<MatchResult[]> {
   return mapLimit(items, 5, async (input) => {
-    let hits: BookHit[] = [];
+    let hits: Hit[] = [];
     try {
       if (input.isbn) hits = await findBooks({ isbn: input.isbn }, 1);
       if (!hits.length && input.author) hits = await findBooks({ title: input.title, author: input.author }, 4);
@@ -94,7 +94,7 @@ type OLDoc = {
   edition_count?: number;
 };
 
-async function openLibrary(query: Query, limit: number): Promise<BookHit[]> {
+async function openLibrary(query: Query, limit: number): Promise<Hit[]> {
   const params = new URLSearchParams({
     fields: "key,title,author_name,first_publish_year,cover_i,subject,edition_count",
     limit: String(Math.max(limit * 2, 10)),
@@ -152,7 +152,7 @@ type GBItem = {
   };
 };
 
-async function googleBooks(query: Query, limit: number): Promise<BookHit[]> {
+async function googleBooks(query: Query, limit: number): Promise<Hit[]> {
   let q = query.q ?? "";
   if (query.isbn) q = `isbn:${query.isbn}`;
   else if (query.title) q = `intitle:${query.title}${query.author ? ` inauthor:${query.author}` : ""}`;

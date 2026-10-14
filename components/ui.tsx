@@ -182,7 +182,31 @@ const ICONS = {
     </>
   ),
   chevron: <path d="M9 5l7 7-7 7" />,
+  down: <path d="M6 9.5l6 6 6-6" />,
+  book: (
+    <>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H19v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+      <path d="M4 20.5A2.5 2.5 0 0 0 6.5 23H19v-5" />
+    </>
+  ),
+  headphones: (
+    <>
+      <path d="M4 15v-3a8 8 0 0 1 16 0v3" />
+      <rect x="3.5" y="14" width="4.5" height="7" rx="2" />
+      <rect x="16" y="14" width="4.5" height="7" rx="2" />
+    </>
+  ),
+  film: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="2.5" />
+      <path d="M7 5v14M17 5v14M3 9.5h4M3 14.5h4M17 9.5h4M17 14.5h4" />
+    </>
+  ),
+  home: <path d="M4 11l8-6.5 8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z" />,
 };
+
+/** The icon that stands for each collection. */
+export const KIND_ICON = { book: "book", podcast: "headphones", screen: "film" } as const satisfies Record<string, IconName>;
 
 /** An iOS-style on/off switch. */
 export function Switch({

@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
-import { plural } from "@/lib/client";
+import { vocab } from "@/lib/kinds";
 import { parseList } from "@/lib/parse";
-import type { Candidate } from "@/lib/types";
+import type { Candidate, Kind } from "@/lib/types";
 import { Button, Icon } from "../ui";
 
-export function PasteView({ onReview }: { onReview: (items: Candidate[]) => void }) {
+export function PasteView({ kind, onReview }: { kind: Kind; onReview: (items: Candidate[]) => void }) {
+  const v = vocab(kind);
   const [text, setText] = useState("");
   const items = useMemo(() => parseList(text), [text]);
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -36,12 +37,12 @@ export function PasteView({ onReview }: { onReview: (items: Candidate[]) => void
         value={text}
         onChange={(e) => setText(e.target.value)}
         data-vaul-no-drag=""
-        placeholder={"Meditations\nSapiens by Yuval Noah Harari\nthe myth of sisyphus\n1984, Dune, The Stranger"}
+        placeholder={v.pastePlaceholder}
         className="min-h-0 flex-1 resize-none rounded-2xl border border-line bg-paper/40 p-4 text-[17px] leading-relaxed outline-none placeholder:text-muted/70 focus:border-ink"
       />
       <div className="pt-3 pb-safe">
         <Button className="w-full" disabled={!items.length} onClick={() => onReview(items)}>
-          {items.length ? `Find ${plural(items.length, "book")}` : "Find books"}
+          {items.length ? `Find ${v.noun(items.length)}` : `Find ${v.many}`}
         </Button>
       </div>
     </div>

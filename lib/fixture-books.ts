@@ -1,5 +1,5 @@
 import { categorize } from "./categories";
-import type { BookHit } from "./types";
+import type { Hit } from "./types";
 
 // A small offline catalog used when BOOKS_PROVIDER=fixture (tests, or working without network).
 // [title, author, year, isbn13, subjects]
@@ -60,7 +60,7 @@ const RAW: [string, string, number, string, string[]][] = [
   ["The Second Sex", "Simone de Beauvoir", 1949, "9780307277787", ["Feminism", "Women", "Philosophy", "Social conditions"]],
 ];
 
-const BOOKS: (BookHit & { isbn: string })[] = RAW.map(([title, author, year, isbn, subjects]) => ({
+const BOOKS: (Hit & { isbn: string })[] = RAW.map(([title, author, year, isbn, subjects]) => ({
   key: `fx:${isbn}`,
   title,
   author,
@@ -76,7 +76,7 @@ const norm = (s: string) =>
 export function fixtureSearch(
   query: { q?: string; title?: string; author?: string; isbn?: string },
   limit: number,
-): BookHit[] {
+): Hit[] {
   let hits: typeof BOOKS;
   if (query.isbn) {
     hits = BOOKS.filter((b) => b.isbn === query.isbn);

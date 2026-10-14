@@ -1,37 +1,50 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
-import type { Candidate } from "./types";
+import type { Candidate, Kind } from "./types";
 
-/** The shelf-photo feature lights up when an Anthropic credential is configured. */
+/** Photo and screenshot reading lights up when an Anthropic credential is configured. */
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
-const BOOKS_SCHEMA = {
+const SCHEMA = {
   type: "object",
   properties: {
-    books: {
+    items: {
       type: "array",
       items: {
         type: "object",
         properties: {
           title: { type: "string" },
-          author: { type: "string", description: "Empty string if not visible or not known." },
+          creator: { type: "string", description: "Author, host or director. Empty string if not visible or not known." },
+          year: { type: "integer", description: "Release year if shown or certain; 0 otherwise." },
         },
-        required: ["title", "author"],
+        required: ["title", "creator", "year"],
         additionalProperties: false,
       },
     },
   },
-  required: ["books"],
+  required: ["items"],
   additionalProperties: false,
 };
 
-const PROMPT = `This is a photo of someone's books (a shelf, a stack, or covers).
-List every book you can identify from spines or covers, in the order they appear.
+const PROMPTS: Record<Kind, string> = {
+  book: `This is a photo of someone's books (a shelf, a stack, or covers), or a screenshot of a reading app.
+List every book you can identify from spines, covers or the screen, in the order they appear.
 Use the book's real, full title as it is commonly known, correcting obvious spine abbreviations.
-Include the author when it's printed or you're confident who wrote it; otherwise leave it empty.
-Skip anything you can't read well enough to identify. Don't guess at blurry spines.`;
+Put the author in "creator" when it's printed or you're confident who wrote it; otherwise leave it empty.
+Skip anything you can't read well enough to identify. Don't guess at blurry spines.`,
+  podcast: `This is a screenshot of someone's podcast app (Spotify, Apple Podcasts, Overcast, Pocket Casts…),
+or a photo of a screen showing podcasts. List every podcast show you can identify, in the order they appear.
+Use the show's name, not an episode title. Put the host or publisher in "creator" if it's shown; otherwise leave it empty.
+Skip anything you can't read or identify with confidence.`,
+  screen: `This is a screenshot of a streaming app, a watchlist, a Letterboxd or IMDb page, or a photo of movies
+(DVDs, Blu-rays, posters, a TV screen). List every movie or TV show you can identify, in the order they appear.
+Use the commonly known title (the show's name, not an episode). Put the year in "year" when it's shown or you're
+certain which release it is; otherwise 0. Leave "creator" empty unless a director is printed.
+Skip anything you can't read or identify with confidence.`,
+};
 
-export async function booksFromPhoto(
+export async function itemsFromPhoto(
+  kind: Kind,
   data: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
 ): Promise<Candidate[]> {
@@ -44,14 +57,14 @@ export async function booksFromPhoto(
     fallbacks: "default",
     output_config: {
       effort: "low",
-      format: { type: "json_schema", schema: BOOKS_SCHEMA },
+      format: { type: "json_schema", schema: SCHEMA },
     },
     messages: [
       {
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data } },
-          { type: "text", text: PROMPT },
+          { type: "text", text: PROMPTS[kind] },
         ],
       },
     ],
@@ -60,8 +73,12 @@ export async function booksFromPhoto(
   if (response.stop_reason === "refusal") return [];
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") return [];
-  const parsed = JSON.parse(text.text) as { books: { title: string; author: string }[] };
-  return parsed.books
+  const parsed = JSON.parse(text.text) as { items: { title: string; creator: string; year: number }[] };
+  return parsed.items
     .filter((b) => b.title.trim())
-    .map((b) => ({ title: b.title.trim(), author: b.author.trim() || undefined }));
+    .map((b) => ({
+      title: b.title.trim(),
+      author: b.creator.trim() || undefined,
+      year: b.year > 1800 && b.year < 2100 ? b.year : undefined,
+    }));
 }

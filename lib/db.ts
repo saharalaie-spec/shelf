@@ -118,6 +118,30 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX friend_requests_by_target ON friend_requests (to_identifier)`,
     ],
   },
+  {
+    id: "2026-10-14-collections",
+    statements: [
+      // The books table now holds every collection: books, podcasts, and movies & TV ("screen").
+      // Work keys are namespaced by source, so UNIQUE (user_id, work_key) still holds across kinds.
+      `ALTER TABLE books ADD COLUMN kind TEXT NOT NULL DEFAULT 'book'`,
+      `CREATE INDEX IF NOT EXISTS books_by_kind ON books (user_id, kind, status, status_at DESC)`,
+      // Share links become one per (user, collection, section, category).
+      `CREATE TABLE shares_v3 (
+        slug TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL DEFAULT 'book',
+        status TEXT NOT NULL DEFAULT 'read',
+        category TEXT NOT NULL DEFAULT '',
+        created_at INTEGER NOT NULL,
+        views INTEGER NOT NULL DEFAULT 0,
+        UNIQUE (user_id, kind, status, category)
+      )`,
+      `INSERT INTO shares_v3 (slug, user_id, kind, status, category, created_at, views)
+        SELECT slug, user_id, 'book', status, category, created_at, views FROM shares`,
+      `DROP TABLE shares`,
+      `ALTER TABLE shares_v3 RENAME TO shares`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

@@ -1,4 +1,4 @@
-import type { BookHit, Status } from "./types";
+import type { Hit, Kind } from "./types";
 
 /** Small fetch wrapper for our JSON API. Throws with the server's friendly message. */
 export async function api<T>(path: string, init?: { method?: string; body?: unknown; signal?: AbortSignal }): Promise<T> {
@@ -18,26 +18,36 @@ export const possessive = (name: string) => (/s$/i.test(name) ? `${name}’` : `
 
 export const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
 
-export const STATUS_LABEL: Record<Status, string> = { read: "Read", reading: "Reading", want: "Want to read" };
-
-/** "Sahar’s Philosophy shelf", "What Sahar’s reading", "Sahar’s want-to-read list". */
-export function shelfTitle(name: string | null, category: string | null, status: Status = "read") {
-  if (status === "reading") {
-    return `${name ? `What ${name}’s reading` : "Currently reading"}${category ? ` in ${category}` : ""}`;
+/** Where to learn more about an item, or listen or watch: its catalog page plus a useful next stop. */
+export function itemLinks(item: Pick<Hit, "key" | "title" | "author">, kind: Kind): { label: string; href: string }[] {
+  const q = encodeURIComponent(item.title);
+  const k = item.key;
+  const id = k.slice(k.lastIndexOf(":") + 1);
+  if (kind === "podcast") {
+    return [
+      { label: "Open in Spotify", href: `https://open.spotify.com/search/${q}` },
+      k.startsWith("itunes:pod:")
+        ? { label: "Apple Podcasts", href: `https://podcasts.apple.com/podcast/id${id}` }
+        : { label: "Apple Podcasts", href: `https://podcasts.apple.com/search?term=${q}` },
+    ];
   }
-  const owner = name ? possessive(name) : "A";
-  return `${owner} ${category ? `${category} ` : ""}${status === "want" ? "want-to-read list" : "shelf"}`;
-}
-
-/** "12 books read", "2 books in progress", "15 books to read". */
-export const shelfCount = (n: number, status: Status) =>
-  `${plural(n, "book")} ${status === "read" ? "read" : status === "reading" ? "in progress" : "to read"}`;
-
-/** The book's page in the catalog it came from, or a search for typed-in books. */
-export function catalogLink(b: Pick<BookHit, "key" | "title" | "author">) {
-  if (b.key.startsWith("ol:/works/")) return `https://openlibrary.org${b.key.slice(3)}`;
-  if (b.key.startsWith("gb:")) return `https://books.google.com/books?id=${b.key.slice(3)}`;
-  return `https://openlibrary.org/search?q=${encodeURIComponent(`${b.title} ${b.author ?? ""}`.trim())}`;
+  if (kind === "screen") {
+    const page = k.startsWith("tmdb:movie:")
+      ? `https://www.themoviedb.org/movie/${id}`
+      : k.startsWith("tmdb:tv:")
+        ? `https://www.themoviedb.org/tv/${id}`
+        : k.startsWith("tvmaze:")
+          ? `https://www.tvmaze.com/shows/${id}`
+          : `https://www.themoviedb.org/search?query=${q}`;
+    return [
+      { label: "Where to watch", href: `https://www.justwatch.com/us/search?q=${q}` },
+      { label: "More about it", href: page },
+    ];
+  }
+  if (k.startsWith("ol:/works/")) return [{ label: "More about this book", href: `https://openlibrary.org${k.slice(3)}` }];
+  if (k.startsWith("gb:")) return [{ label: "More about this book", href: `https://books.google.com/books?id=${k.slice(3)}` }];
+  const search = encodeURIComponent(`${item.title} ${item.author ?? ""}`.trim());
+  return [{ label: "More about this book", href: `https://openlibrary.org/search?q=${search}` }];
 }
 
 /** "3 days ago", "last week": for dates only the browser should format (locale, clock). */

@@ -2,26 +2,37 @@
 
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
-import type { Book, Status } from "@/lib/types";
-import { BookCover } from "./BookCover";
+import { itemLinks } from "@/lib/client";
+import { PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
+import { vocab } from "@/lib/kinds";
+import type { Item, Kind, Status } from "@/lib/types";
+import { Cover } from "./Cover";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Icon, Switch } from "./ui";
 
+const CATEGORY_LISTS: Record<Kind, readonly string[]> = {
+  book: CATEGORIES,
+  podcast: PODCAST_CATEGORIES,
+  screen: SCREEN_CATEGORIES,
+};
+
 type Props = {
-  book: Book | null;
+  kind: Kind;
+  book: Item | null;
   allCategories: string[];
   onClose: () => void;
-  onCategories: (book: Book, categories: string[]) => void;
-  onStatus: (book: Book, status: Status) => void;
-  onPrivate: (book: Book, value: boolean) => void;
-  onRemove: (book: Book) => void;
-  /** Whether the owner's profile is public, which changes who a non-private book is visible to. */
+  onCategories: (book: Item, categories: string[]) => void;
+  onStatus: (book: Item, status: Status) => void;
+  onPrivate: (book: Item, value: boolean) => void;
+  onRemove: (book: Item) => void;
+  /** Whether the owner's profile is public, which changes who a non-private item is visible to. */
   publicProfile: boolean;
 };
 
-export function BookSheet({ book, allCategories, onClose, onCategories, onStatus, onPrivate, onRemove, publicProfile }: Props) {
-  // Keep showing the last book while the sheet animates closed.
+export function ItemSheet({ kind, book, allCategories, onClose, onCategories, onStatus, onPrivate, onRemove, publicProfile }: Props) {
+  const v = vocab(kind);
+  // Keep showing the last item while the sheet animates closed.
   const [shown, setShown] = useState(book);
   if (book && book !== shown) setShown(book);
   const [custom, setCustom] = useState("");
@@ -29,9 +40,9 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onStatus
   const [showAll, setShowAll] = useState(false);
 
   const b = book ?? shown;
-  // The book's own categories and ones already on your shelf first; the full list on request.
+  // The item's own categories and ones already in this collection first; the full list on request.
   const mine = [...new Set([...(b?.categories ?? []), ...allCategories])];
-  const rest = CATEGORIES.filter((c) => !mine.includes(c));
+  const rest = CATEGORY_LISTS[kind].filter((c) => !mine.includes(c));
   const options = showAll || mine.length < 4 ? [...mine, ...rest] : mine;
 
   const toggle = (c: string) => {
@@ -49,11 +60,11 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onStatus
   };
 
   return (
-    <Sheet open={Boolean(book)} onOpenChange={(o) => !o && onClose()} title={b?.title ?? "Book"} hideTitle>
+    <Sheet open={Boolean(book)} onOpenChange={(o) => !o && onClose()} title={b?.title ?? "Details"} hideTitle>
       {b && (
         <div className="overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
           <div className="flex gap-5 pt-2">
-            <BookCover book={b} className="w-28 shrink-0" locked={b.private} />
+            <Cover book={b} shape={v.shape} className="w-28 shrink-0" locked={b.private} />
             <div className="min-w-0 flex-1 pt-1">
               <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{b.title}</h2>
               {b.author && <p className="mt-1 text-[16px] text-ink-2">{b.author}</p>}
@@ -62,7 +73,7 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onStatus
           </div>
 
           <div className="mt-6">
-            <SectionTabs value={b.status} onChange={(s) => onStatus(b, s)} layoutId="book-status-pill" />
+            <SectionTabs value={b.status} labels={v.sections} onChange={(s) => onStatus(b, s)} layoutId="item-status-pill" />
           </div>
 
           <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-paper px-4 py-3">
@@ -71,7 +82,7 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onStatus
               <span className="block text-[16px] font-medium">Private</span>
               <span className="block text-[13px] leading-snug text-muted">
                 {b.private
-                  ? "Only you can see this book."
+                  ? "Only you can see this."
                   : publicProfile
                     ? "Anyone with your profile link can see it."
                     : "Your friends can see it."}
@@ -121,11 +132,26 @@ export function BookSheet({ book, allCategories, onClose, onCategories, onStatus
             )}
           </div>
 
+          <div className="mt-7 flex flex-wrap gap-2">
+            {itemLinks(b, kind).map((l) => (
+              <a
+                key={l.label}
+                href={l.href}
+                target="_blank"
+                rel="noreferrer"
+                className="flex h-10 items-center gap-1.5 rounded-full bg-surface-2 px-4 text-[14px] font-medium active:scale-95"
+              >
+                {l.label}
+                <Icon name="arrow" size={14} className="-rotate-45 text-muted" />
+              </a>
+            ))}
+          </div>
+
           <button
             onClick={() => onRemove(b)}
-            className="mt-8 mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium text-accent active:bg-surface-2"
+            className="mt-5 mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium text-accent active:bg-surface-2"
           >
-            <Icon name="trash" size={18} /> Remove from shelf
+            <Icon name="trash" size={18} /> Remove
           </button>
         </div>
       )}

@@ -2,9 +2,9 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-import { plural } from "@/lib/client";
+import { vocab } from "@/lib/kinds";
 import { parseList } from "@/lib/parse";
-import type { Candidate } from "@/lib/types";
+import type { Candidate, Kind } from "@/lib/types";
 import { Button, Icon } from "../ui";
 
 // The Web Speech API isn't in TypeScript's DOM types yet; this is the slice we use.
@@ -20,7 +20,7 @@ type Recognition = {
   onerror: ((e: { error: string }) => void) | null;
 };
 
-/** Pauses, commas and "next" separate books. Not "and": think War and Peace. */
+/** Pauses, commas and "next" separate titles. Not "and": think War and Peace. */
 const splitSpoken = (t: string) =>
   t
     .split(/\s*(?:[,;.]|\bnext\b|\bthen\b|\balso\b)\s*/i)
@@ -28,7 +28,8 @@ const splitSpoken = (t: string) =>
     .filter((s) => s.length > 1)
     .map((s) => s.replace(/^./, (c) => c.toUpperCase()));
 
-export function VoiceView({ onReview }: { onReview: (items: Candidate[]) => void }) {
+export function VoiceView({ kind, onReview }: { kind: Kind; onReview: (items: Candidate[]) => void }) {
+  const v = vocab(kind);
   const [listening, setListening] = useState(false);
   const [lines, setLines] = useState<string[]>([]);
   const [interim, setInterim] = useState("");
@@ -118,7 +119,7 @@ export function VoiceView({ onReview }: { onReview: (items: Candidate[]) => void
           </span>
         </button>
         <p className="mt-5 text-center text-[16px] text-muted">
-          {listening ? "Listening… say a title, pause, say the next." : lines.length ? "Tap to keep going." : "Tap and start naming books."}
+          {listening ? "Listening… say a title, pause, say the next." : lines.length ? "Tap to keep going." : `Tap and start naming ${v.many}.`}
         </p>
         {error && <p className="mt-2 text-center text-[14px] text-accent">{error}</p>}
       </div>
@@ -153,7 +154,7 @@ export function VoiceView({ onReview }: { onReview: (items: Candidate[]) => void
             onReview(items);
           }}
         >
-          {items.length ? `Find ${plural(items.length, "book")}` : "Find books"}
+          {items.length ? `Find ${v.noun(items.length)}` : `Find ${v.many}`}
         </Button>
       </div>
     </div>

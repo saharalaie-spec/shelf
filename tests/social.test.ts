@@ -8,7 +8,7 @@ let social: typeof import("@/lib/social");
 let shelf: typeof import("@/lib/shelf");
 let db: typeof import("@/lib/db").db;
 
-const book = (key: string, title: string, extra: Partial<import("@/lib/shelf").NewBook> = {}) => ({
+const book = (key: string, title: string, extra: Partial<import("@/lib/shelf").NewItem> = {}) => ({
   key,
   title,
   author: null,
@@ -41,9 +41,9 @@ beforeAll(async () => {
 describe("private books", () => {
   it("are only listed for their owner", async () => {
     const me = await signUp({ phone: "+14155550101" }, "Ana");
-    await shelf.addBooks(me.id, [book("fx:p1", "Public one"), book("fx:p2", "Diary", { private: true })]);
-    expect((await shelf.listBooks(me.id)).map((b) => b.title)).toEqual(["Public one"]);
-    const all = await shelf.listBooks(me.id, { includePrivate: true });
+    await shelf.addItems(me.id, "book", [book("fx:p1", "Public one"), book("fx:p2", "Diary", { private: true })]);
+    expect((await shelf.listItems(me.id)).map((b) => b.title)).toEqual(["Public one"]);
+    const all = await shelf.listItems(me.id, { includePrivate: true });
     expect(all.map((b) => [b.title, b.private])).toEqual(
       expect.arrayContaining([
         ["Public one", false],
@@ -54,18 +54,18 @@ describe("private books", () => {
 
   it("never appear in share links, even ones made before the book went private", async () => {
     const me = await signUp({ phone: "+14155550102" }, "Bo");
-    const [a] = await shelf.addBooks(me.id, [book("fx:s1", "Shared"), book("fx:s2", "Secret")]);
-    const slug = await shelf.getOrCreateShare(me.id, "read", "");
-    const secret = (await shelf.listBooks(me.id)).find((b) => b.title === "Secret")!;
-    await shelf.updateBook(me.id, secret.id, { private: true });
-    expect((await shelf.getSharedShelf(slug))!.books.map((b) => b.title)).toEqual([a.title]);
+    const [a] = await shelf.addItems(me.id, "book", [book("fx:s1", "Shared"), book("fx:s2", "Secret")]);
+    const slug = await shelf.getOrCreateShare(me.id, "book", "read", "");
+    const secret = (await shelf.listItems(me.id)).find((b) => b.title === "Secret")!;
+    await shelf.updateItem(me.id, secret.id, { private: true });
+    expect((await shelf.getSharedShelf(slug))!.items.map((b) => b.title)).toEqual([a.title]);
   });
 
   it("can't be changed by someone else", async () => {
     const owner = await signUp({ phone: "+14155550103" });
     const other = await signUp({ phone: "+14155550104" });
-    const [b] = await shelf.addBooks(owner.id, [book("fx:o1", "Mine")]);
-    expect(await shelf.updateBook(other.id, b.id, { private: true })).toBeNull();
+    const [b] = await shelf.addItems(owner.id, "book", [book("fx:o1", "Mine")]);
+    expect(await shelf.updateItem(other.id, b.id, { private: true })).toBeNull();
   });
 });
 
@@ -190,18 +190,21 @@ describe("invite links", () => {
     expect(await social.findInviter("nope")).toBeNull();
   });
 
-  it("count friends' books without their private ones", async () => {
+  it("count friends' items per collection without their private ones", async () => {
     const a = await signUp({ phone: "+14155550191" });
     const b = await signUp({ phone: "+14155550192" });
-    await shelf.addBooks(b.id, [
+    await shelf.addItems(b.id, "book", [
       book("fx:f1", "Open"),
       book("fx:f2", "Hidden", { private: true }),
-      book("fx:f3", "Now", { status: "reading" }),
+      book("fx:f3", "Now", { status: "reading", statusAt: Date.now() - 1000 }),
       book("fx:f4", "Secret now", { status: "reading", private: true, statusAt: Date.now() + 1000 }),
     ]);
+    await shelf.addItems(b.id, "screen", [book("fx:screen:bear", "The Bear", { status: "reading" })]);
+    await shelf.addItems(b.id, "podcast", [book("fx:pod:daily", "The Daily", { private: true })]);
     await social.acceptInvite(a, await social.inviteToken(b.id));
     const [friend] = await social.listFriends(a.id);
-    expect(friend.counts).toEqual({ read: 1, reading: 1, want: 0 });
-    expect(friend.readingNow).toBe("Now");
+    expect(friend.counts).toEqual({ book: 2, podcast: 0, screen: 1 });
+    // The most recent thing in progress, whatever the collection.
+    expect(friend.now).toEqual({ kind: "screen", title: "The Bear" });
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { BookHit } from "@/lib/types";
+import type { Hit } from "@/lib/types";
 import { Icon } from "./ui";
 
 const PALETTE = ["#2f4b3a", "#34466b", "#7a2e2e", "#9a6c22", "#4b5960", "#5b3a5e", "#8a4b2f", "#285a5f", "#6b5b3a", "#3d3a4f"];
@@ -13,22 +13,24 @@ function hash(s: string) {
 }
 
 type Props = {
-  book: Pick<BookHit, "title" | "author" | "coverUrl">;
+  book: Pick<Hit, "title" | "author" | "coverUrl">;
+  /** Books and posters are 2:3; podcast art is square. */
+  shape?: "portrait" | "square";
   className?: string;
   rounded?: string;
   /** Shows a lock: a private book only its owner can see. */
   locked?: boolean;
 };
 
-/** The real cover when we have one; otherwise a typeset cover so the shelf always looks like books. */
-export function BookCover({ book, className = "", rounded = "rounded-[5px]", locked }: Props) {
+/** The real cover or artwork when we have one; otherwise a typeset one, so a shelf always looks full. */
+export function Cover({ book, shape = "portrait", className = "", rounded = "rounded-[5px]", locked }: Props) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const showImage = book.coverUrl && !failed;
 
   return (
-    <div className={`@container relative aspect-[2/3] overflow-hidden ${rounded} shadow-book ${className}`}>
-      {(!showImage || !loaded) && <TypeCover book={book} />}
+    <div className={`@container relative overflow-hidden ${shape === "square" ? "aspect-square" : "aspect-[2/3]"} ${rounded} shadow-book ${className}`}>
+      {(!showImage || !loaded) && <TypeCover book={book} square={shape === "square"} />}
       {showImage && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -46,8 +48,10 @@ export function BookCover({ book, className = "", rounded = "rounded-[5px]", loc
           className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-300 ${loaded ? "opacity-100" : "opacity-0"}`}
         />
       )}
-      {/* spine crease */}
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-[6%] bg-gradient-to-r from-black/25 via-white/10 to-transparent" />
+      {/* spine crease, for things that have spines */}
+      {shape === "portrait" && (
+        <div className="pointer-events-none absolute inset-y-0 left-0 w-[6%] bg-gradient-to-r from-black/25 via-white/10 to-transparent" />
+      )}
       {locked && (
         <span className="absolute top-[5%] right-[6%] flex h-6 w-6 items-center justify-center rounded-full bg-black/60 text-white backdrop-blur-sm">
           <Icon name="lock" size={13} />
@@ -58,12 +62,14 @@ export function BookCover({ book, className = "", rounded = "rounded-[5px]", loc
   );
 }
 
-function TypeCover({ book }: { book: Props["book"] }) {
+function TypeCover({ book, square }: { book: Props["book"]; square: boolean }) {
   const bg = PALETTE[hash(book.title + (book.author ?? "")) % PALETTE.length];
   return (
     <div className="absolute inset-0 flex flex-col justify-between p-[9cqw] text-[#f6efe2]" style={{ background: bg }}>
       <div className="h-px w-[30%] bg-[#f6efe2]/40" />
-      <div className="font-serif text-[13cqw] leading-[1.08] font-medium [overflow-wrap:anywhere] line-clamp-5">{book.title}</div>
+      <div className={`font-serif leading-[1.08] font-medium [overflow-wrap:anywhere] ${square ? "text-[12cqw] line-clamp-3" : "text-[13cqw] line-clamp-5"}`}>
+        {book.title}
+      </div>
       <div className="text-[7.5cqw] tracking-wide uppercase opacity-75 line-clamp-2">{book.author ?? ""}</div>
     </div>
   );

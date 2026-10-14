@@ -4,14 +4,14 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { isBookBarcode } from "@/lib/parse";
-import type { BookHit } from "@/lib/types";
-import { BookCover } from "../BookCover";
+import type { Hit } from "@/lib/types";
+import { Cover } from "../Cover";
 import type { ShelfActions } from "../ShelfApp";
 import { Icon, Spinner } from "../ui";
 
 type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> };
 type DetectorCtor = new (opts: { formats: string[] }) => Detector;
-type Scan = { code: string; book: BookHit | null; state: "looking" | "added" | "already" | "missing" };
+type Scan = { code: string; book: Hit | null; state: "looking" | "added" | "already" | "missing" };
 
 /** The browser's own barcode reader when it has one (Chrome/Android), else a WebAssembly one (iOS Safari, Firefox). */
 async function loadDetector(): Promise<DetectorCtor> {
@@ -40,7 +40,7 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
     navigator.vibrate?.(30);
     setScans((s) => [{ code, book: null, state: "looking" }, ...s]);
     try {
-      const { results } = await api<{ results: BookHit[] }>(`/api/search?isbn=${code}`);
+      const { results } = await api<{ results: Hit[] }>(`/api/search?isbn=${code}`);
       const book = results[0];
       if (!book) return update(code, { state: "missing" });
       if (shelf.statusOf.get(book.key) === shelf.target) return update(code, { book, state: "already" });
@@ -167,7 +167,7 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
           {scans.map((s) => (
             <motion.li key={s.code} layout initial={{ opacity: 0, y: -12, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} className="flex items-center gap-3 rounded-2xl px-2 py-2">
               {s.book ? (
-                <BookCover book={s.book} className="w-9 shrink-0" rounded="rounded-[3px]" />
+                <Cover book={s.book} className="w-9 shrink-0" rounded="rounded-[3px]" />
               ) : (
                 <div className="skeleton aspect-[2/3] w-9 shrink-0 rounded-[3px]" />
               )}
