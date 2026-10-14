@@ -71,7 +71,7 @@ export function Invite({ token, inviter, viewerName, own }: Props) {
               {who} wants to be friends
             </h1>
             <p className="mt-2 max-w-xs text-[16px] text-muted">
-              You’ll see each other’s Read, Reading and Want to read shelves. Private books stay private.
+              You’ll see each other’s books, podcasts, movies and shows. Anything marked private stays private.
             </p>
             {needsName && (
               <input

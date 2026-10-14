@@ -1,22 +1,25 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
-import { addBooks, listBooks } from "@/lib/shelf";
-import { isStatus, type BookHit, type Status } from "@/lib/types";
+import { addItems, listItems } from "@/lib/shelf";
+import { isKind, isStatus, type Hit, type Kind, type Status } from "@/lib/types";
 
-type Incoming = BookHit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean };
+type Incoming = Hit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean };
 
-export const GET = route(async () => {
+export const GET = route(async (req: Request) => {
   const user = await requireUser();
-  return Response.json({ books: await listBooks(user.id, { includePrivate: true }) });
+  const kind = new URL(req.url).searchParams.get("kind");
+  return Response.json({ items: await listItems(user.id, { kind: isKind(kind) ? kind : undefined, includePrivate: true }) });
 });
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser();
-  const body = await readJson<{ books: Incoming[] }>(req);
-  const hits = (Array.isArray(body.books) ? body.books : []).filter(isHit).slice(0, 1000);
-  if (!hits.length) throw new AuthError("No books to add.");
-  const added = await addBooks(
+  const body = await readJson<{ kind: Kind; items: Incoming[] }>(req);
+  if (!isKind(body.kind)) throw new AuthError("Unknown collection.");
+  const hits = (Array.isArray(body.items) ? body.items : []).filter(isHit).slice(0, 2000);
+  if (!hits.length) throw new AuthError("Nothing to add.");
+  const added = await addItems(
     user.id,
+    body.kind,
     hits.map((h) => ({
       key: h.key.slice(0, 200),
       title: h.title.slice(0, 300),
@@ -34,6 +37,6 @@ export const POST = route(async (req: Request) => {
 });
 
 function isHit(h: unknown): h is Incoming {
-  const b = h as BookHit;
+  const b = h as Hit;
   return Boolean(b && typeof b.key === "string" && typeof b.title === "string" && b.title.trim());
 }

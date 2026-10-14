@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, plural } from "@/lib/client";
+import { api } from "@/lib/client";
 import { Sheet } from "./Sheet";
 import { Button, Icon, Switch, useHydrated } from "./ui";
 
@@ -14,7 +14,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   profile: Profile;
   contact: string;
-  count: number;
+  /** "46 books": how much is in the collection on screen. */
+  countLabel: string;
   privateCount: number;
   onProfile: (patch: Partial<Profile>) => void;
 };
@@ -29,7 +30,7 @@ export function AccountSheet({ open, onOpenChange, ...rest }: Props) {
 
 const HANDLE_RE = /^[a-z0-9][a-z0-9_.]{1,18}[a-z0-9]$/;
 
-function AccountBody({ profile, contact, count, privateCount, onProfile }: Omit<Props, "open" | "onOpenChange">) {
+function AccountBody({ profile, contact, countLabel, privateCount, onProfile }: Omit<Props, "open" | "onOpenChange">) {
   const [draft, setDraft] = useState(profile.name ?? "");
   const [leaving, setLeaving] = useState<"here" | "everywhere" | null>(null);
   const { name } = profile;
@@ -54,7 +55,7 @@ function AccountBody({ profile, contact, count, privateCount, onProfile }: Omit<
   return (
     <div className="overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <p className="text-[15px] text-muted">
-        {contact} · {plural(count, "book")}
+        {contact} · {countLabel}
       </p>
       <label className="mt-5 mb-1.5 block text-[14px] text-muted">Your name</label>
       <input
@@ -195,7 +196,7 @@ function ProfileSettings({
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-medium">See what friends see</span>
           <span className="block text-[13px] text-muted">
-            {privateCount ? `${plural(privateCount, "private book")} hidden` : "Mark a book private from its page"}
+            {privateCount ? `${privateCount.toLocaleString()} private hidden here` : "Anything can be made private from its page"}
           </span>
         </span>
         <Icon name="chevron" size={16} className="shrink-0 text-muted" />

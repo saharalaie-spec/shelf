@@ -177,7 +177,7 @@ function EnterStep({
   return (
     <form onSubmit={submit} noValidate>
       <h1 className="font-serif text-[40px] leading-[1.05] font-medium tracking-tight text-balance">
-        {heading ?? "Every book you’ve read. One link to share."}
+        {heading ?? "Every book, podcast and show you love, in one place."}
       </h1>
       <p className="mt-4 text-[17px] text-muted">
         {subheading ?? `Sign in with your ${both ? "phone or email" : mode === "phone" ? "phone number" : "email address"}.`} No

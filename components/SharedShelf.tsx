@@ -3,25 +3,28 @@
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { catalogLink, shelfCount } from "@/lib/client";
-import type { Book, Status } from "@/lib/types";
-import { BookCover } from "./BookCover";
+import { itemLinks } from "@/lib/client";
+import { shelfCount, vocab } from "@/lib/kinds";
+import type { Item, Kind, Status } from "@/lib/types";
+import { Cover } from "./Cover";
 import { Sheet } from "./Sheet";
 import { Logo } from "./ui";
 
 type Props = {
   title: string;
+  kind: Kind;
   ownerName: string | null;
   status: Status;
   category: string | null;
-  books: Book[];
+  items: Item[];
   viewerSignedIn: boolean;
 };
 
-export function SharedShelf({ title, ownerName, status, category, books, viewerSignedIn }: Props) {
+export function SharedShelf({ title, kind, ownerName, status, category, items: books, viewerSignedIn }: Props) {
+  const v = vocab(kind);
   const [filter, setFilter] = useState<string | null>(null);
-  const [open, setOpen] = useState<Book | null>(null);
-  const [lastOpen, setLastOpen] = useState<Book | null>(null);
+  const [open, setOpen] = useState<Item | null>(null);
+  const [lastOpen, setLastOpen] = useState<Item | null>(null);
 
   // A whole-shelf link can still be browsed by category.
   const categories = useMemo(() => {
@@ -53,7 +56,7 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
           {(ownerName ?? "?").charAt(0).toUpperCase()}
         </div>
         <h1 className="mt-4 font-serif text-[38px] leading-[1.05] font-medium tracking-tight text-balance">{title}</h1>
-        <p className="mt-2 text-[16px] text-muted">{shelfCount(books.length, status)}</p>
+        <p className="mt-2 text-[16px] text-muted">{shelfCount(books.length, status, kind)}</p>
       </section>
 
       {categories.length > 1 && (
@@ -74,7 +77,7 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
       )}
 
       {books.length === 0 ? (
-        <p className="px-5 text-[16px] text-muted">Nothing on this shelf yet. Check back soon.</p>
+        <p className="px-5 text-[16px] text-muted">Nothing here yet. Check back soon.</p>
       ) : (
         <ul className="grid grid-cols-3 gap-x-3 gap-y-5 px-5 sm:grid-cols-4 md:grid-cols-5">
           <AnimatePresence initial={false} mode="popLayout">
@@ -94,7 +97,7 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
                   }}
                   className="block w-full text-left transition-transform active:scale-[0.96]"
                 >
-                  <BookCover book={b} />
+                  <Cover book={b} shape={v.shape} />
                   <p className="mt-2 line-clamp-2 text-[13px] leading-snug font-medium">{b.title}</p>
                   {b.author && <p className="truncate text-[12px] text-muted">{b.author}</p>}
                 </button>
@@ -115,7 +118,7 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
           >
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-medium">Make your own shelf</p>
-              <p className="text-[14px] text-paper/65">Add every book you&rsquo;ve read in a minute.</p>
+              <p className="text-[14px] text-paper/65">Your books, podcasts and shows, shared with friends.</p>
             </div>
             <Link href="/" className="inline-flex h-11 shrink-0 items-center rounded-full bg-paper px-5 text-[15px] font-medium text-ink active:scale-[0.97]">
               Start yours
@@ -124,11 +127,11 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
         </div>
       )}
 
-      <Sheet open={Boolean(open)} onOpenChange={(o) => !o && setOpen(null)} title={shown?.title ?? "Book"} hideTitle>
+      <Sheet open={Boolean(open)} onOpenChange={(o) => !o && setOpen(null)} title={shown?.title ?? "Details"} hideTitle>
         {shown && (
           <div className="px-5 pb-safe">
             <div className="flex gap-5 pt-2 pb-4">
-              <BookCover book={shown} className="w-28 shrink-0" />
+              <Cover book={shown} shape={v.shape} className="w-28 shrink-0" />
               <div className="min-w-0 flex-1 pt-1">
                 <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{shown.title}</h2>
                 {shown.author && <p className="mt-1 text-[16px] text-ink-2">{shown.author}</p>}
@@ -136,14 +139,19 @@ export function SharedShelf({ title, ownerName, status, category, books, viewerS
                 {shown.categories.length > 0 && <p className="mt-3 text-[13px] text-muted">{shown.categories.join(" · ")}</p>}
               </div>
             </div>
-            <a
-              href={catalogLink(shown)}
-              target="_blank"
-              rel="noreferrer"
-              className="mb-2 flex h-12 w-full items-center justify-center rounded-full bg-surface-2 text-[15px] font-medium"
-            >
-              More about this book
-            </a>
+            <div className="mb-2 flex flex-wrap gap-2">
+              {itemLinks(shown, kind).map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-12 flex-1 items-center justify-center rounded-full bg-surface-2 px-4 text-[15px] font-medium whitespace-nowrap"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </div>
           </div>
         )}
       </Sheet>

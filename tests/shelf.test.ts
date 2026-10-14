@@ -34,52 +34,76 @@ beforeAll(async () => {
 
 describe("upgrading an existing database", () => {
   it("files every existing book under Read, keeping its date", async () => {
-    const [book] = await shelf.listBooks(USER);
-    expect(book).toMatchObject({ title: "Meditations", status: "read", statusAt: 1000 });
+    const [book] = await shelf.listItems(USER);
+    expect(book).toMatchObject({ title: "Meditations", kind: "book", status: "read", statusAt: 1000, private: false });
   });
 
   it("keeps old share links working as Read links", async () => {
     const shared = await shelf.getSharedShelf("oldlink");
     expect(shared).toMatchObject({ ownerName: "Sahar", status: "read", category: null });
-    expect(shared!.books.map((b) => b.title)).toEqual(["Meditations"]);
-    expect(await shelf.getOrCreateShare(USER, "read", "")).toBe("oldlink");
+    expect(shared!.items.map((b) => b.title)).toEqual(["Meditations"]);
+    expect(await shelf.getOrCreateShare(USER, "book", "read", "")).toBe("oldlink");
   });
 
   it("gives each section its own link", async () => {
-    const want = await shelf.getOrCreateShare(USER, "want", "");
-    const reading = await shelf.getOrCreateShare(USER, "reading", "");
+    const want = await shelf.getOrCreateShare(USER, "book", "want", "");
+    const reading = await shelf.getOrCreateShare(USER, "book", "reading", "");
     expect(new Set(["oldlink", want, reading]).size).toBe(3);
-    expect(await shelf.getOrCreateShare(USER, "want", "")).toBe(want);
+    expect(await shelf.getOrCreateShare(USER, "book", "want", "")).toBe(want);
   });
 });
 
 describe("sections", () => {
   it("adds books to a section and filters by section and category", async () => {
-    await shelf.addBooks(USER, [
+    await shelf.addItems(USER, "book", [
       { key: "fx:2", title: "Dune", author: null, year: null, coverUrl: null, categories: ["Science Fiction"], status: "want" },
       { key: "fx:3", title: "The Republic", author: null, year: null, coverUrl: null, categories: ["Philosophy"], status: "reading" },
     ]);
-    expect((await shelf.listBooks(USER, { status: "want" })).map((b) => b.title)).toEqual(["Dune"]);
-    expect((await shelf.listBooks(USER, { category: "Philosophy" })).map((b) => b.title).sort()).toEqual([
+    expect((await shelf.listItems(USER, { status: "want" })).map((b) => b.title)).toEqual(["Dune"]);
+    expect((await shelf.listItems(USER, { category: "Philosophy" })).map((b) => b.title).sort()).toEqual([
       "Meditations",
       "The Republic",
     ]);
-    expect((await shelf.listBooks(USER, { status: "read", category: "Philosophy" })).map((b) => b.title)).toEqual([
+    expect((await shelf.listItems(USER, { status: "read", category: "Philosophy" })).map((b) => b.title)).toEqual([
       "Meditations",
     ]);
   });
 
   it("restamps a book only when it actually changes section", async () => {
-    const dune = (await shelf.listBooks(USER, { status: "want" }))[0];
-    const moved = await shelf.updateBook(USER, dune.id, { status: "reading" });
+    const dune = (await shelf.listItems(USER, { status: "want" }))[0];
+    const moved = await shelf.updateItem(USER, dune.id, { status: "reading" });
     expect(moved!.statusAt).toBeGreaterThan(dune.statusAt - 1);
-    const again = await shelf.updateBook(USER, dune.id, { status: "reading", categories: ["Classics"] });
+    const again = await shelf.updateItem(USER, dune.id, { status: "reading", categories: ["Classics"] });
     expect(again!.statusAt).toBe(moved!.statusAt);
     expect(again!.categories).toEqual(["Classics"]);
   });
 
   it("won't touch someone else's book", async () => {
-    const [book] = await shelf.listBooks(USER);
-    expect(await shelf.updateBook("someone-else", book.id, { status: "want" })).toBeNull();
+    const [book] = await shelf.listItems(USER);
+    expect(await shelf.updateItem("someone-else", book.id, { status: "want" })).toBeNull();
+  });
+});
+
+describe("collections", () => {
+  it("keeps books, podcasts and movies apart, with their own links", async () => {
+    await shelf.addItems(USER, "podcast", [
+      { key: "fx:pod:daily", title: "The Daily", author: null, year: null, coverUrl: null, categories: [], status: "reading" },
+    ]);
+    await shelf.addItems(USER, "screen", [
+      { key: "fx:screen:dune-2021", title: "Dune", author: null, year: 2021, coverUrl: null, categories: ["Movies"], status: "read" },
+    ]);
+    expect((await shelf.listItems(USER, { kind: "podcast" })).map((b) => b.title)).toEqual(["The Daily"]);
+    expect((await shelf.listItems(USER, { kind: "screen" })).map((b) => [b.title, b.kind])).toEqual([["Dune", "screen"]]);
+    expect((await shelf.listItems(USER, { kind: "book" })).every((b) => b.kind === "book")).toBe(true);
+
+    const books = await shelf.getOrCreateShare(USER, "book", "read", "");
+    const movies = await shelf.getOrCreateShare(USER, "screen", "read", "");
+    expect(books).toBe("oldlink");
+    expect(movies).not.toBe(books);
+    expect(await shelf.getSharedShelf(movies)).toMatchObject({ kind: "screen", items: [{ title: "Dune" }] });
+
+    const home = await shelf.summarize(USER);
+    expect(home.podcast).toMatchObject({ counts: { read: 0, reading: 1, want: 0 }, now: "The Daily" });
+    expect(home.screen.covers.map((c) => c.title)).toEqual(["Dune"]);
   });
 });

@@ -4,7 +4,7 @@ import type { Row } from "@libsql/client";
 import { AuthError, type User } from "./auth";
 import { db } from "./db";
 import { parseIdentifier } from "./identifier";
-import type { Status } from "./types";
+import { isKind, type Kind } from "./types";
 
 /** Someone else's account, as much of it as other people may see. */
 export type Person = { id: string; name: string | null; handle: string | null; isPublic: boolean };
@@ -132,27 +132,33 @@ async function freeHandle(name: string): Promise<string | null> {
 
 // ---------- Friends ----------
 
-export type Friend = Person & { counts: Record<Status, number>; readingNow: string | null };
+/** A friend, with how much they share in each collection and what they're into right now. */
+export type Friend = Person & { counts: Record<Kind, number>; now: { kind: Kind; title: string } | null };
 
 export async function listFriends(userId: string): Promise<Friend[]> {
   const client = await db();
   const { rows } = await client.execute({
     sql: `SELECT u.id, u.name, u.handle, u.is_public,
-            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'read') AS n_read,
-            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading') AS n_reading,
-            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'want') AS n_want,
-            (SELECT title FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading'
-              ORDER BY b.status_at DESC LIMIT 1) AS reading_now
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'book') AS n_book,
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'podcast') AS n_podcast,
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'screen') AS n_screen,
+            (SELECT b.kind || ':' || b.title FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading'
+              ORDER BY b.status_at DESC LIMIT 1) AS now
           FROM friendships f JOIN users u ON u.id = f.friend_id
           WHERE f.user_id = ?
           ORDER BY lower(coalesce(u.name, '')), f.created_at`,
     args: [userId],
   });
-  return rows.map((r) => ({
-    ...toPerson(r),
-    counts: { read: Number(r.n_read), reading: Number(r.n_reading), want: Number(r.n_want) },
-    readingNow: r.reading_now ? String(r.reading_now) : null,
-  }));
+  return rows.map((r) => {
+    const now = r.now ? String(r.now) : null;
+    const split = now ? now.indexOf(":") : -1;
+    const kind = now ? now.slice(0, split) : null;
+    return {
+      ...toPerson(r),
+      counts: { book: Number(r.n_book), podcast: Number(r.n_podcast), screen: Number(r.n_screen) },
+      now: now && isKind(kind) ? { kind, title: now.slice(split + 1) } : null,
+    };
+  });
 }
 
 /** Makes two people friends (both directions) and clears any requests between them. */

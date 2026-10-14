@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
-import { shelfCount, shelfTitle } from "@/lib/client";
+import { shelfCount, shelfTitle } from "@/lib/kinds";
 import { getSharedShelf } from "@/lib/shelf";
 
-export const alt = "A shelf of books on Shelf";
+export const alt = "A shared list on Shelf";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -25,10 +25,13 @@ async function inline(url: string | null) {
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const shelf = await getSharedShelf(slug);
-  const books = shelf?.books.slice(0, 5) ?? [];
+  const books = shelf?.items.slice(0, 5) ?? [];
   const covers = await Promise.all(books.map((b) => inline(b.coverUrl)));
-  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category, shelf.status) : "Shelf";
+  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category, shelf.status, shelf.kind) : "Shelf";
   const mid = (books.length - 1) / 2;
+  // Podcast art is square; books and posters are 2:3.
+  const w = shelf?.kind === "podcast" ? 170 : 136;
+  const h = shelf?.kind === "podcast" ? 170 : 204;
 
   return new ImageResponse(
     (
@@ -45,7 +48,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>
             <div style={{ fontSize: 32, color: "#7a7368", marginTop: 20 }}>
-              {shelfCount(shelf?.books.length ?? 0, shelf?.status ?? "read")}
+              {shelfCount(shelf?.items.length ?? 0, shelf?.status ?? "read", shelf?.kind ?? "book")}
             </div>
           </div>
         </div>
@@ -55,8 +58,8 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               key={b.id}
               style={{
                 display: "flex",
-                width: 136,
-                height: 204,
+                width: w,
+                height: h,
                 flexShrink: 0,
                 marginLeft: i === 0 ? 0 : -34,
                 transform: `rotate(${(i - mid) * 6}deg) translateY(${Math.abs(i - mid) * 14}px)`,
@@ -67,7 +70,7 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               }}
             >
               {covers[i] ? (
-                <img src={covers[i]!} width={136} height={204} style={{ objectFit: "cover" }} alt="" />
+                <img src={covers[i]!} width={w} height={h} style={{ objectFit: "cover" }} alt="" />
               ) : (
                 <div style={{ display: "flex", flexDirection: "column", justifyContent: "flex-end", padding: 14, color: "#f6efe2" }}>
                   <div style={{ fontSize: 19, lineHeight: 1.1, fontWeight: 600 }}>{b.title.slice(0, 48)}</div>
