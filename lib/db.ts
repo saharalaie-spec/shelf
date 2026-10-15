@@ -142,6 +142,31 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `ALTER TABLE shares_v3 RENAME TO shares`,
     ],
   },
+  {
+    id: "2026-10-15-places",
+    statements: [
+      // The cities, regions and countries someone groups their favorite spots under. They name them;
+      // the map position and bounds (when the name came from the map) keep spot searches inside.
+      `CREATE TABLE destinations (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        country TEXT,
+        label TEXT,
+        lat REAL,
+        lon REAL,
+        bbox TEXT,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE UNIQUE INDEX destinations_by_name ON destinations (user_id, lower(name))`,
+      // Spots belong to a destination; deleting it deletes them.
+      `ALTER TABLE books ADD COLUMN destination_id TEXT REFERENCES destinations(id) ON DELETE CASCADE`,
+      `CREATE INDEX books_by_destination ON books (destination_id)`,
+      // Where a spot is (JSON {lat, lon, type, address}), and the owner's note on any item.
+      `ALTER TABLE books ADD COLUMN geo TEXT`,
+      `ALTER TABLE books ADD COLUMN note TEXT`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

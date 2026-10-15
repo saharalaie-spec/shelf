@@ -8,6 +8,7 @@ import type { Summary } from "@/lib/shelf";
 import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { Cover } from "./Cover";
+import { SpotTile } from "./Spot";
 import { FriendsSheet } from "./FriendsSheet";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Logo } from "./ui";
@@ -57,7 +58,7 @@ export function Home({ user, pendingRequests, summaries }: Props) {
         </p>
       </section>
 
-      <ul className="grid gap-3 px-5 sm:grid-cols-3">
+      <ul className="grid gap-3 px-5 sm:grid-cols-2">
         {KINDS.map((kind, i) => (
           <motion.li
             key={kind}
@@ -96,13 +97,19 @@ export function Home({ user, pendingRequests, summaries }: Props) {
 function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
   const v = VOCAB[kind];
   const { counts, covers, now } = summary;
-  const parts = [
-    counts.read && `${counts.read.toLocaleString()} ${v.sections.read.toLowerCase()}`,
-    counts.reading && `${counts.reading.toLocaleString()} ${v.sections.reading.toLowerCase()}`,
-    counts.want && `${counts.want.toLocaleString()} ${v.countSuffix.want}`,
-  ].filter(Boolean);
+  const total = counts.read + counts.reading + counts.want;
+  const parts =
+    kind === "place"
+      ? // "20 spots in 4 places"
+        [total && `${v.noun(total)}${summary.areas ? ` in ${summary.areas} ${summary.areas === 1 ? "place" : "places"}` : ""}`]
+      : [
+          counts.read && `${counts.read.toLocaleString()} ${v.sections.read.toLowerCase()}`,
+          counts.reading && `${counts.reading.toLocaleString()} ${v.sections.reading.toLowerCase()}`,
+          counts.want && `${counts.want.toLocaleString()} ${v.countSuffix.want}`,
+        ];
+  const summaryLine = parts.filter(Boolean).join(" · ");
   const square = v.shape === "square";
-  const empty = !parts.length;
+  const empty = !total;
 
   return (
     <Link
@@ -116,7 +123,14 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
         </span>
         <h2 className="mt-auto font-serif text-[30px] leading-none font-medium tracking-tight">{v.label}</h2>
         <p className="mt-2 truncate text-[14px] text-white/75">
-          {empty ? { book: "Add the books you’ve read", podcast: "Add the shows you love", screen: "Add what you’ve watched" }[kind] : parts.join(" · ")}
+          {empty
+            ? {
+                book: "Add the books you’ve read",
+                podcast: "Add the shows you love",
+                screen: "Add what you’ve watched",
+                place: "Add the spots you loved",
+              }[kind]
+            : summaryLine}
         </p>
         {now && (
           <p className="mt-0.5 truncate text-[14px] text-white/95">
@@ -140,7 +154,9 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
                 zIndex: 10 - offset,
               }}
             >
-              {c ? (
+              {c && kind === "place" ? (
+                <SpotTile spot={c} size={66} className="!shadow-none" />
+              ) : c ? (
                 <Cover book={c} shape={v.shape} rounded={square ? "rounded-[7px]" : "rounded-[4px]"} />
               ) : (
                 <div className={`${square ? "aspect-square rounded-[7px]" : "aspect-[2/3] rounded-[4px]"} border border-white/25 bg-white/10`} />

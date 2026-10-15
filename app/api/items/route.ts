@@ -1,9 +1,10 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
+import { findOrCreateDestination, getDestination, type NewDestination } from "@/lib/destinations";
 import { addItems, listItems } from "@/lib/shelf";
-import { isKind, isStatus, type Hit, type Kind, type Status } from "@/lib/types";
+import { isKind, isStatus, type Hit, type Kind, type PlaceInfo, type Status } from "@/lib/types";
 
-type Incoming = Hit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean };
+type Incoming = Hit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean; note?: string };
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser();
@@ -13,8 +14,28 @@ export const GET = route(async (req: Request) => {
 
 export const POST = route(async (req: Request) => {
   const user = await requireUser();
-  const body = await readJson<{ kind: Kind; items: Incoming[] }>(req);
+  const body = await readJson<{ kind: Kind; items: Incoming[]; destinationId: string; destination: NewDestination }>(req);
   if (!isKind(body.kind)) throw new AuthError("Unknown collection.");
+  // Spots go into one of your destinations: by id, or by name (saving a friend's spot finds or makes yours).
+  let destinationId: string | null = null;
+  if (body.kind === "place") {
+    if (typeof body.destinationId === "string") {
+      destinationId = (await getDestination(user.id, body.destinationId))?.id ?? null;
+    } else if (body.destination && typeof body.destination.name === "string") {
+      const d = body.destination;
+      destinationId = (
+        await findOrCreateDestination(user.id, {
+          name: d.name,
+          country: typeof d.country === "string" ? d.country : null,
+          label: typeof d.label === "string" ? d.label : null,
+          lat: typeof d.lat === "number" ? d.lat : null,
+          lon: typeof d.lon === "number" ? d.lon : null,
+          bbox: Array.isArray(d.bbox) ? d.bbox : null,
+        })
+      ).id;
+    }
+    if (!destinationId) throw new AuthError("Pick a place first.", 404);
+  }
   const hits = (Array.isArray(body.items) ? body.items : []).filter(isHit).slice(0, 2000);
   if (!hits.length) throw new AuthError("Nothing to add.");
   const added = await addItems(
@@ -31,10 +52,26 @@ export const POST = route(async (req: Request) => {
       statusAt: typeof h.statusAt === "number" ? h.statusAt : undefined,
       status: isStatus(h.status) ? h.status : "read",
       private: h.private === true,
+      note: typeof h.note === "string" ? h.note : null,
+      place: cleanPlace(h.place),
     })),
+    { destinationId },
   );
   return Response.json({ added });
 });
+
+function cleanPlace(p: unknown): PlaceInfo | undefined {
+  const g = p as PlaceInfo | undefined;
+  if (!g || typeof g.lat !== "number" || typeof g.lon !== "number" || Math.abs(g.lat) > 90 || Math.abs(g.lon) > 180) {
+    return undefined;
+  }
+  return {
+    lat: g.lat,
+    lon: g.lon,
+    type: typeof g.type === "string" ? g.type.slice(0, 60) : null,
+    address: typeof g.address === "string" ? g.address.slice(0, 200) : null,
+  };
+}
 
 function isHit(h: unknown): h is Incoming {
   const b = h as Hit;

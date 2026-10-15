@@ -3,9 +3,11 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
+import { SPOT_BROWSE } from "@/lib/place-categories";
 import { vocab, type Vocab } from "@/lib/kinds";
 import type { Hit, Kind, Status } from "@/lib/types";
 import { Cover } from "../Cover";
+import { SpotTile, spotLine } from "../Spot";
 import type { ShelfActions } from "../ShelfApp";
 import { Icon, type IconName } from "../ui";
 import { typedHit } from "./typed";
@@ -40,12 +42,35 @@ const METHODS: Record<Kind, { id: Method; icon: IconName; title: string; desc: s
     { id: "voice", icon: "mic", title: "Say them", desc: "Name titles out loud", needs: "speech" },
     { id: "import", icon: "file", title: "Import", desc: "Letterboxd, IMDb or Netflix" },
   ],
+  place: [
+    { id: "photo", icon: "camera", title: "Screenshot a list", desc: "A saved list, a note, a guide", needs: "photo" },
+    { id: "paste", icon: "list", title: "Paste a list", desc: "Every spot you remember" },
+    { id: "voice", icon: "mic", title: "Say them", desc: "Name spots out loud", needs: "speech" },
+    { id: "import", icon: "file", title: "Import", desc: "Google Maps saved places" },
+  ],
+};
+
+/** Icons for the one-tap "browse" chips, by the hint lib/place-categories gives. */
+const BROWSE_ICON: Record<string, IconName> = {
+  food: "food",
+  coffee: "coffee",
+  glass: "glass",
+  museum: "museum",
+  camera: "camera",
+  leaf: "leaf",
+  bag: "bag",
+  bed: "bed",
 };
 
 export function SearchView({ shelf, empty, features, onMethod }: Props) {
-  const { kind } = shelf;
+  const { kind, destination } = shelf;
   const v = vocab(kind);
+  const isPlace = kind === "place";
+  // Spots are searched inside the chosen destination.
+  const searchUrl = (text: string) =>
+    `/api/search?kind=${kind}${isPlace && destination ? `&dest=${destination.id}` : ""}&q=${encodeURIComponent(text)}`;
   const [q, setQ] = useState("");
+  const [browsing, setBrowsing] = useState<{ label: string; results: Hit[] | null } | null>(null);
   const [results, setResults] = useState<Hit[]>([]);
   const [resultsFor, setResultsFor] = useState("");
   const [failedFor, setFailedFor] = useState<string | null>(null);
@@ -70,7 +95,7 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
     let hits = resultsFor === text ? results : null;
     if (!hits) {
       try {
-        hits = (await api<{ results: Hit[] }>(`/api/search?kind=${kind}&q=${encodeURIComponent(text)}`)).results;
+        hits = (await api<{ results: Hit[] }>(searchUrl(text))).results;
       } catch {
         hits = [];
       }
@@ -89,9 +114,7 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
     const ac = new AbortController();
     const t = setTimeout(async () => {
       try {
-        const data = await api<{ results: Hit[] }>(`/api/search?kind=${kind}&q=${encodeURIComponent(query)}`, {
-          signal: ac.signal,
-        });
+        const data = await api<{ results: Hit[] }>(searchUrl(query), { signal: ac.signal });
         setResults(data.results);
         setResultsFor(query);
       } catch {
@@ -102,7 +125,21 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
       clearTimeout(t);
       ac.abort();
     };
-  }, [query, kind]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, kind, destination?.id]);
+
+  const browse = async (category: string, label: string) => {
+    if (!destination) return;
+    setBrowsing({ label, results: null });
+    try {
+      const { results } = await api<{ results: Hit[] }>(
+        `/api/search?kind=place&dest=${destination.id}&browse=${encodeURIComponent(category)}`,
+      );
+      setBrowsing((b) => (b?.label === label ? { label, results } : b));
+    } catch {
+      setBrowsing((b) => (b?.label === label ? { label, results: [] } : b));
+    }
+  };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key !== "Enter" || query.length < 2) return;
@@ -124,10 +161,13 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
             ref={inputRef}
             autoFocus
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setBrowsing(null);
+            }}
             onKeyDown={onKeyDown}
             enterKeyHint="done"
-            placeholder={v.placeholder}
+            placeholder={isPlace && destination ? `Search spots in ${destination.name}` : v.placeholder}
             aria-label={`Search for ${v.many}`}
             autoComplete="off"
             autoCorrect="off"
@@ -142,7 +182,35 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-safe" data-vaul-no-drag="">
-        {showResults ? (
+        {browsing && !showResults ? (
+          <div>
+            <div className="flex items-center justify-between px-3 pb-1">
+              <p className="text-[13px] font-medium tracking-wide text-muted uppercase">
+                {browsing.label} in {destination?.name}
+              </p>
+              <button onClick={() => setBrowsing(null)} aria-label="Close" className="flex h-8 w-8 items-center justify-center rounded-full text-muted active:bg-surface-2">
+                <Icon name="x" size={16} />
+              </button>
+            </div>
+            <ul>
+              {!browsing.results && Array.from({ length: 5 }, (_, i) => <SkeletonRow key={i} square />)}
+              {browsing.results?.length === 0 && (
+                <li className="px-3 py-3 text-[15px] text-muted">Nothing found nearby. Try searching by name.</li>
+              )}
+              {browsing.results?.map((hit) => (
+                <ResultRow
+                  key={hit.key}
+                  v={v}
+                  hit={hit}
+                  top={false}
+                  current={shelf.statusOf.get(hit.key)}
+                  target={shelf.target}
+                  onAdd={() => shelf.add([hit])}
+                />
+              ))}
+            </ul>
+          </div>
+        ) : showResults ? (
           <ul className={`transition-opacity duration-200 ${stale && results.length ? "opacity-60" : ""}`}>
             {results.length === 0 && loading && Array.from({ length: 4 }, (_, i) => <SkeletonRow key={i} square={v.shape === "square"} />)}
             {results.map((hit, i) => (
@@ -200,7 +268,7 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
                           transition={{ type: "spring", stiffness: 500, damping: 30 }}
                           className="w-12 shrink-0"
                         >
-                          <Cover book={b} shape={v.shape} rounded="rounded-[3px]" />
+                          {isPlace ? <SpotTile spot={b} size={48} /> : <Cover book={b} shape={v.shape} rounded="rounded-[3px]" />}
                         </motion.div>
                       ))}
                     </AnimatePresence>
@@ -212,6 +280,23 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
               <p className="px-1 pb-4 text-[15px] leading-relaxed text-muted">
                 Start with any {v.one} you remember. Press enter to add the top match, then type the next one.
               </p>
+            )}
+            {isPlace && destination && (
+              <>
+                <p className="px-1 pb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Browse {destination.name}</p>
+                <div className="flex flex-wrap gap-2 pb-6">
+                  {SPOT_BROWSE.map((b) => (
+                    <button
+                      key={b.category}
+                      onClick={() => browse(b.category, b.label)}
+                      className="flex h-10 items-center gap-2 rounded-full border border-line bg-surface pr-4 pl-3 text-[15px] font-medium active:scale-95"
+                    >
+                      <Icon name={BROWSE_ICON[b.icon] ?? "pin"} size={17} className="text-ink-2" />
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+              </>
             )}
             <p className="px-1 pb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Or add a bunch at once</p>
             <div className="grid grid-cols-2 gap-2.5">
@@ -264,13 +349,19 @@ function ResultRow({
         disabled={here}
         className={`flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left transition-colors active:bg-surface-2 ${top ? "bg-surface-2/60" : ""}`}
       >
-        <Cover book={hit} shape={v.shape} className="w-9 shrink-0" rounded="rounded-[3px]" />
+        {v.kind === "place" ? (
+          <SpotTile spot={hit} size={40} />
+        ) : (
+          <Cover book={hit} shape={v.shape} className="w-9 shrink-0" rounded="rounded-[3px]" />
+        )}
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[16px] font-medium">{hit.title}</span>
           <span className="block truncate text-[14px] text-muted">
             {current && !here
               ? `In ${v.sections[current]} · tap to move`
-              : [hit.author, hit.year && hit.year > 0 ? hit.year : null].filter(Boolean).join(" · ") || v.creatorFallback}
+              : v.kind === "place"
+                ? spotLine(hit) || v.creatorFallback
+                : [hit.author, hit.year && hit.year > 0 ? hit.year : null].filter(Boolean).join(" · ") || v.creatorFallback}
           </span>
         </span>
         <AnimatePresence mode="wait" initial={false}>

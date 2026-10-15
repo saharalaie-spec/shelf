@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
+import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/shelf";
 import { accessTo, findPerson, pendingBetween } from "@/lib/social";
 import type { Status } from "@/lib/types";
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[ref]">): Promi
   const robots = { index: false, follow: false };
   if (!person || access === "none") return { title: "Private shelf · Shelf", robots };
   const title = `${person.name ?? "A reader"} on Shelf`;
-  const description = `Books, podcasts, movies and shows ${person.name ?? "this person"} loves.`;
+  const description = `Books, podcasts, movies, shows and places ${person.name ?? "this person"} loves.`;
   return { title, description, robots, openGraph: { title, description, siteName: "Shelf" } };
 }
 
@@ -42,9 +43,10 @@ export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
     return <PrivateShelf />;
   }
 
-  const [books, own] = await Promise.all([
+  const [books, own, destinations] = await Promise.all([
     listItems(person.id),
     viewer ? listItems(viewer.id, { includePrivate: true }) : Promise.resolve([]),
+    listDestinations(person.id),
   ]);
 
   let relation: Relation;
@@ -65,6 +67,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
     <ProfileShelf
       person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic }}
       items={books}
+      destinations={destinations}
       relation={relation}
       mine={mine}
       channels={signInChannels()}

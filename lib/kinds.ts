@@ -123,6 +123,32 @@ export const VOCAB: Record<Kind, Vocab> = {
       want: ["Your watchlist is empty", "Save what you want to watch next, so movie night is easy."],
     },
   },
+  place: {
+    kind: "place",
+    slug: "places",
+    label: "Places",
+    ...words("spot", "spots"),
+    addLabel: "Add spots",
+    doneToast: (t) => `Moved “${t}” to Been`,
+    sections: { read: "Been", reading: "Going", want: "Want to go" },
+    sectionSub: { read: "you loved", reading: "on your next trip", want: "you want to try" },
+    countSuffix: { read: "loved", reading: "planned", want: "to try" },
+    finish: "Been",
+    started: "Planned",
+    shape: "square",
+    placeholder: "Search for a spot, hit enter, repeat",
+    pastePlaceholder: "Mercado Central\nCasa Montaña\nPlaya de la Malvarrosa\nHorchatería Santa Catalina",
+    catalog: "the map",
+    creatorFallback: "Spot",
+    nowVerb: "Going to",
+    tint: "#3d5a3c",
+    empty: ["Your places", "Add a city or country, then the restaurants, museums, beaches and corners you loved there."],
+    sectionEmpty: {
+      read: ["No favorite spots yet", "Add the restaurants, museums and beaches you loved."],
+      reading: ["No trip planned", "Add the spots you’re going to on your next trip."],
+      want: ["Nothing saved yet", "Keep the spots friends recommend, so they’re ready for your next trip."],
+    },
+  },
 };
 
 export const vocab = (kind: Kind) => VOCAB[kind];
@@ -130,20 +156,28 @@ export const kindFromSlug = (slug: string): Kind | null => Object.values(VOCAB).
 
 /**
  * "Sahar’s Philosophy shelf", "What Sahar’s reading", "Sahar’s want-to-read list";
- * "Sahar’s podcasts", "What Sahar’s listening to", "Sahar’s podcast queue"; "Sahar’s movies & TV", "Sahar’s watchlist".
+ * "Sahar’s podcasts", "What Sahar’s listening to", "Sahar’s podcast queue"; "Sahar’s movies & TV", "Sahar’s watchlist";
+ * "Sahar’s favorite spots in Valencia", "Sahar’s next trip to Valencia", "Sahar’s Valencia wishlist".
+ * For places, `category` is the destination's name.
  */
 export function shelfTitle(name: string | null, category: string | null, status: Status = "read", kind: Kind = "book") {
+  if (kind === "place") {
+    const owner = name ? possessive(name) : "A";
+    if (status === "reading") return `${owner} ${category ? `trip to ${category}` : "next trip"}`;
+    if (status === "want") return `${owner} ${category ? `${category} ` : "travel "}wishlist`;
+    return `${owner} favorite spots${category ? ` in ${category}` : ""}`;
+  }
   if (status === "reading") {
-    const doing = { book: "reading", podcast: "listening to", screen: "watching" }[kind];
+    const doing = { book: "reading", podcast: "listening to", screen: "watching" }[kind as Exclude<Kind, "place">];
     return `${name ? `What ${name}’s ${doing}` : `Currently ${doing}`}${category ? ` in ${category}` : ""}`;
   }
   const owner = name ? possessive(name) : "A";
   const cat = category ? `${category} ` : "";
   if (status === "want") {
-    const list = { book: "want-to-read list", podcast: "podcast queue", screen: "watchlist" }[kind];
+    const list = { book: "want-to-read list", podcast: "podcast queue", screen: "watchlist" }[kind as Exclude<Kind, "place">];
     return `${owner} ${cat}${list}`;
   }
-  const done = { book: "shelf", podcast: "podcasts", screen: category ? "picks" : "movies & TV" }[kind];
+  const done = { book: "shelf", podcast: "podcasts", screen: category ? "picks" : "movies & TV" }[kind as Exclude<Kind, "place">];
   return `${owner} ${cat}${done}`;
 }
 

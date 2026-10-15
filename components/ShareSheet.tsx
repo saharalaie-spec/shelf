@@ -5,8 +5,9 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { shelfCount, shelfTitle, vocab } from "@/lib/kinds";
-import type { Item, Kind, Status } from "@/lib/types";
+import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
+import { SpotTile } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Button, Icon } from "./ui";
@@ -16,13 +17,16 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   kind: Kind;
   items: Item[];
+  /** Places: shares are per destination rather than per category. */
+  destinations?: Destination[];
   initialStatus: Status;
+  /** A category, or for places a destination id. */
   initialCategory: string | null;
   name: string | null;
   onName: (name: string | null) => void;
 };
 
-const SHARE_NOUN: Record<Kind, string> = { book: "books", podcast: "podcasts", screen: "movies & TV" };
+const SHARE_NOUN: Record<Kind, string> = { book: "books", podcast: "podcasts", screen: "movies & TV", place: "places" };
 
 export function ShareSheet({ open, onOpenChange, ...rest }: Props) {
   // Links are stable per section and category; remember them across opens.
@@ -39,8 +43,12 @@ type BodyProps = Omit<Props, "open" | "onOpenChange"> & {
   setLinks: React.Dispatch<React.SetStateAction<Record<string, string>>>;
 };
 
-function ShareBody({ kind, items: all, initialStatus, initialCategory, name, onName, links, setLinks }: BodyProps) {
+function ShareBody({ kind, items: all, destinations = [], initialStatus, initialCategory, name, onName, links, setLinks }: BodyProps) {
   const v = vocab(kind);
+  const isPlace = kind === "place";
+  // What a link can be narrowed to: a category, or for places a destination.
+  const scopesOf = (b: Item) => (isPlace ? (b.destinationId ? [b.destinationId] : []) : b.categories);
+  const scopeLabel = (s: string) => (isPlace ? (destinations.find((d) => d.id === s)?.name ?? "Elsewhere") : s);
   const [status, setStatus] = useState<Status>(initialStatus);
   const [scope, setScope] = useState<string | null>(initialCategory);
   const [draftName, setDraftName] = useState("");
@@ -53,7 +61,7 @@ function ShareBody({ kind, items: all, initialStatus, initialCategory, name, onN
   const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
   for (const b of books) counts[b.status]++;
   const tally = new Map<string, number>();
-  for (const b of inSection) for (const c of b.categories) tally.set(c, (tally.get(c) ?? 0) + 1);
+  for (const b of inSection) for (const c of scopesOf(b)) tally.set(c, (tally.get(c) ?? 0) + 1);
   const categories = [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   // A category picked in one section may not exist in another.
   const category = scope && tally.has(scope) ? scope : null;
@@ -70,10 +78,10 @@ function ShareBody({ kind, items: all, initialStatus, initialCategory, name, onN
   }, [scopeKey, kind, status, category, links, setLinks]);
 
   const url = links[scopeKey];
-  const shown = category ? inSection.filter((b) => b.categories.includes(category)) : inSection;
-  const hidden = all.filter((b) => b.private && b.status === status && (!category || b.categories.includes(category))).length;
+  const shown = category ? inSection.filter((b) => scopesOf(b).includes(category)) : inSection;
+  const hidden = all.filter((b) => b.private && b.status === status && (!category || scopesOf(b).includes(category))).length;
   const displayName = name ?? (draftName.trim() || null);
-  const title = shelfTitle(displayName, category, status, kind);
+  const title = shelfTitle(displayName, category && scopeLabel(category), status, kind);
 
   const saveName = () => {
     const n = draftName.trim();
@@ -110,9 +118,9 @@ function ShareBody({ kind, items: all, initialStatus, initialCategory, name, onN
           <SectionTabs value={status} labels={v.sections} counts={counts} onChange={setStatus} layoutId="share-status-pill" />
         </div>
         <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3 pb-4">
-          <ScopeChip active={!category} onClick={() => setScope(null)} label="Everything" count={inSection.length} />
+          <ScopeChip active={!category} onClick={() => setScope(null)} label={isPlace ? "Everywhere" : "Everything"} count={inSection.length} />
           {categories.map(([c, n]) => (
-            <ScopeChip key={c} active={category === c} onClick={() => setScope(c)} label={c} count={n} />
+            <ScopeChip key={c} active={category === c} onClick={() => setScope(c)} label={scopeLabel(c)} count={n} />
           ))}
         </div>
 
@@ -130,7 +138,7 @@ function ShareBody({ kind, items: all, initialStatus, initialCategory, name, onN
                   className={v.shape === "square" ? "-mx-3 w-[4.6rem]" : "-mx-2.5 w-[4.4rem]"}
                   style={{ zIndex: 10 - Math.abs(Math.round(i - mid)) }}
                 >
-                  <Cover book={b} shape={v.shape} />
+                  {isPlace ? <SpotTile spot={b} size={72} /> : <Cover book={b} shape={v.shape} />}
                 </motion.div>
               );
             })}

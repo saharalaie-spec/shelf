@@ -203,10 +203,48 @@ const ICONS = {
     </>
   ),
   home: <path d="M4 11l8-6.5 8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z" />,
+  pin: (
+    <>
+      <path d="M12 21s-6.5-6.2-6.5-11.2a6.5 6.5 0 0 1 13 0C18.5 14.8 12 21 12 21z" />
+      <circle cx="12" cy="9.8" r="2.4" />
+    </>
+  ),
+  food: <path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3H17" />,
+  coffee: (
+    <>
+      <path d="M4.5 9h12v5.5a5 5 0 0 1-5 5h-2a5 5 0 0 1-5-5z" />
+      <path d="M16.5 10.5h1.5a2.5 2.5 0 0 1 0 5h-1.8M8.5 3.5v2.5M12.5 3.5v2.5" />
+    </>
+  ),
+  glass: <path d="M5 4h14l-7 8.5zM12 12.5V20M8 20h8" />,
+  museum: <path d="M3.5 9.5L12 4l8.5 5.5M5 20.5h14M6 10.5v7.5M10 10.5v7.5M14 10.5v7.5M18 10.5v7.5" />,
+  leaf: <path d="M5 19c0-8 5.5-13.5 14-14 .5 8.5-5 14-13 14zM5 19l7-7" />,
+  bag: (
+    <>
+      <path d="M5 8h14l-1 12.5H6z" />
+      <path d="M9 10V7a3 3 0 0 1 6 0v3" />
+    </>
+  ),
+  bed: (
+    <>
+      <path d="M3 19V6M3 15h18v4M21 15v-3a3 3 0 0 0-3-3h-7v6" />
+      <circle cx="7" cy="11.5" r="1.8" />
+    </>
+  ),
+  map: <path d="M9 5l-5 2v13l5-2 6 2 5-2V5l-5 2zM9 5v13M15 7v13" />,
+  globe2: (
+    <>
+      <circle cx="12" cy="12" r="8.5" />
+      <path d="M4 9.5h16M4 14.5h16M12 3.5c-2.5 3-3.5 5.5-3.5 8.5s1 5.5 3.5 8.5c2.5-3 3.5-5.5 3.5-8.5s-1-5.5-3.5-8.5z" />
+    </>
+  ),
 };
 
 /** The icon that stands for each collection. */
-export const KIND_ICON = { book: "book", podcast: "headphones", screen: "film" } as const satisfies Record<string, IconName>;
+export const KIND_ICON = { book: "book", podcast: "headphones", screen: "film", place: "pin" } as const satisfies Record<
+  string,
+  IconName
+>;
 
 /** An iOS-style on/off switch. */
 export function Switch({

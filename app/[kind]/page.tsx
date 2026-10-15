@@ -4,6 +4,7 @@ import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
+import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/shelf";
 import { incomingRequests } from "@/lib/social";
 import { Login } from "@/components/Login";
@@ -15,16 +16,17 @@ export async function generateMetadata({ params }: PageProps<"/[kind]">): Promis
   return kind ? { title: `${vocab(kind).label} · Shelf` } : {};
 }
 
-/** One collection: /books, /podcasts or /movies. */
+/** One collection: /books, /podcasts, /movies or /places. */
 export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
   const kind = kindFromSlug((await params).kind);
   if (!kind) notFound();
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
   if (!user) return <Login channels={signInChannels()} />;
-  const [items, incoming] = await Promise.all([
+  const [items, incoming, destinations] = await Promise.all([
     listItems(user.id, { kind, includePrivate: true }),
     incomingRequests(user),
+    kind === "place" ? listDestinations(user.id, { includePrivate: true, includeEmpty: true }) : Promise.resolve([]),
   ]);
   return (
     <ShelfApp
@@ -40,6 +42,7 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
       }}
       pendingRequests={incoming.length}
       initialItems={items}
+      initialDestinations={destinations}
       features={{ photo: aiEnabled() }}
     />
   );

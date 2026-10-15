@@ -67,7 +67,7 @@ export function parseCsv(text: string): string[][] {
 
 export type ImportResult = {
   items: Candidate[];
-  source: "goodreads" | "storygraph" | "csv" | "opml" | "letterboxd" | "imdb" | "netflix";
+  source: "goodreads" | "storygraph" | "csv" | "opml" | "letterboxd" | "imdb" | "netflix" | "google-maps";
   /** Rows we don't map: shelves like "did-not-finish", unknown statuses, TV episodes. */
   skipped: number;
   counts: Record<Status, number>;
@@ -82,6 +82,7 @@ export const SOURCE_LABEL: Record<ImportResult["source"], string> = {
   letterboxd: "Letterboxd",
   imdb: "IMDb",
   netflix: "Netflix",
+  "google-maps": "Google Maps",
 };
 
 /** Goodreads "Exclusive Shelf" / StoryGraph "Read Status" → our sections. */
@@ -160,7 +161,54 @@ export function parseImport(kind: Kind, text: string, fileName?: string): Import
       return parsePodcastExport(clean, fileName);
     case "screen":
       return parseScreenExport(clean, fileName);
+    case "place":
+      return parsePlacesExport(clean);
   }
+}
+
+/**
+ * Saved places from Google Takeout: a saved list's CSV ("Title,Note,URL,…"), or "Saved Places.json"
+ * (GeoJSON, old and new property names), or any CSV with a Title or Name column. Notes come along.
+ * Places carry no section; the "Add to" picker decides.
+ */
+export function parsePlacesExport(text: string): ImportResult | null {
+  const clean = stripBom(text).trim();
+  const out = collector("google-maps", (c) => c.title);
+  if (clean.startsWith("{")) {
+    let data: { features?: { properties?: Record<string, unknown> }[] };
+    try {
+      data = JSON.parse(clean);
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(data.features)) return null;
+    for (const f of data.features) {
+      const p = f.properties ?? {};
+      const loc = (p.location ?? p.Location ?? {}) as Record<string, unknown>;
+      const title = String(loc.name ?? loc["Business Name"] ?? p.Title ?? p.name ?? "").trim();
+      if (!title) {
+        out.skip();
+        continue;
+      }
+      const note = String(p.comment ?? p.Comment ?? "").trim();
+      out.add({ title, note: note || undefined });
+    }
+    return out.result();
+  }
+  const rows = parseCsv(clean);
+  if (rows.length < 2) return null;
+  const { col } = headerOf(rows[0]);
+  const title = col("title", "name", "place");
+  if (title === -1) return null;
+  const note = col("note", "comment", "notes");
+  const comment = col("comment");
+  for (const r of rows.slice(1)) {
+    const t = cell(r, title);
+    if (!t) continue;
+    const n = [cell(r, note), comment !== note ? cell(r, comment) : ""].filter(Boolean).join(" · ");
+    out.add({ title: t, note: n || undefined });
+  }
+  return out.result();
 }
 
 /** Header lookup, case-insensitive. The first name listed that exists wins. */

@@ -33,6 +33,20 @@ const SOURCES: Record<Kind, { accept: string; hint: string; steps: [label: strin
       ["Spotify, Apple Podcasts", <>They don’t export, so screenshot your library and use <i>Screenshot your app</i> instead.</>],
     ],
   },
+  place: {
+    accept: ".csv,text/csv,.json,application/json,application/geo+json",
+    hint: "A saved list’s .csv, or Saved Places.json, from Google Takeout. They go into the place you picked, notes and all.",
+    steps: [
+      [
+        "Google Maps",
+        <>
+          takeout.google.com → select only <i>Saved</i> (or <i>Maps (your places)</i>) → Export. Unzip it and pick a list’s
+          .csv.
+        </>,
+      ],
+      ["Any list", <>A spreadsheet with a Title or Name column, and Note if you have one.</>],
+    ],
+  },
   screen: {
     accept: ".csv,text/csv",
     hint: "watched.csv or watchlist.csv from Letterboxd, an IMDb ratings or watchlist export, or Netflix’s viewing history.",

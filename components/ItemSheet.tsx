@@ -4,9 +4,11 @@ import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { itemLinks } from "@/lib/client";
 import { PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
+import { PLACE_CATEGORIES } from "@/lib/place-categories";
 import { vocab } from "@/lib/kinds";
-import type { Item, Kind, Status } from "@/lib/types";
+import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
+import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Icon, Switch } from "./ui";
@@ -15,11 +17,15 @@ const CATEGORY_LISTS: Record<Kind, readonly string[]> = {
   book: CATEGORIES,
   podcast: PODCAST_CATEGORIES,
   screen: SCREEN_CATEGORIES,
+  place: PLACE_CATEGORIES,
 };
 
 type Props = {
   kind: Kind;
   book: Item | null;
+  /** Spots: the destination it's in. */
+  destination?: Destination | null;
+  onNote: (book: Item, note: string) => void;
   allCategories: string[];
   onClose: () => void;
   onCategories: (book: Item, categories: string[]) => void;
@@ -30,7 +36,19 @@ type Props = {
   publicProfile: boolean;
 };
 
-export function ItemSheet({ kind, book, allCategories, onClose, onCategories, onStatus, onPrivate, onRemove, publicProfile }: Props) {
+export function ItemSheet({
+  kind,
+  book,
+  destination,
+  onNote,
+  allCategories,
+  onClose,
+  onCategories,
+  onStatus,
+  onPrivate,
+  onRemove,
+  publicProfile,
+}: Props) {
   const v = vocab(kind);
   // Keep showing the last item while the sheet animates closed.
   const [shown, setShown] = useState(book);
@@ -63,18 +81,31 @@ export function ItemSheet({ kind, book, allCategories, onClose, onCategories, on
     <Sheet open={Boolean(book)} onOpenChange={(o) => !o && onClose()} title={b?.title ?? "Details"} hideTitle>
       {b && (
         <div className="overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
-          <div className="flex gap-5 pt-2">
-            <Cover book={b} shape={v.shape} className="w-28 shrink-0" locked={b.private} />
-            <div className="min-w-0 flex-1 pt-1">
-              <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{b.title}</h2>
-              {b.author && <p className="mt-1 text-[16px] text-ink-2">{b.author}</p>}
-              {b.year && b.year > 0 ? <p className="mt-0.5 text-[14px] text-muted">{b.year}</p> : null}
+          {kind === "place" ? (
+            <div className="flex items-center gap-4 pt-2">
+              <SpotTile spot={b} size={72} />
+              <div className="min-w-0 flex-1">
+                <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{b.title}</h2>
+                <p className="mt-0.5 text-[15px] text-ink-2">{spotLine(b) || "Spot"}</p>
+                {destination && <p className="text-[14px] text-muted">In {destination.name}</p>}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex gap-5 pt-2">
+              <Cover book={b} shape={v.shape} className="w-28 shrink-0" locked={b.private} />
+              <div className="min-w-0 flex-1 pt-1">
+                <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{b.title}</h2>
+                {b.author && <p className="mt-1 text-[16px] text-ink-2">{b.author}</p>}
+                {b.year && b.year > 0 ? <p className="mt-0.5 text-[14px] text-muted">{b.year}</p> : null}
+              </div>
+            </div>
+          )}
 
           <div className="mt-6">
             <SectionTabs value={b.status} labels={v.sections} onChange={(s) => onStatus(b, s)} layoutId="item-status-pill" />
           </div>
+
+          {kind === "place" && <NoteField key={b.id} note={b.note} onSave={(n) => onNote(b, n)} />}
 
           <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-paper px-4 py-3">
             <Icon name="lock" size={20} className="shrink-0 text-ink-2" />
@@ -156,5 +187,22 @@ export function ItemSheet({ kind, book, allCategories, onClose, onCategories, on
         </div>
       )}
     </Sheet>
+  );
+}
+
+/** "Order the horchata": your own words, saved when you leave the field. */
+function NoteField({ note, onSave }: { note: string | null; onSave: (note: string) => void }) {
+  const [draft, setDraft] = useState(note ?? "");
+  return (
+    <textarea
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onSave(draft)}
+      placeholder="What did you love? What should a friend order?"
+      aria-label="Your note"
+      rows={2}
+      maxLength={500}
+      className="mt-3 block w-full resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
+    />
   );
 }
