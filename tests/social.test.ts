@@ -203,7 +203,7 @@ describe("invite links", () => {
     await shelf.addItems(b.id, "podcast", [book("fx:pod:daily", "The Daily", { private: true })]);
     await social.acceptInvite(a, await social.inviteToken(b.id));
     const [friend] = await social.listFriends(a.id);
-    expect(friend.counts).toEqual({ book: 2, podcast: 0, screen: 1 });
+    expect(friend.counts).toEqual({ book: 2, podcast: 0, screen: 1, place: 0 });
     // The most recent thing in progress, whatever the collection.
     expect(friend.now).toEqual({ kind: "screen", title: "The Bear" });
   });

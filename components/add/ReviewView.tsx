@@ -57,7 +57,6 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items, kind, shelf.destination?.id]);
 
   const done = results.filter(Boolean).length;
