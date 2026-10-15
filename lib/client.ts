@@ -19,10 +19,22 @@ export const possessive = (name: string) => (/s$/i.test(name) ? `${name}’` : `
 export const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;
 
 /** Where to learn more about an item, or listen or watch: its catalog page plus a useful next stop. */
-export function itemLinks(item: Pick<Hit, "key" | "title" | "author">, kind: Kind): { label: string; href: string }[] {
+export function itemLinks(item: Pick<Hit, "key" | "title" | "author" | "place">, kind: Kind): { label: string; href: string }[] {
   const q = encodeURIComponent(item.title);
   const k = item.key;
   const id = k.slice(k.lastIndexOf(":") + 1);
+  if (kind === "place") {
+    const where = [item.title, item.place?.address ?? item.author].filter(Boolean).join(", ");
+    const google = new URLSearchParams({ api: "1", query: where });
+    if (k.startsWith("gplace:")) google.set("query_place_id", id);
+    const apple = new URLSearchParams({ q: item.title });
+    if (item.place) apple.set("ll", `${item.place.lat},${item.place.lon}`);
+    else apple.set("address", where);
+    return [
+      { label: "Google Maps", href: `https://www.google.com/maps/search/?${google}` },
+      { label: "Apple Maps", href: `https://maps.apple.com/?${apple}` },
+    ];
+  }
   if (kind === "podcast") {
     return [
       { label: "Open in Spotify", href: `https://open.spotify.com/search/${q}` },

@@ -30,6 +30,12 @@ const COPY: Record<Kind, { title: string; hint: string; reading: string; camera:
     reading: "Reading the shows…",
     camera: false,
   },
+  place: {
+    title: "Screenshot a list of spots",
+    hint: "A saved list in Google or Apple Maps, a travel note, a guidebook page.",
+    reading: "Reading the places…",
+    camera: false,
+  },
   screen: {
     title: "Screenshot a watchlist",
     hint: "Netflix, Letterboxd, IMDb or any streaming app. A photo of your DVDs works too.",

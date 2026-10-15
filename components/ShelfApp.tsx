@@ -12,26 +12,32 @@ import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
 import { ItemSheet } from "./ItemSheet";
 import { FriendsSheet } from "./FriendsSheet";
+import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { KindMenu } from "./KindMenu";
+import { DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
 import { Button, Icon, Logo, useHydrated } from "./ui";
 
-/** A catalog hit to add; imports may already know which section it belongs in. */
-export type NewHit = Hit & { status?: Status };
+/** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
+export type NewHit = Hit & { status?: Status; note?: string };
 
 /** What the shelf hands the add sheet. */
 export type ShelfApi = {
   kind: Kind;
   items: Item[];
   statusOf: Map<string, Status>;
-  add: (hits: NewHit[], opts: { status: Status; quiet?: boolean }) => Promise<Item[]>;
+  add: (hits: NewHit[], opts: { status: Status; quiet?: boolean; destinationId?: string | null }) => Promise<Item[]>;
+  /** Places only. */
+  destinations: Dest[];
+  onDestination: (d: Dest, created: boolean) => void;
 };
 
-/** What the add sheet's views can do. `target` is the section new items go to. */
+/** What the add sheet's views can do. `target` is the section new items go to, `destination` where spots go. */
 export type ShelfActions = Omit<ShelfApi, "add"> & {
   target: Status;
+  destination: Dest | null;
   add: (hits: NewHit[], opts?: { quiet?: boolean }) => Promise<Item[]>;
 };
 
@@ -41,14 +47,23 @@ type Props = {
   /** Friend requests waiting for an answer, for the badge on the Friends button. */
   pendingRequests: number;
   initialItems: Item[];
+  /** Places only: the user's destinations. */
+  initialDestinations?: Dest[];
   features: { photo: boolean };
 };
 
 const sectionKey = (kind: Kind) => `shelf:section:${kind}`;
 const byNewest = (a: Item, b: Item) => b.statusAt - a.statusAt || b.addedAt - a.addedAt;
 
-export function ShelfApp({ kind, user, pendingRequests, initialItems, features }: Props) {
+export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDestinations = [], features }: Props) {
   const v = vocab(kind);
+  const isPlace = kind === "place";
+  const [destinations, setDestinations] = useState(initialDestinations);
+  // Places are browsed by destination rather than by category.
+  const [chosenDest, setDest] = useState<string | null>(null);
+  const [editingDest, setEditingDest] = useState<Dest | null>(null);
+  // "New place" opens the add sheet on the destination picker.
+  const [pickingDest, setPickingDest] = useState(false);
   const [items, setItems] = useState(initialItems);
   const [profile, setProfile] = useState<Profile>({ id: user.id, name: user.name, handle: user.handle, isPublic: user.isPublic });
   const { name } = profile;
@@ -107,8 +122,24 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
   const setName = useCallback((n: string | null) => updateProfile({ name: n }), [updateProfile]);
 
   // If the last item in a category goes, fall back to everything.
-  const filter = chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
-  const visible = filter ? inSection.filter((b) => b.categories.includes(filter)) : inSection;
+  const filter = !isPlace && chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
+  // Places: the destination being looked at (a new, still-empty one stays selected too).
+  const dest = (isPlace && destinations.find((d) => d.id === chosenDest)) || null;
+  const destCounts = useMemo(() => {
+    const tally = new Map<string, number>();
+    for (const b of inSection) if (b.destinationId) tally.set(b.destinationId, (tally.get(b.destinationId) ?? 0) + 1);
+    return tally;
+  }, [inSection]);
+  const visible = filter
+    ? inSection.filter((b) => b.categories.includes(filter))
+    : dest
+      ? inSection.filter((b) => b.destinationId === dest.id)
+      : inSection;
+
+  const onDestination = useCallback((d: Dest, created: boolean) => {
+    if (created) setDestinations((ds) => [d, ...ds.filter((x) => x.id !== d.id)]);
+    setDest(d.id);
+  }, []);
 
   const patchItem = useCallback((id: string, patch: Partial<Item>) => {
     setItems((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -123,7 +154,9 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         action: {
           label: "Undo",
           onClick: async () => {
-            const { added } = await api<{ added: Item[] }>("/api/items", { body: { kind, items: [book] } });
+            const { added } = await api<{ added: Item[] }>("/api/items", {
+              body: { kind, items: [book], destinationId: book.destinationId ?? undefined },
+            });
             setItems((bs) => [...added, ...bs]);
           },
         },
@@ -165,7 +198,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
   );
 
   const add = useCallback(
-    async (hits: NewHit[], opts: { status: Status; quiet?: boolean }) => {
+    async (hits: NewHit[], opts: { status: Status; quiet?: boolean; destinationId?: string | null }) => {
       const unique = hits.filter((h, i) => hits.findIndex((x) => x.key === h.key) === i);
       const statusFor = (h: NewHit) => h.status ?? opts.status;
       const onShelf = new Map(itemsRef.current.map((b) => [b.key, b]));
@@ -191,6 +224,8 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         statusAt: now - i,
         kind,
         private: false,
+        destinationId: opts.destinationId ?? null,
+        note: h.note ?? null,
       }));
       // Update the ref right away too, so a second quick add sees these as already on the shelf.
       itemsRef.current = [...temp, ...itemsRef.current];
@@ -201,7 +236,9 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
       const movedOk: { book: Item; to: Status }[] = [];
       const [added] = await Promise.all([
         fresh.length
-          ? api<{ added: Item[] }>("/api/items", { body: { kind, items: fresh.map((h) => ({ ...h, status: statusFor(h) })) } })
+          ? api<{ added: Item[] }>("/api/items", {
+              body: { kind, destinationId: opts.destinationId ?? undefined, items: fresh.map((h) => ({ ...h, status: statusFor(h) })) },
+            })
               .then((r) => r.added)
               .catch((err) => (fail(err), [] as Item[]))
           : Promise.resolve([] as Item[]),
@@ -267,9 +304,25 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
     [patchItem],
   );
 
+  const setNote = useCallback(
+    async (book: Item, note: string) => {
+      const next = note.trim() || null;
+      if (next === book.note) return;
+      patchItem(book.id, { note: next });
+      try {
+        await api(`/api/items/${book.id}`, { method: "PATCH", body: { note: next } });
+      } catch (err) {
+        patchItem(book.id, { note: book.note });
+        toast.error((err as Error).message);
+      }
+    },
+    [patchItem],
+  );
+
   // After adding to another section, show that section when the sheet closes.
   const onAddSheet = (open: boolean) => {
     setAdding(open);
+    if (!open) setPickingDest(false);
     if (!open && lastAddedTo.current && lastAddedTo.current !== section) showSection(lastAddedTo.current);
     if (!open) lastAddedTo.current = null;
   };
@@ -306,7 +359,26 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         {items.length > 0 && (
           <>
             <SectionTabs value={section} labels={v.sections} counts={counts} onChange={showSection} />
-            {categories.length > 0 ? (
+            {isPlace ? (
+              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
+                <Chip active={!dest} onClick={() => setDest(null)} label="Everywhere" count={inSection.length} />
+                {destinations
+                  .filter((d) => destCounts.get(d.id) || d.id === dest?.id)
+                  .map((d) => (
+                    <Chip key={d.id} active={dest?.id === d.id} onClick={() => setDest(dest?.id === d.id ? null : d.id)} label={d.name} count={destCounts.get(d.id) ?? 0} />
+                  ))}
+                <button
+                  onClick={() => {
+                    setDest(null);
+                    setPickingDest(true);
+                    setAdding(true);
+                  }}
+                  className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-dashed border-line px-3.5 text-[14px] font-medium whitespace-nowrap text-muted active:scale-95"
+                >
+                  <Icon name="plus" size={14} /> New place
+                </button>
+              </div>
+            ) : categories.length > 0 ? (
               <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
                 <Chip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
                 {categories.map(([c, n]) => (
@@ -332,9 +404,29 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
             >
-              <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
+              {dest ? (
+                <DestinationHeader
+                  destination={dest}
+                  count={visible.length}
+                  noun={`${v.noun(visible.length)} ${v.sectionSub[section]}`}
+                  onAdd={() => setAdding(true)}
+                  onShare={() => setSharing(true)}
+                  onEdit={() => setEditingDest(dest)}
+                />
+              ) : (
+                <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
+              )}
               {visible.length === 0 ? (
                 <SectionEmpty v={v} section={section} onAdd={() => setAdding(true)} />
+              ) : isPlace ? (
+                <PlacesList
+                  items={visible}
+                  destinations={destinations}
+                  groupBy={dest ? "category" : "destination"}
+                  onOpen={open}
+                  onDone={section === "reading" ? (b) => changeStatus(b, "read") : undefined}
+                  doneLabel={v.finish}
+                />
               ) : section === "reading" ? (
                 <ul className="space-y-3">
                   <AnimatePresence initial={false} mode="popLayout">
@@ -393,13 +485,17 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         onOpenChange={onAddSheet}
         section={section}
         kind={kind}
-        shelf={{ kind, items, statusOf, add }}
+        destination={dest?.id ?? null}
+        pickDestination={pickingDest}
+        shelf={{ kind, items, statusOf, add, destinations, onDestination }}
         empty={items.length === 0}
         features={features}
       />
       <ItemSheet
         kind={kind}
         book={openItem}
+        destination={destinations.find((d) => d.id === openItem?.destinationId) ?? null}
+        onNote={setNote}
         allCategories={allCategories}
         onClose={() => setOpenId(null)}
         onCategories={setCategories}
@@ -413,8 +509,9 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         onOpenChange={setSharing}
         kind={kind}
         items={items}
+        destinations={destinations}
         initialStatus={section}
-        initialCategory={filter}
+        initialCategory={isPlace ? (dest?.id ?? null) : filter}
         name={name}
         onName={setName}
       />
@@ -427,6 +524,19 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, features }
         privateCount={privateCount}
         onProfile={updateProfile}
       />
+      {isPlace && (
+        <DestinationSheet
+          destination={editingDest}
+          count={items.filter((b) => b.destinationId === editingDest?.id).length}
+          onClose={() => setEditingDest(null)}
+          onRenamed={(d) => setDestinations((ds) => ds.map((x) => (x.id === d.id ? d : x)))}
+          onDeleted={(d) => {
+            setDestinations((ds) => ds.filter((x) => x.id !== d.id));
+            setItems((bs) => bs.filter((b) => b.destinationId !== d.id));
+            setDest(null);
+          }}
+        />
+      )}
       <FriendsSheet open={friendsOpen} onOpenChange={setFriendsOpen} name={name} onName={setName} onPending={setPending} />
     </div>
   );

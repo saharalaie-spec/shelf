@@ -142,6 +142,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'book') AS n_book,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'podcast') AS n_podcast,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'screen') AS n_screen,
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'place') AS n_place,
             (SELECT b.kind || ':' || b.title FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading'
               ORDER BY b.status_at DESC LIMIT 1) AS now
           FROM friendships f JOIN users u ON u.id = f.friend_id
@@ -155,7 +156,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
     const kind = now ? now.slice(0, split) : null;
     return {
       ...toPerson(r),
-      counts: { book: Number(r.n_book), podcast: Number(r.n_podcast), screen: Number(r.n_screen) },
+      counts: { book: Number(r.n_book), podcast: Number(r.n_podcast), screen: Number(r.n_screen), place: Number(r.n_place) },
       now: now && isKind(kind) ? { kind, title: now.slice(split + 1) } : null,
     };
   });

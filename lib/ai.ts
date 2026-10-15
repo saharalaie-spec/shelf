@@ -41,6 +41,11 @@ Skip anything you can't read or identify with confidence.`,
 Use the commonly known title (the show's name, not an episode). Put the year in "year" when it's shown or you're
 certain which release it is; otherwise 0. Leave "creator" empty unless a director is printed.
 Skip anything you can't read or identify with confidence.`,
+  place: `This is a screenshot of a saved list in Google Maps or Apple Maps, a travel note, a guidebook page, or a photo
+of a sign or a menu. List every specific place you can identify (restaurants, cafés, bars, museums, beaches, parks,
+shops, viewpoints…), in the order they appear. Use the place's own name, not its address or category.
+Put the neighborhood or city in "creator" if it's shown; otherwise leave it empty. Always set "year" to 0.
+Skip anything you can't read or identify with confidence.`,
 };
 
 export async function itemsFromPhoto(

@@ -32,6 +32,7 @@ export default async function SharedShelfPage({ params }: PageProps<"/s/[slug]">
       status={shelf.status}
       category={shelf.category}
       items={shelf.items}
+      destinations={shelf.destinations}
       viewerSignedIn={Boolean(viewer)}
     />
   );

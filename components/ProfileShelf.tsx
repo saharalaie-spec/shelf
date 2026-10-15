@@ -7,9 +7,11 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ago, api, itemLinks } from "@/lib/client";
 import { VOCAB, type Vocab } from "@/lib/kinds";
-import { KINDS, STATUSES, type Item, type Kind, type Status } from "@/lib/types";
+import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { Login, type Channels } from "./Login";
+import { PlacesList } from "./PlacesList";
+import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Logo, useHydrated } from "./ui";
@@ -27,6 +29,8 @@ type Props = {
   person: { id: string; name: string | null; handle: string | null; isPublic: boolean };
   /** Everything they share, across collections. */
   items: Item[];
+  /** Where their shared spots are. */
+  destinations: Destination[];
   relation: Relation;
   /** The viewer's own items (work key → section), so one they have shows where it lives. */
   mine: Record<string, Status>;
@@ -35,7 +39,7 @@ type Props = {
 
 const firstSection = (counts: Record<Status, number>) => STATUSES.find((s) => counts[s] > 0) ?? "read";
 
-export function ProfileShelf({ person, items, relation, mine: initialMine, channels }: Props) {
+export function ProfileShelf({ person, items, destinations, relation, mine: initialMine, channels }: Props) {
   const counts = useMemo(() => {
     const c = Object.fromEntries(KINDS.map((k) => [k, { read: 0, reading: 0, want: 0 }])) as Record<Kind, Record<Status, number>>;
     for (const b of items) c[b.kind][b.status]++;
@@ -67,9 +71,19 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
     setMine((m) => ({ ...m, [book.key]: status }));
     try {
       // Only things you don't have get these buttons, so this is always a fresh add.
-      const { key, title, author, year, coverUrl, categories } = book;
-      await api("/api/items", { body: { kind: book.kind, items: [{ key, title, author, year, coverUrl, categories, status }] } });
-      toast(`Added “${book.title}” to your ${VOCAB[book.kind].sections[status]}`);
+      const { key, title, author, year, coverUrl, categories, place } = book;
+      // A spot lands in your destination of the same name, which is made for you if you don't have one.
+      const where = destinations.find((d) => d.id === book.destinationId);
+      await api("/api/items", {
+        body: {
+          kind: book.kind,
+          items: [{ key, title, author, year, coverUrl, categories, place, status }],
+          ...(book.kind === "place" && where
+            ? { destination: { name: where.name, country: where.country, label: where.label, lat: where.lat, lon: where.lon, bbox: where.bbox } }
+            : {}),
+        },
+      });
+      toast(`Added “${book.title}” to your ${VOCAB[book.kind].sections[status]}${where ? ` in ${where.name}` : ""}`);
     } catch (err) {
       setMine(({ [book.key]: _, ...rest }) => rest);
       toast.error((err as Error).message);
@@ -113,7 +127,7 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
       </section>
 
       <div className="sticky top-0 z-20 bg-paper/85 px-5 pt-2 pb-4 backdrop-blur-xl">
-        <div className="grid grid-cols-3 gap-2 pb-3" role="tablist" aria-label="Collections">
+        <div className="grid grid-cols-4 gap-2 pb-3" role="tablist" aria-label="Collections">
           {KINDS.map((k) => (
             <button
               key={k}
@@ -121,14 +135,13 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
               aria-selected={k === kind}
               aria-label={`${VOCAB[k].label}, ${total(k)}`}
               onClick={() => showKind(k)}
-              className={`flex h-11 min-w-0 items-center justify-center gap-1.5 rounded-2xl px-2 text-[14px] font-medium transition-colors active:scale-95 ${
+              className={`flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[12px] font-medium transition-colors active:scale-95 ${
                 k === kind ? "text-white" : "bg-surface-2 text-ink-2"
               }`}
               style={k === kind ? { background: VOCAB[k].tint } : undefined}
             >
-              {/* On a phone, three labels only fit without icons. */}
-              <Icon name={KIND_ICON[k]} size={16} className="hidden shrink-0 sm:block" />
-              <span className="truncate">{VOCAB[k].label}</span>
+              <Icon name={KIND_ICON[k]} size={19} className="shrink-0" />
+              <span className="max-w-full truncate">{VOCAB[k].label}</span>
             </button>
           ))}
         </div>
@@ -151,7 +164,9 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
             transition={{ duration: 0.18 }}
             className="px-5"
           >
-            {section === "reading" ? (
+            {kind === "place" ? (
+              <PlacesList items={inSection} destinations={destinations} groupBy="destination" onOpen={(b) => (setOpen(b), setLastOpen(b))} />
+            ) : section === "reading" ? (
               <ul className="space-y-3">
                 {inSection.map((b) => (
                   <ReadingRow key={b.id} v={v} book={b} onOpen={() => (setOpen(b), setLastOpen(b))} />
@@ -192,7 +207,7 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
           >
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-medium">Make your own shelf</p>
-              <p className="text-[14px] text-paper/65">Your books, podcasts and shows, shared with friends.</p>
+              <p className="text-[14px] text-paper/65">Books, podcasts, shows and favorite spots, shared with friends.</p>
             </div>
             <Link href="/" className="inline-flex h-11 shrink-0 items-center rounded-full bg-paper px-5 text-[15px] font-medium text-ink active:scale-[0.97]">
               Start yours
@@ -204,17 +219,39 @@ export function ProfileShelf({ person, items, relation, mine: initialMine, chann
       <Sheet open={Boolean(open)} onOpenChange={(o) => !o && setOpen(null)} title={shown?.title ?? "Details"} hideTitle>
         {shown && (
           <div className="px-5 pb-safe">
-            <div className="flex gap-5 pt-2 pb-5">
-              <Cover book={shown} shape={VOCAB[shown.kind].shape} className="w-28 shrink-0" />
-              <div className="min-w-0 flex-1 pt-1">
-                <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{shown.title}</h2>
-                {shown.author && <p className="mt-1 text-[16px] text-ink-2">{shown.author}</p>}
-                {shown.year && shown.year > 0 ? <p className="mt-0.5 text-[14px] text-muted">{shown.year}</p> : null}
-                <p className="mt-3 text-[13px] text-muted">
-                  {[`In ${person.name ? `${person.name}’s` : "their"} ${VOCAB[shown.kind].sections[shown.status]}`, ...shown.categories].join(" · ")}
-                </p>
+            {shown.kind === "place" ? (
+              <div className="pt-2 pb-5">
+                <div className="flex items-center gap-4">
+                  <SpotTile spot={shown} size={72} />
+                  <div className="min-w-0 flex-1">
+                    <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{shown.title}</h2>
+                    <p className="mt-0.5 text-[15px] text-ink-2">{spotLine(shown) || "Spot"}</p>
+                    <p className="text-[14px] text-muted">
+                      {[destinations.find((d) => d.id === shown.destinationId)?.name, `in ${person.name ? `${person.name}’s` : "their"} ${VOCAB.place.sections[shown.status]}`]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                  </div>
+                </div>
+                {shown.note && (
+                  <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[15px] leading-snug text-ink-2">
+                    <span className="font-medium text-ink">{person.name ?? "They"}:</span> “{shown.note}”
+                  </p>
+                )}
               </div>
-            </div>
+            ) : (
+              <div className="flex gap-5 pt-2 pb-5">
+                <Cover book={shown} shape={VOCAB[shown.kind].shape} className="w-28 shrink-0" />
+                <div className="min-w-0 flex-1 pt-1">
+                  <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{shown.title}</h2>
+                  {shown.author && <p className="mt-1 text-[16px] text-ink-2">{shown.author}</p>}
+                  {shown.year && shown.year > 0 ? <p className="mt-0.5 text-[14px] text-muted">{shown.year}</p> : null}
+                  <p className="mt-3 text-[13px] text-muted">
+                    {[`In ${person.name ? `${person.name}’s` : "their"} ${VOCAB[shown.kind].sections[shown.status]}`, ...shown.categories].join(" · ")}
+                  </p>
+                </div>
+              </div>
+            )}
             <BookActions book={shown} relation={relation} mine={mine[shown.key]} onSave={save} />
             <div className="mt-2 mb-2 flex flex-wrap gap-2">
               {itemLinks(shown, shown.kind).map((l) => (
@@ -404,7 +441,7 @@ function BookActions({
         {VOCAB[book.kind].sections.want}
       </Button>
       <Button variant="secondary" onClick={() => onSave(book, "read")} className="px-3">
-        {{ book: "I’ve read it", podcast: "I’ve listened", screen: "I’ve seen it" }[book.kind]}
+        {{ book: "I’ve read it", podcast: "I’ve listened", screen: "I’ve seen it", place: "I’ve been" }[book.kind]}
       </Button>
     </div>
   );

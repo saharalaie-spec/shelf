@@ -107,3 +107,85 @@ describe("collections", () => {
     expect(home.screen.covers.map((c) => c.title)).toEqual(["Dune"]);
   });
 });
+
+describe("places", () => {
+  const spot = (key: string, title: string, extra: Partial<import("@/lib/shelf").NewItem> = {}) => ({
+    key,
+    title,
+    author: "Ruzafa",
+    year: null,
+    coverUrl: null,
+    categories: ["Food & Drink"],
+    status: "read" as const,
+    place: { lat: 39.46, lon: -0.37, type: "Restaurant", address: "Carrer de Sueca 1, València" },
+    ...extra,
+  });
+
+  it("finds a destination by name instead of making a second one", async () => {
+    const places = await import("@/lib/destinations");
+    const a = await places.findOrCreateDestination(USER, {
+      name: "Valencia",
+      country: "Spain",
+      label: "City",
+      lat: 39.47,
+      lon: -0.38,
+      bbox: [-0.43, 39.42, -0.27, 39.57],
+    });
+    const b = await places.findOrCreateDestination(USER, { name: " valencia ", country: null, lat: null, lon: null, bbox: null });
+    expect(b.id).toBe(a.id);
+    expect(a).toMatchObject({ name: "Valencia", country: "Spain", bbox: [-0.43, 39.42, -0.27, 39.57] });
+    // Names are the user's own; anything goes.
+    const trip = await places.findOrCreateDestination(USER, { name: "Road trip 2024", country: null, lat: null, lon: null, bbox: null });
+    expect(trip).toMatchObject({ name: "Road trip 2024", lat: null, bbox: null });
+  });
+
+  it("keeps spots in their destination, with where they are and a note", async () => {
+    const places = await import("@/lib/destinations");
+    const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
+    await shelf.addItems(
+      USER,
+      "place",
+      [spot("fx:spot:casa-montana", "Casa Montaña", { note: "Get the anchovies" }), spot("fx:spot:secret", "Secret bar", { private: true })],
+      { destinationId: valencia.id },
+    );
+    const [casa] = await shelf.listItems(USER, { kind: "place", destinationId: valencia.id });
+    expect(casa).toMatchObject({
+      kind: "place",
+      title: "Casa Montaña",
+      destinationId: valencia.id,
+      note: "Get the anchovies",
+      place: { type: "Restaurant", lat: 39.46 },
+    });
+    const updated = await shelf.updateItem(USER, casa.id, { note: "  " });
+    expect(updated!.note).toBeNull();
+
+    // Friends see the destination only through spots they may see.
+    const theirs = await places.listDestinations(USER);
+    expect(theirs.find((d) => d.id === valencia.id)?.count).toBe(1);
+    const mine = await places.listDestinations(USER, { includePrivate: true, includeEmpty: true });
+    expect(mine.find((d) => d.id === valencia.id)?.count).toBe(2);
+    expect(mine.some((d) => d.name === "Road trip 2024")).toBe(true);
+    expect(theirs.some((d) => d.name === "Road trip 2024")).toBe(false);
+
+    expect((await shelf.summarize(USER)).place).toMatchObject({ counts: { read: 1, reading: 0, want: 0 }, areas: 1 });
+  });
+
+  it("shares one destination by link, without private spots", async () => {
+    const places = await import("@/lib/destinations");
+    const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
+    const slug = await shelf.getOrCreateShare(USER, "place", "read", valencia.id);
+    const shared = await shelf.getSharedShelf(slug);
+    expect(shared).toMatchObject({ kind: "place", category: "Valencia", items: [{ title: "Casa Montaña" }] });
+    expect(shared!.destinations.map((d) => d.name)).toContain("Valencia");
+  });
+
+  it("deletes a destination with its spots, and only the owner can", async () => {
+    const places = await import("@/lib/destinations");
+    const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
+    await places.deleteDestination("someone-else", valencia.id);
+    expect(await places.getDestination(USER, valencia.id)).not.toBeNull();
+    await places.deleteDestination(USER, valencia.id);
+    expect(await places.getDestination(USER, valencia.id)).toBeNull();
+    expect(await shelf.listItems(USER, { kind: "place", includePrivate: true })).toEqual([]);
+  });
+});

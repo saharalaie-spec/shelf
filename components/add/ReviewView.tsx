@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { vocab } from "@/lib/kinds";
 import type { Hit, Candidate, MatchResult } from "@/lib/types";
 import { Cover } from "../Cover";
+import { SpotTile, spotLine } from "../Spot";
 import type { ShelfActions } from "../ShelfApp";
 import { Button, Icon } from "../ui";
 import { normalize, typedHit } from "./typed";
@@ -36,7 +37,11 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
         const idx = batches[next++];
         let rs: MatchResult[];
         try {
-          rs = (await api<{ results: MatchResult[] }>("/api/match", { body: { kind, items: idx.map((i) => items[i]) } })).results;
+          rs = (
+            await api<{ results: MatchResult[] }>("/api/match", {
+              body: { kind, dest: shelf.destination?.id, items: idx.map((i) => items[i]) },
+            })
+          ).results;
         } catch {
           rs = idx.map((i) => ({ input: items[i], match: null, alternatives: [] }));
         }
@@ -52,7 +57,7 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [items, kind]);
+  }, [items, kind, shelf.destination?.id]);
 
   const done = results.filter(Boolean).length;
   const loading = done < items.length;
@@ -77,7 +82,7 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
 
   const addAll = async () => {
     setAdding(true);
-    const added = await shelf.add(selected.map((i) => ({ ...hitFor(i), status: statusFor(i) })));
+    const added = await shelf.add(selected.map((i) => ({ ...hitFor(i), status: statusFor(i), note: items[i].note })));
     setAdding(false);
     if (added.length) onAdded();
   };
@@ -131,7 +136,11 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
                   </span>
                 </button>
                 <button onClick={() => setOpen(expanded ? null : i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
-                  <Cover book={hit} shape={v.shape} className={`w-10 shrink-0 transition-opacity ${isTicked(i) || onShelf ? "" : "opacity-50"}`} rounded="rounded-[3px]" />
+                  {kind === "place" ? (
+                    <SpotTile spot={hit} size={40} className={`transition-opacity ${isTicked(i) || onShelf ? "" : "opacity-50"}`} />
+                  ) : (
+                    <Cover book={hit} shape={v.shape} className={`w-10 shrink-0 transition-opacity ${isTicked(i) || onShelf ? "" : "opacity-50"}`} rounded="rounded-[3px]" />
+                  )}
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-[16px] font-medium ${isTicked(i) || onShelf ? "" : "text-muted"}`}>{hit.title}</span>
                     <span className="block truncate text-[14px] text-muted">
@@ -143,7 +152,7 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
                             ? "No match. Tick to add as typed"
                             : isTyped
                               ? `Added as you typed it${ownSection}`
-                              : `${[hit.author, hit.year].filter(Boolean).join(" · ") || v.creatorFallback}${ownSection}`}
+                              : `${(kind === "place" ? spotLine(hit) : [hit.author, hit.year].filter(Boolean).join(" · ")) || v.creatorFallback}${ownSection}`}
                     </span>
                     {differs && <span className="block truncate text-[12px] text-muted/80">from “{input.title}”</span>}
                   </span>
@@ -168,13 +177,21 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
                             }}
                             className={`flex w-full items-center gap-3 rounded-xl px-2 py-1.5 text-left ${active ? "bg-surface-2" : "active:bg-surface-2"}`}
                           >
-                            <Cover book={opt} shape={v.shape} className="w-7 shrink-0" rounded="rounded-[2px]" />
+                            {kind === "place" ? (
+                              <SpotTile spot={opt} size={28} />
+                            ) : (
+                              <Cover book={opt} shape={v.shape} className="w-7 shrink-0" rounded="rounded-[2px]" />
+                            )}
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-[14px] font-medium">
                                 {opt.key.startsWith("typed:") ? `Use “${input.title}” as typed` : opt.title}
                               </span>
                               <span className="block truncate text-[13px] text-muted">
-                                {opt.key.startsWith("typed:") ? "No artwork, no category" : [opt.author, opt.year].filter(Boolean).join(" · ")}
+                                {opt.key.startsWith("typed:")
+                                  ? "No artwork, no category"
+                                  : kind === "place"
+                                    ? spotLine(opt)
+                                    : [opt.author, opt.year].filter(Boolean).join(" · ")}
                               </span>
                             </span>
                             {active && <Icon name="check" size={16} className="text-ink" />}

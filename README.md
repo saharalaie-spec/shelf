@@ -1,9 +1,13 @@
 # Shelf
 
-Every book, podcast and show you love, in one place, shared with your friends.
+Every book, podcast, show and favorite spot you love, in one place, shared with your friends.
 
-- **Three collections: Books, Podcasts, Movies & TV.** After you sign in, a home screen shows one card per collection with your counts, a few covers and what you're in the middle of. Tap a card to go in; tap the collection's name at the top to jump to another one.
-- **Three sections in each.** Read / Reading / Want to read, Listened / Listening / Up next, and Watched / Watching / Watchlist. In-progress items get a one-tap **Finished** (or **Done**, **Watched**) button, and anything can be moved from its details sheet. Adding something that's already in another section moves it there.
+- **Four collections: Books, Podcasts, Movies & TV, Places.** After you sign in, a home screen shows one card per collection with your counts, a few covers and what you're in the middle of. Tap a card to go in; tap the collection's name at the top to jump to another one.
+- **Three sections in each:**
+  - Read / Reading / Want to read;
+  - Listened / Listening / Up next;
+  - Watched / Watching / Watchlist;
+  - Been / Going / Want to go. In-progress items get a one-tap **Finished** (or **Done**, **Watched**) button, and anything can be moved from its details sheet. Adding something that's already in another section moves it there.
 - **Sign in with a code.** Phone number or email, then a 6-digit code. No passwords. You stay signed in for 400 days.
 - **Add with as little effort as possible.**
   - Type a title and press Enter to add the top match, then type the next. The field clears and keeps focus. "Dune 2021" picks the right year.
@@ -19,10 +23,17 @@ Every book, podcast and show you love, in one place, shared with your friends.
     Imports put each item in the right section where the file says, for example a watchlist goes to Watchlist.
 
   The add sheet has an **Add to** picker (it starts on the section you're looking at), and every bulk method ends on one review screen, where you untick or swap any wrong match.
+- **Places: favorite spots, grouped how you like.**
+  - Name a destination yourself: a country ("Spain"), a city ("Valencia"), or anything ("Road trip 2024"). Map suggestions pin it to a real place, so spot searches stay inside it.
+  - Then add the restaurants, cafés, museums, beaches and corners you loved. Search by name, or tap **Restaurants**, **Museums**, **Beaches & parks**… to browse what's there.
+  - Each spot can have a note ("order the horchata"), and links to Google Maps and Apple Maps.
+  - You can also paste a list, screenshot a saved list, or import Google Maps saved places from Takeout.
+  - Share one destination ("Sahar's favorite spots in Valencia") or all of them. A friend can save any of your spots to their own Want to go, into their destination of the same name.
 - **Catalogs:**
   - Books come from Open Library, with Google Books as the fallback.
   - Podcasts come from Apple's podcast directory, and each one links to Spotify and Apple Podcasts.
   - Movies & TV come from TMDB when `TMDB_API_KEY` is set, and otherwise from iTunes and TVmaze, which need no key. Each one has a "Where to watch" link.
+  - Places come from OpenStreetMap through Photon (free, no key), or from Google Places when `GOOGLE_PLACES_API_KEY` is set.
 - **Categories are automatic.** They come from the catalog's subjects and genres, so a philosophy book lands in *Philosophy* and a show in *TV* and *Drama*. You can change them, or add your own, on any item.
 - **Share a link.** Share any section, whole or one category: "Sahar's Philosophy shelf", "What Sahar's listening to", "Sahar's watchlist". Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own shelf" invitation; that's where the "get the app" hook will go.
 - **Friends.** Friendships go both ways, and both people agree. Tap the people icon to:
@@ -79,6 +90,7 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | Hosted database | `DATABASE_URL` + `DATABASE_AUTH_TOKEN`, or `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (any libSQL database; defaults to `data/shelf.db` locally) |
 | Reading photos and screenshots | `ANTHROPIC_API_KEY` |
 | Better movie & TV matches and posters | `TMDB_API_KEY` (optional: free from themoviedb.org; without it, iTunes and TVmaze are used) |
+| Better spot search | `GOOGLE_PLACES_API_KEY` (optional: Places API (New) in Google Cloud; without it, OpenStreetMap is used) |
 | Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
 
 Without a texting or email provider, production sign-in only works for the numbers and emails listed in `ALLOW_DEV_CODES` (comma-separated, phone numbers starting with `+` and the country code), and their codes go to the server log, never the screen. `ALLOW_DEV_CODES=1` instead shows every code on screen, which lets anyone sign in as anyone: only use it for a throwaway demo, and afterwards use **You → Sign out on all devices**.
@@ -89,7 +101,7 @@ Next.js 16 (App Router) with React 19 and Tailwind CSS 4, plus [vaul](https://va
 
 ```
 app/page.tsx              signed out → Login, signed in → Home (one card per collection)
-app/[kind]/               /books, /podcasts, /movies: one collection's shelf (ShelfApp)
+app/[kind]/               /books, /podcasts, /movies, /places: one collection's shelf (ShelfApp)
 app/s/[slug]/             the public share page + its link-preview image
 app/u/[ref]/              a profile: friends (or anyone, if public) see every collection
 app/f/[token]/            an invite link: sign in, then one tap to become friends
@@ -106,6 +118,8 @@ lib/catalog.ts            search & matching for every collection, dispatching to
 lib/books.ts                books (Open Library → Google Books)
 lib/podcasts.ts             podcasts (Apple's directory)
 lib/screen.ts               movies & TV (TMDB, or iTunes + TVmaze)
+lib/places.ts               cities/countries and spots (Photon/OpenStreetMap, or Google Places)
+lib/destinations.ts       the destinations spots are grouped under
 lib/fixture-*.ts            offline catalogs for tests (BOOKS_PROVIDER=fixture)
 lib/categories.ts         catalog subjects → friendly categories
 lib/parse.ts              pasted lists, dictation, CSV and OPML exports → candidate titles

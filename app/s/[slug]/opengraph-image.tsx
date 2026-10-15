@@ -29,9 +29,10 @@ export default async function Image({ params }: { params: Promise<{ slug: string
   const covers = await Promise.all(books.map((b) => inline(b.coverUrl)));
   const title = shelf ? shelfTitle(shelf.ownerName, shelf.category, shelf.status, shelf.kind) : "Shelf";
   const mid = (books.length - 1) / 2;
-  // Podcast art is square; books and posters are 2:3.
-  const w = shelf?.kind === "podcast" ? 170 : 136;
-  const h = shelf?.kind === "podcast" ? 170 : 204;
+  // Podcast art and spots are square; books and posters are 2:3.
+  const square = shelf?.kind === "podcast" || shelf?.kind === "place";
+  const w = square ? 170 : 136;
+  const h = square ? 170 : 204;
 
   return new ImageResponse(
     (

@@ -448,6 +448,7 @@ describe("parseImport", () => {
       letterboxd: "Letterboxd",
       imdb: "IMDb",
       netflix: "Netflix",
+      "google-maps": "Google Maps",
     });
   });
 });
@@ -456,5 +457,44 @@ describe("isBookBarcode", () => {
   it("accepts Bookland EAN-13 only", () => {
     expect(isBookBarcode("9780812968255")).toBe(true);
     expect(isBookBarcode("4006381333931")).toBe(false);
+  });
+});
+
+describe("parsePlacesExport", () => {
+  it("reads a Google Maps saved list, keeping notes", () => {
+    const csv = `Title,Note,URL,Tags,Comment
+,,,,
+Casa Montaña,Get the anchovies,https://www.google.com/maps/place/Casa+Monta%C3%B1a/data=x,,
+Mercado Central,,https://www.google.com/maps/place/Mercado+Central/data=y,,Go early
+Casa Montaña,,https://www.google.com/maps/place/dup,,
+`;
+    const r = parseImport("place", csv)!;
+    expect(r.source).toBe("google-maps");
+    expect(r.items).toEqual([
+      { title: "Casa Montaña", note: "Get the anchovies" },
+      { title: "Mercado Central", note: "Go early" },
+    ]);
+  });
+
+  it("reads Saved Places.json in both Takeout shapes", () => {
+    const json = JSON.stringify({
+      type: "FeatureCollection",
+      features: [
+        { properties: { location: { name: "Time Out Market", address: "Lisbon" }, comment: "Lunch" } },
+        { properties: { Title: "Pastéis de Belém", Location: { "Business Name": "Pastéis de Belém" } } },
+        { properties: {} },
+      ],
+    });
+    const r = parseImport("place", json)!;
+    expect(r.items.map((i) => [i.title, i.note])).toEqual([
+      ["Time Out Market", "Lunch"],
+      ["Pastéis de Belém", undefined],
+    ]);
+    expect(r.skipped).toBe(1);
+  });
+
+  it("rejects files without names", () => {
+    expect(parseImport("place", "Address,City\nfoo,bar")).toBeNull();
+    expect(parseImport("place", "{not json")).toBeNull();
   });
 });
