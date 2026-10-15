@@ -6,12 +6,15 @@ import { STATUSES, type Status } from "@/lib/types";
 /** Read · Reading · Want to read (or each collection's own words), as a segmented control with a sliding pill. */
 export function SectionTabs({
   value,
+  options = STATUSES,
   labels,
   counts,
   onChange,
   layoutId = "section-pill",
 }: {
   value: Status;
+  /** Which sections to offer (places only have Been and Want to go). */
+  options?: readonly Status[];
   labels: Record<Status, string>;
   counts?: Record<Status, number>;
   onChange: (s: Status) => void;
@@ -19,7 +22,7 @@ export function SectionTabs({
 }) {
   return (
     <div className="flex gap-1 rounded-full bg-surface-2 p-1 text-[14px] font-medium" role="tablist">
-      {STATUSES.map((s) => (
+      {options.map((s) => (
         <button
           key={s}
           role="tab"

@@ -476,6 +476,13 @@ Casa Montaña,,https://www.google.com/maps/place/dup,,
     ]);
   });
 
+  it("files Google Maps’ Want to go list as Want to go", () => {
+    const csv = `Title,Note,URL\nMercado Central,,https://maps.google.com/x\n`;
+    expect(parseImport("place", csv, "Want to go.csv")!.items).toEqual([{ title: "Mercado Central", status: "want" }]);
+    expect(parseImport("place", csv, "Want_to_go.csv")!.counts).toMatchObject({ want: 1 });
+    expect(parseImport("place", csv, "Favorite places.csv")!.items).toEqual([{ title: "Mercado Central" }]);
+  });
+
   it("reads Saved Places.json in both Takeout shapes", () => {
     const json = JSON.stringify({
       type: "FeatureCollection",

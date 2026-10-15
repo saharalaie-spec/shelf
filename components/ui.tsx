@@ -209,6 +209,7 @@ const ICONS = {
       <circle cx="12" cy="9.8" r="2.4" />
     </>
   ),
+  flag: <path d="M5.5 21V4.5M5.5 4.5h11.5l-2.5 4 2.5 4H5.5" />,
   food: <path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2.2 1.2-3.5 3.6-3.5 7v3H17" />,
   coffee: (
     <>

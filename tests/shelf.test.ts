@@ -170,13 +170,34 @@ describe("places", () => {
     expect((await shelf.summarize(USER)).place).toMatchObject({ counts: { read: 1, reading: 0, want: 0 }, areas: 1 });
   });
 
-  it("shares one destination by link, without private spots", async () => {
+  it("marks each spot Been or Want to go, never in progress", async () => {
+    const places = await import("@/lib/destinations");
+    const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
+    const [torres] = await shelf.addItems(USER, "place", [spot("fx:spot:torres", "Torres de Serranos", { status: "reading" })], {
+      destinationId: valencia.id,
+    });
+    expect(torres.status).toBe("want");
+    const casa = (await shelf.listItems(USER, { kind: "place" })).find((s) => s.title === "Casa Montaña")!;
+    expect(await shelf.updateItem(USER, casa.id, { status: "reading" })).toMatchObject({ status: "want" });
+    expect(await shelf.updateItem(USER, casa.id, { status: "read" })).toMatchObject({ status: "read" });
+    expect((await shelf.summarize(USER)).place.counts).toEqual({ read: 1, reading: 0, want: 1 });
+  });
+
+  it("shares one destination by link, every spot in it but the private ones", async () => {
     const places = await import("@/lib/destinations");
     const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
     const slug = await shelf.getOrCreateShare(USER, "place", "read", valencia.id);
     const shared = await shelf.getSharedShelf(slug);
-    expect(shared).toMatchObject({ kind: "place", category: "Valencia", items: [{ title: "Casa Montaña" }] });
+    expect(shared).toMatchObject({ kind: "place", category: "Valencia" });
+    // Been and Want to go alike; there are no sections for places.
+    expect(shared!.items.map((s) => [s.title, s.status]).sort()).toEqual([
+      ["Casa Montaña", "read"],
+      ["Torres de Serranos", "want"],
+    ]);
     expect(shared!.destinations.map((d) => d.name)).toContain("Valencia");
+    // An older link made for one section shows the same spots.
+    const older = await shelf.getSharedShelf(await shelf.getOrCreateShare(USER, "place", "want", valencia.id));
+    expect(older!.items.map((s) => s.title).sort()).toEqual(["Casa Montaña", "Torres de Serranos"]);
   });
 
   it("deletes a destination with its spots, and only the owner can", async () => {

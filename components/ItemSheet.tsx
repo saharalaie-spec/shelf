@@ -102,7 +102,13 @@ export function ItemSheet({
           )}
 
           <div className="mt-6">
-            <SectionTabs value={b.status} labels={v.sections} onChange={(s) => onStatus(b, s)} layoutId="item-status-pill" />
+            <SectionTabs
+              value={b.status}
+              options={v.statuses}
+              labels={v.sections}
+              onChange={(s) => onStatus(b, s)}
+              layoutId="item-status-pill"
+            />
           </div>
 
           {kind === "place" && <NoteField key={b.id} note={b.note} onSave={(n) => onNote(b, n)} />}
