@@ -2,10 +2,11 @@
 
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ago, api } from "@/lib/client";
-import { vocab, type Vocab } from "@/lib/kinds";
+import { spotTally, vocab, type Vocab } from "@/lib/kinds";
 import { STATUSES, type Hit, type Item, type Kind, type Status } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
@@ -15,7 +16,7 @@ import { FriendsSheet } from "./FriendsSheet";
 import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { KindMenu } from "./KindMenu";
-import { DestinationHeader, PlacesList } from "./PlacesList";
+import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
 import { Button, Icon, Logo, useHydrated } from "./ui";
@@ -59,8 +60,36 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
   const v = vocab(kind);
   const isPlace = kind === "place";
   const [destinations, setDestinations] = useState(initialDestinations);
-  // Places are browsed by destination rather than by category.
-  const [chosenDest, setDest] = useState<string | null>(null);
+  // Places open on a list of destinations; the one being looked at lives in the URL (?in=…), so the back
+  // gesture and a refresh both do the expected thing.
+  const pathname = usePathname();
+  const chosenDest = useSearchParams().get("in");
+  const fromList = useRef(false);
+  const showDest = useCallback(
+    (id: string | null) => {
+      const inOne = new URLSearchParams(window.location.search).has("in");
+      if (id) {
+        const url = `${pathname}?in=${encodeURIComponent(id)}`;
+        if (inOne) window.history.replaceState(null, "", url);
+        else {
+          window.history.pushState(null, "", url);
+          fromList.current = true;
+        }
+      } else if (fromList.current) {
+        // Back to the list we came from, rather than stacking another copy of it.
+        fromList.current = false;
+        window.history.back();
+      } else if (inOne) {
+        window.history.replaceState(null, "", pathname);
+      }
+    },
+    [pathname],
+  );
+  useEffect(() => {
+    const onPop = () => void (fromList.current = false);
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
   const [editingDest, setEditingDest] = useState<Dest | null>(null);
   // "New place" opens the add sheet on the destination picker.
   const [pickingDest, setPickingDest] = useState(false);
@@ -71,19 +100,21 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
-  const [adding, setAdding] = useState(initialItems.length === 0);
+  const [adding, setAdding] = useState(initialItems.length === 0 && initialDestinations.length === 0);
   const [sharing, setSharing] = useState(false);
   const [account, setAccount] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
   const lastAddedTo = useRef<Status | null>(null);
+  const lastAddedDest = useRef<string | null>(null);
 
   const itemsRef = useRef(items);
   useEffect(() => {
     itemsRef.current = items;
   }, [items]);
 
-  // Reopen on the section you were last looking at (a per-device convenience).
+  // Reopen on the section you were last looking at (a per-device convenience). Places have no sections.
   useEffect(() => {
+    if (kind === "place") return;
     try {
       const saved = localStorage.getItem(sectionKey(kind)) as Status | null;
       // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -108,7 +139,11 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
     for (const b of items) c[b.status]++;
     return c;
   }, [items]);
-  const inSection = useMemo(() => items.filter((b) => b.status === section).sort(byNewest), [items, section]);
+  // Places aren't split into sections: each spot is marked Been or Want to go within its destination.
+  const inSection = useMemo(
+    () => items.filter((b) => isPlace || b.status === section).sort(byNewest),
+    [items, section, isPlace],
+  );
 
   const categories = useMemo(() => {
     const tally = new Map<string, number>();
@@ -123,23 +158,21 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
 
   // If the last item in a category goes, fall back to everything.
   const filter = !isPlace && chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
-  // Places: the destination being looked at (a new, still-empty one stays selected too).
+  // Places: the destination being looked at, if any (a new, still-empty one can be open too).
   const dest = (isPlace && destinations.find((d) => d.id === chosenDest)) || null;
-  const destCounts = useMemo(() => {
-    const tally = new Map<string, number>();
-    for (const b of inSection) if (b.destinationId) tally.set(b.destinationId, (tally.get(b.destinationId) ?? 0) + 1);
-    return tally;
-  }, [inSection]);
   const visible = filter
     ? inSection.filter((b) => b.categories.includes(filter))
     : dest
       ? inSection.filter((b) => b.destinationId === dest.id)
       : inSection;
 
-  const onDestination = useCallback((d: Dest, created: boolean) => {
-    if (created) setDestinations((ds) => [d, ...ds.filter((x) => x.id !== d.id)]);
-    setDest(d.id);
-  }, []);
+  const onDestination = useCallback(
+    (d: Dest, created: boolean) => {
+      if (created) setDestinations((ds) => [d, ...ds.filter((x) => x.id !== d.id)]);
+      showDest(d.id);
+    },
+    [showDest],
+  );
 
   const patchItem = useCallback((id: string, patch: Partial<Item>) => {
     setItems((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -187,15 +220,20 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
     async (book: Item, status: Status) => {
       try {
         await moveItem(book, status);
-        toast(status === "read" ? v.doneToast(book.title) : `Moved “${book.title}” to ${v.sections[status]}`, {
+        const moved =
+          status === "read"
+            ? v.doneToast(book.title)
+            : `${isPlace ? "Marked" : "Moved"} “${book.title}” ${isPlace ? "as" : "to"} ${v.sections[status]}`;
+        toast(moved, {
           action: { label: "Undo", onClick: () => moveItem({ ...book, status }, book.status).catch(() => {}) },
         });
       } catch (err) {
         toast.error((err as Error).message);
       }
     },
-    [moveItem, v],
+    [moveItem, v, isPlace],
   );
+  const toggleSpot = useCallback((spot: Item) => changeStatus(spot, spot.status === "read" ? "want" : "read"), [changeStatus]);
 
   const add = useCallback(
     async (hits: NewHit[], opts: { status: Status; quiet?: boolean; destinationId?: string | null }) => {
@@ -209,10 +247,13 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
         .filter((m): m is { book: Item; to: Status } => Boolean(m.book && m.book.status !== m.to));
 
       if (!fresh.length && !moves.length) {
-        if (!opts.quiet) toast(`Already in ${v.sections[unique[0] ? statusFor(unique[0]) : opts.status]}`);
+        if (!opts.quiet) {
+          toast(isPlace ? "Already in your places" : `Already in ${v.sections[unique[0] ? statusFor(unique[0]) : opts.status]}`);
+        }
         return [];
       }
       lastAddedTo.current = opts.status;
+      lastAddedDest.current = opts.destinationId ?? null;
 
       // Show them immediately; swap in the saved versions when the server answers.
       const now = Date.now();
@@ -274,7 +315,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
       }
       return [...added, ...movedOk.map((m) => ({ ...m.book, status: m.to }))];
     },
-    [moveItem, kind, v],
+    [moveItem, kind, v, isPlace],
   );
 
   const setCategories = useCallback(
@@ -319,13 +360,25 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
     [patchItem],
   );
 
-  // After adding to another section, show that section when the sheet closes.
+  // After adding to another section (or for places, a destination), show it when the sheet closes.
   const onAddSheet = (open: boolean) => {
     setAdding(open);
-    if (!open) setPickingDest(false);
-    if (!open && lastAddedTo.current && lastAddedTo.current !== section) showSection(lastAddedTo.current);
-    if (!open) lastAddedTo.current = null;
+    if (open) return;
+    setPickingDest(false);
+    if (isPlace) {
+      if (lastAddedDest.current && lastAddedDest.current !== dest?.id) showDest(lastAddedDest.current);
+    } else if (lastAddedTo.current && lastAddedTo.current !== section) {
+      showSection(lastAddedTo.current);
+    }
+    lastAddedTo.current = null;
+    lastAddedDest.current = null;
   };
+  // Adding from the list of places starts by asking where.
+  const startAdding = () => {
+    if (isPlace && !dest) setPickingDest(true);
+    setAdding(true);
+  };
+  const isEmpty = items.length === 0 && (!isPlace || destinations.length === 0);
 
   const openItem = items.find((b) => b.id === openId) ?? null;
   const animateLayout = visible.length <= 200;
@@ -342,10 +395,12 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
             <KindMenu kind={kind} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {inSection.length > 0 && (
+            {(isPlace ? visible.some((b) => !b.private) : inSection.length > 0) && (
               <button
                 onClick={() => setSharing(true)}
-                aria-label={filter ? `Share ${filter}` : `Share ${v.sections[section]}`}
+                aria-label={
+                  isPlace ? `Share ${dest ? dest.name : "your places"}` : filter ? `Share ${filter}` : `Share ${v.sections[section]}`
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 transition-transform active:scale-95"
               >
                 <Icon name="share" size={18} />
@@ -356,29 +411,10 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
           </div>
         </div>
 
-        {items.length > 0 && (
+        {items.length > 0 && !isPlace ? (
           <>
             <SectionTabs value={section} labels={v.sections} counts={counts} onChange={showSection} />
-            {isPlace ? (
-              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
-                <Chip active={!dest} onClick={() => setDest(null)} label="Everywhere" count={inSection.length} />
-                {destinations
-                  .filter((d) => destCounts.get(d.id) || d.id === dest?.id)
-                  .map((d) => (
-                    <Chip key={d.id} active={dest?.id === d.id} onClick={() => setDest(dest?.id === d.id ? null : d.id)} label={d.name} count={destCounts.get(d.id) ?? 0} />
-                  ))}
-                <button
-                  onClick={() => {
-                    setDest(null);
-                    setPickingDest(true);
-                    setAdding(true);
-                  }}
-                  className="flex h-9 shrink-0 items-center gap-1 rounded-full border border-dashed border-line px-3.5 text-[14px] font-medium whitespace-nowrap text-muted active:scale-95"
-                >
-                  <Icon name="plus" size={14} /> New place
-                </button>
-              </div>
-            ) : categories.length > 0 ? (
+            {categories.length > 0 ? (
               <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
                 <Chip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
                 {categories.map(([c, n]) => (
@@ -389,11 +425,61 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
               <div className="h-3" />
             )}
           </>
+        ) : (
+          <div className="h-2" />
         )}
       </header>
 
-      {items.length === 0 ? (
-        <EmptyState v={v} onAdd={() => setAdding(true)} />
+      {isEmpty ? (
+        <EmptyState v={v} onAdd={startAdding} />
+      ) : isPlace ? (
+        <main className="px-5">
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={dest?.id ?? "all"}
+              initial={{ opacity: 0, x: dest ? 24 : -24 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: dest ? -24 : 24 }}
+              transition={{ duration: 0.2 }}
+            >
+              {dest ? (
+                <>
+                  <DestinationHeader
+                    destination={dest}
+                    items={visible}
+                    onBack={() => showDest(null)}
+                    onAdd={() => setAdding(true)}
+                    onShare={() => setSharing(true)}
+                    onEdit={() => setEditingDest(dest)}
+                  />
+                  {visible.length === 0 ? (
+                    <div className="flex flex-col items-center rounded-3xl border border-dashed border-line px-6 py-10 text-center">
+                      <p className="font-serif text-[22px] font-medium">Nothing in {dest.name} yet</p>
+                      <p className="mt-1.5 max-w-xs text-[15px] text-muted">
+                        Add the spots you loved there, and the ones you want to try next time.
+                      </p>
+                    </div>
+                  ) : (
+                    <PlacesList items={visible} destinations={destinations} groupBy="category" onOpen={open} onToggle={toggleSpot} />
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="mt-2 mb-5">
+                    <h1 className="font-serif text-[34px] leading-tight font-medium tracking-tight">
+                      <span className="tabular-nums">{destinations.length.toLocaleString()}</span>{" "}
+                      {destinations.length === 1 ? "place" : "places"}
+                    </h1>
+                    <p className="text-[15px] text-muted">
+                      {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
+                    </p>
+                  </div>
+                  <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </main>
       ) : (
         <main className="px-5">
           <AnimatePresence mode="wait" initial={false}>
@@ -404,29 +490,9 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.18 }}
             >
-              {dest ? (
-                <DestinationHeader
-                  destination={dest}
-                  count={visible.length}
-                  noun={`${v.noun(visible.length)} ${v.sectionSub[section]}`}
-                  onAdd={() => setAdding(true)}
-                  onShare={() => setSharing(true)}
-                  onEdit={() => setEditingDest(dest)}
-                />
-              ) : (
-                <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
-              )}
+              <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
               {visible.length === 0 ? (
                 <SectionEmpty v={v} section={section} onAdd={() => setAdding(true)} />
-              ) : isPlace ? (
-                <PlacesList
-                  items={visible}
-                  destinations={destinations}
-                  groupBy={dest ? "category" : "destination"}
-                  onOpen={open}
-                  onDone={section === "reading" ? (b) => changeStatus(b, "read") : undefined}
-                  doneLabel={v.finish}
-                />
               ) : section === "reading" ? (
                 <ul className="space-y-3">
                   <AnimatePresence initial={false} mode="popLayout">
@@ -465,7 +531,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
       )}
 
       <AnimatePresence>
-        {!adding && items.length > 0 && (
+        {!adding && !isEmpty && (
           <motion.div
             initial={{ y: 80, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -473,7 +539,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
             transition={{ type: "spring", stiffness: 400, damping: 32 }}
             className="pointer-events-none fixed inset-x-0 bottom-0 z-30 flex justify-center pb-safe"
           >
-            <Button onClick={() => setAdding(true)} icon={<Icon name="plus" size={20} />} className="pointer-events-auto h-14 px-7 shadow-float">
+            <Button onClick={startAdding} icon={<Icon name="plus" size={20} />} className="pointer-events-auto h-14 px-7 shadow-float">
               {v.addLabel}
             </Button>
           </motion.div>
@@ -483,7 +549,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
       <AddSheet
         open={adding}
         onOpenChange={onAddSheet}
-        section={section}
+        section={isPlace ? "read" : section}
         kind={kind}
         destination={dest?.id ?? null}
         pickDestination={pickingDest}
@@ -510,7 +576,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
         kind={kind}
         items={items}
         destinations={destinations}
-        initialStatus={section}
+        initialStatus={isPlace ? "read" : section}
         initialCategory={isPlace ? (dest?.id ?? null) : filter}
         name={name}
         onName={setName}
@@ -533,7 +599,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
           onDeleted={(d) => {
             setDestinations((ds) => ds.filter((x) => x.id !== d.id));
             setItems((bs) => bs.filter((b) => b.destinationId !== d.id));
-            setDest(null);
+            showDest(null);
           }}
         />
       )}

@@ -162,18 +162,21 @@ export function parseImport(kind: Kind, text: string, fileName?: string): Import
     case "screen":
       return parseScreenExport(clean, fileName);
     case "place":
-      return parsePlacesExport(clean);
+      return parsePlacesExport(clean, fileName);
   }
 }
 
 /**
  * Saved places from Google Takeout: a saved list's CSV ("Title,Note,URL,…"), or "Saved Places.json"
  * (GeoJSON, old and new property names), or any CSV with a Title or Name column. Notes come along.
- * Places carry no section; the "Add to" picker decides.
+ * Google Maps' own "Want to go" list (the file is named after it) comes in as Want to go; anything else is
+ * left to the "Add to" picker.
  */
-export function parsePlacesExport(text: string): ImportResult | null {
+export function parsePlacesExport(text: string, fileName = ""): ImportResult | null {
   const clean = stripBom(text).trim();
-  const out = collector("google-maps", (c) => c.title);
+  const status: Status | undefined = /want[\s_-]*to[\s_-]*go/i.test(fileName) ? "want" : undefined;
+  const base = collector("google-maps", (c) => c.title);
+  const out = { ...base, add: (c: Candidate) => base.add({ ...c, status }) };
   if (clean.startsWith("{")) {
     let data: { features?: { properties?: Record<string, unknown> }[] };
     try {

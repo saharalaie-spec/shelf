@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { shelfCount, shelfTitle, vocab } from "@/lib/kinds";
+import { shelfCount, shelfTitle, spotTally, vocab } from "@/lib/kinds";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
@@ -57,7 +57,8 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
   // Share links never include private items, so neither does anything shown here.
   const books = all.filter((b) => !b.private);
 
-  const inSection = books.filter((b) => b.status === status);
+  // Places are shared a destination at a time, every spot in it, each marked Been or Want to go.
+  const inSection = isPlace ? books : books.filter((b) => b.status === status);
   const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
   for (const b of books) counts[b.status]++;
   const tally = new Map<string, number>();
@@ -79,9 +80,14 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
 
   const url = links[scopeKey];
   const shown = category ? inSection.filter((b) => scopesOf(b).includes(category)) : inSection;
-  const hidden = all.filter((b) => b.private && b.status === status && (!category || scopesOf(b).includes(category))).length;
+  const hidden = all.filter(
+    (b) => b.private && (isPlace || b.status === status) && (!category || scopesOf(b).includes(category)),
+  ).length;
   const displayName = name ?? (draftName.trim() || null);
   const title = shelfTitle(displayName, category && scopeLabel(category), status, kind);
+  const countLine = isPlace
+    ? [v.noun(shown.length), spotTally(shown)].filter(Boolean).join(" · ")
+    : shelfCount(shown.length, status, kind);
 
   const saveName = () => {
     const n = draftName.trim();
@@ -103,7 +109,7 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
     saveName();
     if (navigator.share) {
       try {
-        await navigator.share({ title, text: `${title}: ${shelfCount(shown.length, status, kind)}`, url });
+        await navigator.share({ title, text: `${title}: ${countLine}`, url });
         return;
       } catch (err) {
         if ((err as DOMException).name === "AbortError") return;
@@ -114,10 +120,12 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
 
   return (
     <div className="overflow-y-auto pb-safe" data-vaul-no-drag="">
-        <div className="px-5 pt-1">
-          <SectionTabs value={status} labels={v.sections} counts={counts} onChange={setStatus} layoutId="share-status-pill" />
-        </div>
-        <div className="no-scrollbar flex gap-2 overflow-x-auto px-5 pt-3 pb-4">
+        {!isPlace && (
+          <div className="px-5 pt-1">
+            <SectionTabs value={status} labels={v.sections} counts={counts} onChange={setStatus} layoutId="share-status-pill" />
+          </div>
+        )}
+        <div className={`no-scrollbar flex gap-2 overflow-x-auto px-5 pb-4 ${isPlace ? "pt-1" : "pt-3"}`}>
           <ScopeChip active={!category} onClick={() => setScope(null)} label={isPlace ? "Everywhere" : "Everything"} count={inSection.length} />
           {categories.map(([c, n]) => (
             <ScopeChip key={c} active={category === c} onClick={() => setScope(c)} label={scopeLabel(c)} count={n} />
@@ -144,7 +152,7 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
             })}
           </div>
           <p className="mt-5 text-center font-serif text-[22px] leading-tight font-medium tracking-tight">{title}</p>
-          <p className="mt-0.5 text-center text-[14px] text-muted">{shelfCount(shown.length, status, kind)}</p>
+          <p className="mt-0.5 text-center text-[14px] text-muted">{countLine}</p>
         </div>
 
         {!name && (

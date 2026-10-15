@@ -10,7 +10,7 @@ import { VOCAB, type Vocab } from "@/lib/kinds";
 import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { Login, type Channels } from "./Login";
-import { PlacesList } from "./PlacesList";
+import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
@@ -65,7 +65,9 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
   if (signingIn && signedIn) setSigningIn(false);
   const shown = open ?? lastOpen;
 
-  const inSection = books.filter((b) => b.status === section);
+  // Places have no sections: every spot shows, under its destination, marked Been or Want to go.
+  const isPlace = kind === "place";
+  const inSection = isPlace ? books : books.filter((b) => b.status === section);
 
   const save = async (book: Item, status: Status) => {
     setMine((m) => ({ ...m, [book.key]: status }));
@@ -83,7 +85,11 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
             : {}),
         },
       });
-      toast(`Added “${book.title}” to your ${VOCAB[book.kind].sections[status]}${where ? ` in ${where.name}` : ""}`);
+      toast(
+        book.kind === "place"
+          ? `Added “${book.title}” to ${where ? where.name : "your places"} as ${VOCAB.place.sections[status]}`
+          : `Added “${book.title}” to your ${VOCAB[book.kind].sections[status]}`,
+      );
     } catch (err) {
       setMine(({ [book.key]: _, ...rest }) => rest);
       toast.error((err as Error).message);
@@ -145,7 +151,7 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
             </button>
           ))}
         </div>
-        {books.length > 0 && (
+        {books.length > 0 && !isPlace && (
           <SectionTabs value={section} labels={v.sections} counts={counts[kind]} onChange={setSection} layoutId="profile-status-pill" />
         )}
       </div>
@@ -164,7 +170,7 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
             transition={{ duration: 0.18 }}
             className="px-5"
           >
-            {kind === "place" ? (
+            {isPlace ? (
               <PlacesList items={inSection} destinations={destinations} groupBy="destination" onOpen={(b) => (setOpen(b), setLastOpen(b))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
@@ -226,12 +232,16 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
                   <div className="min-w-0 flex-1">
                     <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{shown.title}</h2>
                     <p className="mt-0.5 text-[15px] text-ink-2">{spotLine(shown) || "Spot"}</p>
-                    <p className="text-[14px] text-muted">
-                      {[destinations.find((d) => d.id === shown.destinationId)?.name, `in ${person.name ? `${person.name}’s` : "their"} ${VOCAB.place.sections[shown.status]}`]
-                        .filter(Boolean)
-                        .join(" · ")}
-                    </p>
+                    {destinations.some((d) => d.id === shown.destinationId) && (
+                      <p className="text-[14px] text-muted">In {destinations.find((d) => d.id === shown.destinationId)!.name}</p>
+                    )}
                   </div>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-[14px] text-muted">
+                  <StatusTag status={shown.status} />
+                  {shown.status === "read"
+                    ? person.name ? `${person.name} has been` : "They’ve been"
+                    : person.name ? `${person.name} wants to go` : "They want to go"}
                 </div>
                 {shown.note && (
                   <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[15px] leading-snug text-ink-2">
@@ -431,7 +441,12 @@ function BookActions({
   if (mine) {
     return (
       <div className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-surface-2 text-[15px] font-medium text-ink-2">
-        <Icon name="check" size={17} className="text-good" /> On your shelf in {VOCAB[book.kind].sections[mine]}
+        <Icon name="check" size={17} className="text-good" />
+        {book.kind === "place"
+          ? mine === "read"
+            ? "You’ve been too"
+            : "On your Want to go list"
+          : `On your shelf in ${VOCAB[book.kind].sections[mine]}`}
       </div>
     );
   }

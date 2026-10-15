@@ -139,7 +139,7 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
         <div className="flex shrink-0 items-center gap-3 px-5 pb-3">
           <span className="text-[13px] font-medium text-muted">Add to</span>
           <div className="flex-1">
-            <SectionTabs value={target} labels={v.sections} onChange={setTarget} layoutId="add-target-pill" />
+            <SectionTabs value={target} options={v.statuses} labels={v.sections} onChange={setTarget} layoutId="add-target-pill" />
           </div>
         </div>
       )}

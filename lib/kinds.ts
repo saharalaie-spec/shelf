@@ -1,5 +1,5 @@
 import { possessive } from "./client";
-import type { Kind, Status } from "./types";
+import { STATUSES, type Kind, type Status } from "./types";
 
 /** How each collection talks about itself. One place, so every screen says the same thing. */
 export type Vocab = {
@@ -15,6 +15,8 @@ export type Vocab = {
   addLabel: string;
   /** Toast after moving something to the done section. */
   doneToast: (title: string) => string;
+  /** The sections this collection uses, in tab order. Places have no "in progress". */
+  statuses: readonly Status[];
   /** Section tabs. */
   sections: Record<Status, string>;
   /** Under the big count: "12 books / you’ve read". */
@@ -52,6 +54,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     ...words("book", "books"),
     addLabel: "Add books",
     doneToast: (t) => `Finished “${t}”`,
+    statuses: STATUSES,
     sections: { read: "Read", reading: "Reading", want: "Want to read" },
     sectionSub: { read: "you’ve read", reading: "you’re reading", want: "you want to read" },
     countSuffix: { read: "read", reading: "in progress", want: "to read" },
@@ -78,6 +81,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     ...words("podcast", "podcasts"),
     addLabel: "Add podcasts",
     doneToast: (t) => `Moved “${t}” to Listened`,
+    statuses: STATUSES,
     sections: { read: "Listened", reading: "Listening", want: "Up next" },
     sectionSub: { read: "you’ve listened to", reading: "you’re listening to", want: "you want to try" },
     countSuffix: { read: "listened to", reading: "on rotation", want: "to try" },
@@ -104,6 +108,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     ...words("movie or show", "movies & shows"),
     addLabel: "Add movies & TV",
     doneToast: (t) => `Watched “${t}”`,
+    statuses: STATUSES,
     sections: { read: "Watched", reading: "Watching", want: "Watchlist" },
     sectionSub: { read: "you’ve watched", reading: "you’re watching", want: "you want to watch" },
     countSuffix: { read: "watched", reading: "in progress", want: "to watch" },
@@ -129,12 +134,14 @@ export const VOCAB: Record<Kind, Vocab> = {
     label: "Places",
     ...words("spot", "spots"),
     addLabel: "Add spots",
-    doneToast: (t) => `Moved “${t}” to Been`,
-    sections: { read: "Been", reading: "Going", want: "Want to go" },
-    sectionSub: { read: "you loved", reading: "on your next trip", want: "you want to try" },
-    countSuffix: { read: "loved", reading: "planned", want: "to try" },
+    doneToast: (t) => `Marked “${t}” as Been`,
+    // Each spot is Been or Want to go; "reading" isn't used (old ones were folded into Want to go).
+    statuses: ["read", "want"],
+    sections: { read: "Been", reading: "Want to go", want: "Want to go" },
+    sectionSub: { read: "you’ve been to", reading: "you want to go to", want: "you want to go to" },
+    countSuffix: { read: "been", reading: "to go", want: "to go" },
     finish: "Been",
-    started: "Planned",
+    started: "Saved",
     shape: "square",
     placeholder: "Search for a spot, hit enter, repeat",
     pastePlaceholder: "Mercado Central\nCasa Montaña\nPlaya de la Malvarrosa\nHorchatería Santa Catalina",
@@ -142,10 +149,10 @@ export const VOCAB: Record<Kind, Vocab> = {
     creatorFallback: "Spot",
     nowVerb: "Going to",
     tint: "#3d5a3c",
-    empty: ["Your places", "Add a city or country, then the restaurants, museums, beaches and corners you loved there."],
+    empty: ["Your places", "Add a city or country, then the spots there you loved or want to try."],
     sectionEmpty: {
-      read: ["No favorite spots yet", "Add the restaurants, museums and beaches you loved."],
-      reading: ["No trip planned", "Add the spots you’re going to on your next trip."],
+      read: ["Nowhere yet", "Add the restaurants, museums and beaches you loved."],
+      reading: ["Nothing saved yet", "Keep the spots friends recommend, so they’re ready for your next trip."],
       want: ["Nothing saved yet", "Keep the spots friends recommend, so they’re ready for your next trip."],
     },
   },
@@ -157,15 +164,13 @@ export const kindFromSlug = (slug: string): Kind | null => Object.values(VOCAB).
 /**
  * "Sahar’s Philosophy shelf", "What Sahar’s reading", "Sahar’s want-to-read list";
  * "Sahar’s podcasts", "What Sahar’s listening to", "Sahar’s podcast queue"; "Sahar’s movies & TV", "Sahar’s watchlist";
- * "Sahar’s favorite spots in Valencia", "Sahar’s next trip to Valencia", "Sahar’s Valencia wishlist".
- * For places, `category` is the destination's name.
+ * "Sahar’s Valencia", "Sahar’s places". For places, `category` is the destination's name and there are no
+ * sections: a destination is shared whole, each spot marked Been or Want to go.
  */
 export function shelfTitle(name: string | null, category: string | null, status: Status = "read", kind: Kind = "book") {
   if (kind === "place") {
-    const owner = name ? possessive(name) : "A";
-    if (status === "reading") return `${owner} ${category ? `trip to ${category}` : "next trip"}`;
-    if (status === "want") return `${owner} ${category ? `${category} ` : "travel "}wishlist`;
-    return `${owner} favorite spots${category ? ` in ${category}` : ""}`;
+    if (name) return `${possessive(name)} ${category ?? "places"}`;
+    return category ? `Spots in ${category}` : "Favorite spots";
   }
   if (status === "reading") {
     const doing = { book: "reading", podcast: "listening to", screen: "watching" }[kind as Exclude<Kind, "place">];
@@ -181,6 +186,13 @@ export function shelfTitle(name: string | null, category: string | null, status:
   return `${owner} ${cat}${done}`;
 }
 
-/** "12 books read", "2 podcasts on rotation", "15 movies & shows to watch". */
+/** "12 books read", "2 podcasts on rotation", "15 movies & shows to watch"; places are just "12 spots". */
 export const shelfCount = (n: number, status: Status, kind: Kind = "book") =>
-  `${VOCAB[kind].noun(n)} ${VOCAB[kind].countSuffix[status]}`;
+  kind === "place" ? VOCAB.place.noun(n) : `${VOCAB[kind].noun(n)} ${VOCAB[kind].countSuffix[status]}`;
+
+/** "5 been · 2 want to go", for a destination's spots. */
+export function spotTally(items: readonly { status: Status }[]) {
+  const been = items.filter((i) => i.status === "read").length;
+  const want = items.length - been;
+  return [been && `${been.toLocaleString()} been`, want && `${want.toLocaleString()} want to go`].filter(Boolean).join(" · ");
+}

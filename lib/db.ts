@@ -167,6 +167,13 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `ALTER TABLE books ADD COLUMN note TEXT`,
     ],
   },
+  {
+    id: "2026-10-15-places-been-or-want",
+    statements: [
+      // Each spot is either somewhere you've been or somewhere you want to go; there's no "going" for places.
+      `UPDATE books SET status = 'want' WHERE kind = 'place' AND status = 'reading'`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

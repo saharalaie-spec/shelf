@@ -3,11 +3,12 @@
 Every book, podcast, show and favorite spot you love, in one place, shared with your friends.
 
 - **Four collections: Books, Podcasts, Movies & TV, Places.** After you sign in, a home screen shows one card per collection with your counts, a few covers and what you're in the middle of. Tap a card to go in; tap the collection's name at the top to jump to another one.
-- **Three sections in each:**
+- **Three sections in Books, Podcasts and Movies & TV:**
   - Read / Reading / Want to read;
   - Listened / Listening / Up next;
-  - Watched / Watching / Watchlist;
-  - Been / Going / Want to go. In-progress items get a one-tap **Finished** (or **Done**, **Watched**) button, and anything can be moved from its details sheet. Adding something that's already in another section moves it there.
+  - Watched / Watching / Watchlist.
+
+  In-progress items get a one-tap **Finished** (or **Done**, **Watched**) button, and anything can be moved from its details sheet. Adding something that's already in another section moves it there. Places work differently (below).
 - **Sign in with a code.** Phone number or email, then a 6-digit code. No passwords. You stay signed in for 400 days.
 - **Add with as little effort as possible.**
   - Type a title and press Enter to add the top match, then type the next. The field clears and keeps focus. "Dune 2021" picks the right year.
@@ -24,11 +25,12 @@ Every book, podcast, show and favorite spot you love, in one place, shared with 
 
   The add sheet has an **Add to** picker (it starts on the section you're looking at), and every bulk method ends on one review screen, where you untick or swap any wrong match.
 - **Places: favorite spots, grouped how you like.**
-  - Name a destination yourself: a country ("Spain"), a city ("Valencia"), or anything ("Road trip 2024"). Map suggestions pin it to a real place, so spot searches stay inside it.
-  - Then add the restaurants, cafés, museums, beaches and corners you loved. Search by name, or tap **Restaurants**, **Museums**, **Beaches & parks**… to browse what's there.
+  - Places opens on your destinations, one card each. Name a destination yourself: a country ("Spain"), a city ("Valencia"), or anything ("Road trip 2024"). Map suggestions pin it to a real place, so spot searches stay inside it.
+  - Inside a destination, add the restaurants, cafés, museums, beaches and corners you loved or want to try. Search by name, or tap **Restaurants**, **Museums**, **Beaches & parks**… to browse what's there.
+  - There are no sections. Each spot is marked **Been** or **Want to go**; tap the tag to flip it.
   - Each spot can have a note ("order the horchata"), and links to Google Maps and Apple Maps.
-  - You can also paste a list, screenshot a saved list, or import Google Maps saved places from Takeout.
-  - Share one destination ("Sahar's favorite spots in Valencia") or all of them. A friend can save any of your spots to their own Want to go, into their destination of the same name.
+  - You can also paste a list, screenshot a saved list, or import Google Maps saved places from Takeout. Google Maps' own "Want to go" list comes in as Want to go.
+  - Share one destination ("Sahar's Valencia") or all of them. The link shows every spot with its tag. A friend can save any of your spots as Want to go or Been, into their own destination of the same name.
 - **Catalogs:**
   - Books come from Open Library, with Google Books as the fallback.
   - Podcasts come from Apple's podcast directory, and each one links to Spotify and Apple Podcasts.

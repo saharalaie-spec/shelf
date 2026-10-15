@@ -4,10 +4,10 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { itemLinks } from "@/lib/client";
-import { shelfCount, vocab } from "@/lib/kinds";
+import { shelfCount, spotTally, vocab } from "@/lib/kinds";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
-import { PlacesList } from "./PlacesList";
+import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { Sheet } from "./Sheet";
 import { Logo } from "./ui";
@@ -60,7 +60,11 @@ export function SharedShelf({ title, kind, ownerName, status, category, items: b
           {(ownerName ?? "?").charAt(0).toUpperCase()}
         </div>
         <h1 className="mt-4 font-serif text-[38px] leading-[1.05] font-medium tracking-tight text-balance">{title}</h1>
-        <p className="mt-2 text-[16px] text-muted">{shelfCount(books.length, status, kind)}</p>
+        <p className="mt-2 text-[16px] text-muted">
+          {kind === "place"
+            ? [shelfCount(books.length, status, kind), spotTally(books)].filter(Boolean).join(" · ")
+            : shelfCount(books.length, status, kind)}
+        </p>
       </section>
 
       {categories.length > 1 && (
@@ -155,6 +159,12 @@ export function SharedShelf({ title, kind, ownerName, status, category, items: b
                     <p className="mt-0.5 text-[15px] text-ink-2">{spotLine(shown) || "Spot"}</p>
                     {shown.place?.address && <p className="text-[14px] text-muted">{shown.place.address}</p>}
                   </div>
+                </div>
+                <div className="mt-3 flex items-center gap-2 text-[14px] text-muted">
+                  <StatusTag status={shown.status} />
+                  {shown.status === "read"
+                    ? ownerName ? `${ownerName} has been` : "They’ve been"
+                    : ownerName ? `${ownerName} wants to go` : "They want to go"}
                 </div>
                 {shown.note && (
                   <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[15px] leading-snug text-ink-2">

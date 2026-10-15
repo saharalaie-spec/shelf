@@ -7,6 +7,9 @@ import { isKind, isStatus, KINDS, type Destination, type Hit, type Item, type Ki
 
 // Every collection lives in the `books` table (it predates the others); `kind` tells them apart.
 
+/** Spots are Been or Want to go; anything sent as in progress counts as Want to go. */
+const statusFor = (kind: Kind, status: Status): Status => (kind === "place" && status === "reading" ? "want" : status);
+
 function parseGeo(raw: unknown): PlaceInfo | undefined {
   if (!raw) return undefined;
   try {
@@ -104,7 +107,7 @@ export async function addItems(
       coverUrl: h.coverUrl,
       categories: h.categories,
       addedAt,
-      status: h.status,
+      status: statusFor(kind, h.status),
       statusAt: h.statusAt ?? addedAt,
       private: Boolean(h.private),
       destinationId: kind === "place" ? destinationId : null,
@@ -129,7 +132,10 @@ export async function addItems(
 
 type ItemPatch = { categories?: string[]; status?: Status; private?: boolean; note?: string | null };
 
-/** Changes an item's categories, section, privacy and/or note. Returns what was saved, or null if it isn't yours. */
+/**
+ * Changes an item's categories, section, privacy and/or note. Returns what was saved, or null if it isn't yours.
+ * A spot asked to go to "reading" goes to Want to go, so the saved status is the one to trust.
+ */
 export async function updateItem(
   userId: string,
   itemId: string,
@@ -155,19 +161,23 @@ export async function updateItem(
     args.push(JSON.stringify(saved.categories));
   }
   if (patch.status) {
-    saved.status = patch.status;
-    saved.statusAt = Date.now();
+    // The item's kind decides what the status really is (see statusFor).
+    const next = "CASE WHEN kind = 'place' AND ? = 'reading' THEN 'want' ELSE ? END";
     // Only restamp when the section actually changes, so re-saving doesn't reorder a list.
-    sets.push("status_at = CASE WHEN status = ? THEN status_at ELSE ? END", "status = ?");
-    args.push(patch.status, saved.statusAt, patch.status);
+    sets.push(`status_at = CASE WHEN status = ${next} THEN status_at ELSE ? END`, `status = ${next}`);
+    args.push(patch.status, patch.status, Date.now(), patch.status, patch.status);
   }
   if (!sets.length) return saved;
   const res = await client.execute({
-    sql: `UPDATE books SET ${sets.join(", ")} WHERE id = ? AND user_id = ? RETURNING status_at`,
+    sql: `UPDATE books SET ${sets.join(", ")} WHERE id = ? AND user_id = ? RETURNING status, status_at`,
     args: [...args, itemId, userId],
   });
   if (!res.rows.length) return null;
-  if (patch.status) saved.statusAt = Number(res.rows[0].status_at);
+  if (patch.status) {
+    const row = res.rows[0];
+    saved.status = isStatus(row.status) ? row.status : patch.status;
+    saved.statusAt = Number(row.status_at);
+  }
   return saved;
 }
 
@@ -237,7 +247,8 @@ export async function summarize(userId: string, { includePrivate = false } = {})
 
 /**
  * One stable, unguessable link per (user, collection, section, category). Category '' = every category.
- * For places the "category" is a destination id, so each destination can be shared on its own.
+ * For places the "category" is a destination id, so each destination can be shared on its own, and the section
+ * doesn't matter: a link shows every spot, each marked Been or Want to go.
  */
 export async function getOrCreateShare(userId: string, kind: Kind, status: Status, category: string): Promise<string> {
   const client = await db();
@@ -288,7 +299,7 @@ export async function getSharedShelf(slug: string, { countView = false } = {}): 
   if (kind === "place") {
     const destinationId = row.category ? String(row.category) : undefined;
     const [items, destinations] = await Promise.all([
-      listItems(userId, { kind, status, destinationId }),
+      listItems(userId, { kind, destinationId }),
       listDestinations(userId),
     ]);
     const destination = destinationId ? await getDestination(userId, destinationId) : null;
