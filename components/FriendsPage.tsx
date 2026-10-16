@@ -68,10 +68,10 @@ export function FriendsPage({ name: initialName, pendingRequests, initialTable }
         {tab === "table" ? (
           <>
             <p className="mb-5 text-[15px] text-muted">What your friends are into lately. Your circle comes first.</p>
-            <FriendsTableView table={table} onFindFriends={() => setTab("people")} />
+            <FriendsTableView table={table} onFindFriends={() => setTab("people")} onSampleAdded={reloadTable} />
           </>
         ) : (
-          <FriendsPanel name={name} onName={setName} onPending={setPending} onCircle={reloadTable} />
+          <FriendsPanel name={name} onName={setName} onPending={setPending} onTableChange={reloadTable} />
         )}
       </main>
     </div>

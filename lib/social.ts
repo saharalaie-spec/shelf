@@ -183,7 +183,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
 }
 
 /** Makes two people friends (both directions) and clears any requests between them. */
-async function befriend(a: string, b: string) {
+export async function befriend(a: string, b: string) {
   if (a === b) throw new AuthError("That’s you.");
   const client = await db();
   const now = Date.now();

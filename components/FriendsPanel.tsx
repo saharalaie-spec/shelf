@@ -6,6 +6,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { guessCountry, parseIdentifier } from "@/lib/identifier";
+import { SAMPLE_FRIEND_ID, SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import { VOCAB } from "@/lib/kinds";
 import type { Friend, IncomingRequest, OutgoingRequest } from "@/lib/social";
 import { KINDS } from "@/lib/types";
@@ -18,12 +19,12 @@ type Props = {
   onName: (name: string) => void;
   /** Keeps the requests count in step. */
   onPending: (count: number) => void;
-  /** Someone joined or left your circle, so the Table's order changes. */
-  onCircle: () => void;
+  /** Your circle or your friends changed, so the Table should refresh. */
+  onTableChange: () => void;
 };
 
 /** Inviting people, answering requests, and your friends (with your circle on top). */
-export function FriendsPanel({ name, onName, onPending, onCircle }: Props) {
+export function FriendsPanel({ name, onName, onPending, onTableChange }: Props) {
   const [data, setData] = useState<Data | null>(null);
 
   const apply = (d: Data) => {
@@ -44,7 +45,7 @@ export function FriendsPanel({ name, onName, onPending, onCircle }: Props) {
   }, []);
 
   return (
-    <FriendsBody data={data} setData={setData} name={name} onName={onName} reload={reload} onPending={onPending} onCircle={onCircle} />
+    <FriendsBody data={data} setData={setData} name={name} onName={onName} reload={reload} onPending={onPending} onTableChange={onTableChange} />
   );
 }
 
@@ -55,10 +56,10 @@ type BodyProps = {
   onName: (name: string) => void;
   reload: () => Promise<void>;
   onPending: (count: number) => void;
-  onCircle: () => void;
+  onTableChange: () => void;
 };
 
-function FriendsBody({ data, setData, name, onName, reload, onPending, onCircle }: BodyProps) {
+function FriendsBody({ data, setData, name, onName, reload, onPending, onTableChange }: BodyProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
@@ -68,7 +69,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onCircle 
     try {
       await api("/api/friends/circle", { body: { friendId: f.id, on } });
       toast(on ? `${f.name ?? "They"} joined your circle` : `${f.name ?? "They"} left your circle`);
-      onCircle();
+      onTableChange();
     } catch (err) {
       setData((d) => d && { ...d, friends: d.friends.map((x) => (x.id === f.id ? { ...x, inCircle: !on } : x)) });
       toast.error((err as Error).message);
@@ -109,6 +110,14 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onCircle 
       {!name && <NamePrompt onName={onName} />}
       <InviteCard url={data?.inviteUrl ?? null} name={name} />
       <AskForm onSent={() => reload().catch(() => {})} />
+      {data && !data.friends.some((f) => f.id === SAMPLE_FRIEND_ID) && (
+        <SampleCard
+          onAdded={() => {
+            reload().catch(() => {});
+            onTableChange();
+          }}
+        />
+      )}
 
       <AnimatePresence initial={false}>
         {data && data.incoming.length > 0 && (
@@ -189,6 +198,9 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onCircle 
                   </span>
                   {(f.fromThem > 0 || f.fromMe > 0) && (
                     <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>
+                  )}
+                  {f.id === SAMPLE_FRIEND_ID && (
+                    <span className="block truncate text-[13px] text-accent">Sample friend · remove anytime from her page</span>
                   )}
                 </span>
               </Link>
@@ -376,6 +388,35 @@ function AskForm({ onSent }: { onSent: () => void }) {
         <p className="mt-1.5 text-[13px] text-muted">Not on Trove yet? They’ll see it when they join.</p>
       )}
     </form>
+  );
+}
+
+/** Juno, so there's something to see before your friends join. */
+export function SampleCard({ onAdded, compact }: { onAdded: () => void; compact?: boolean }) {
+  const [adding, setAdding] = useState(false);
+  const add = async () => {
+    setAdding(true);
+    try {
+      await api("/api/friends/sample", { method: "POST" });
+      toast(`${SAMPLE_FRIEND_NAME} is your friend now. See what she’s into on Lately.`);
+      onAdded();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setAdding(false);
+    }
+  };
+  return (
+    <section className={`rounded-3xl border border-dashed border-line p-4 ${compact ? "mt-5 text-left" : "mt-5"}`}>
+      <p className="text-[16px] font-medium">Try it with a sample friend</p>
+      <p className="mt-0.5 text-[14px] leading-snug text-muted">
+        {SAMPLE_FRIEND_NAME} has books, podcasts, shows and favorite spots, so you can see how Trove works with friends.
+        Remove her anytime.
+      </p>
+      <Button variant="secondary" onClick={add} loading={adding} className="mt-3 w-full">
+        Add {SAMPLE_FRIEND_NAME}
+      </Button>
+    </section>
   );
 }
 
