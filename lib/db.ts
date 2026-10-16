@@ -230,6 +230,23 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `INSERT INTO item_events (user_id, item_id, kind, status, at) SELECT user_id, id, kind, status, status_at FROM books`,
     ],
   },
+  {
+    id: "2026-10-16-suggestions",
+    statements: [
+      // "Something else" picks, kept for the day so reopening doesn't ask (or charge) again.
+      `CREATE TABLE suggestions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        mood TEXT NOT NULL,
+        scope TEXT NOT NULL DEFAULT '',
+        day TEXT NOT NULL,
+        items TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX suggestions_by_day ON suggestions (user_id, day)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

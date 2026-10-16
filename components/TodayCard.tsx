@@ -6,9 +6,10 @@ import { toast } from "sonner";
 import { ago, api, itemLinks } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import type { TodayCandidates, TodayPick } from "@/lib/today";
-import type { Kind } from "@/lib/types";
+import type { Hit, Item, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
 import { Sheet } from "./Sheet";
+import { SomethingElse, type Choice } from "./SomethingElse";
 import { SpotTile } from "./Spot";
 import { Button, Icon, useHydrated, type IconName } from "./ui";
 
@@ -37,6 +38,16 @@ const dayKey = (d: Date) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate(
 const daySeed = (d: Date) => Math.floor((d.getTime() - d.getTimezoneOffset() * 60_000) / 86_400_000);
 
 const skipKey = (d: Date) => `trove:today:skip:${dayKey(d)}`;
+/** What you picked instead, per collection, for the day. */
+const choiceKey = (d: Date) => `trove:today:choice:${dayKey(d)}`;
+
+function readChoices(d: Date): Partial<Record<Kind, Choice>> {
+  try {
+    return JSON.parse(localStorage.getItem(choiceKey(d)) ?? "{}");
+  } catch {
+    return {};
+  }
+}
 const NEAR_KEY = "trove:today:near";
 
 function readSkips(d: Date): string[] {
@@ -113,17 +124,20 @@ function reasonText(p: Chosen) {
 }
 
 /** Fresh picks for your day, from your own lists and your friends. Same all day; new tomorrow. */
-export function TodayCard({ candidates }: { candidates: TodayCandidates }) {
+export function TodayCard({ candidates, suggest }: { candidates: TodayCandidates; suggest: boolean }) {
   const hydrated = useHydrated();
   const kinds = (Object.keys(candidates) as Kind[]).filter((k) => candidates[k].length > 0);
   if (!kinds.length) return null;
   // Day, hour and saved choices are the viewer's, so the card fills in once it's on their device.
-  return hydrated ? <TodayBody candidates={candidates} /> : <Skeleton rows={kinds.length} />;
+  return hydrated ? <TodayBody candidates={candidates} suggest={suggest} /> : <Skeleton rows={kinds.length} />;
 }
 
-function TodayBody({ candidates }: { candidates: TodayCandidates }) {
+function TodayBody({ candidates, suggest }: { candidates: TodayCandidates; suggest: boolean }) {
   const [now] = useState(() => new Date());
   const [skips, setSkips] = useState(() => readSkips(now));
+  const [choices, setChoices] = useState(() => readChoices(now));
+  const [more, setMore] = useState<Kind | null>(null);
+  const [lastMore, setLastMore] = useState<Kind>("book");
   const [started, setStarted] = useState<Record<string, true>>({});
   const [pos, setPos] = useState<Pos | null>(null);
   const [open, setOpen] = useState<Chosen | null>(null);
@@ -152,8 +166,44 @@ function TodayBody({ candidates }: { candidates: TodayCandidates }) {
 
   const order = slotOrder(now.getHours());
   const picks = order
-    .map((kind) => ({ kind, pick: choose(kind, candidates[kind], seed, skips, pos) }))
+    .map((kind) => {
+      const chosen = choices[kind];
+      return { kind, pick: chosen && !skips.includes(chosen.key) ? chosen : choose(kind, candidates[kind], seed, skips, pos) };
+    })
     .filter((x): x is { kind: Kind; pick: Chosen } => Boolean(x.pick));
+
+  const openMore = (kind: Kind) => {
+    setOpen(null);
+    setMore(kind);
+    setLastMore(kind);
+  };
+
+  /** Make something else today's pick. From a friend or a suggestion, it's saved to your list first. */
+  const pickInstead = async (c: Choice, save?: { hit: Hit; friendId: string | null; destinationId: string | null }) => {
+    setMore(null);
+    let chosen = c;
+    if (save) {
+      try {
+        const { added } = await api<{ added: Item[] }>("/api/items", {
+          body: {
+            kind: c.kind,
+            items: [{ ...save.hit, status: "want", ...(save.friendId ? { recBy: { id: save.friendId } } : {}) }],
+            ...(c.kind === "place" && save.destinationId ? { destinationId: save.destinationId } : {}),
+          },
+        });
+        if (added[0]) chosen = { ...c, itemId: added[0].id };
+        toast(`Saved “${c.title}” to your ${VOCAB[c.kind].sections.want}`);
+      } catch (err) {
+        toast.error((err as Error).message);
+        return;
+      }
+    }
+    const next = { ...choices, [c.kind]: chosen };
+    setChoices(next);
+    try {
+      localStorage.setItem(choiceKey(now), JSON.stringify(next));
+    } catch {}
+  };
 
   const notToday = (p: Chosen) => {
     const next = [...skips, p.key];
@@ -241,6 +291,35 @@ function TodayBody({ candidates }: { candidates: TodayCandidates }) {
           <Icon name="pin" size={14} /> Pick places near me
         </button>
       )}
+      <div className="mt-2 flex items-center gap-2 border-t border-line/70 px-1 pt-3">
+        <span className="min-w-0 flex-1 text-[13px] text-muted">In the mood for something else?</span>
+        {(["podcast", "book", "place", "screen"] as const)
+          .filter((k) => k !== "place" || candidates.place.length > 0)
+          .map((k) => (
+            <button
+              key={k}
+              onClick={() => openMore(k)}
+              aria-label={{ podcast: "Something else to listen to", book: "Something else to read", place: "Somewhere else to go", screen: "Something else to watch" }[k]}
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-ink-2 active:scale-95"
+            >
+              <Icon name={SLOT[k].icon} size={16} />
+            </button>
+          ))}
+      </div>
+
+      <Sheet open={more !== null} onOpenChange={(o) => !o && setMore(null)} title="Something else" hideTitle>
+        <SomethingElse
+          key={more ?? lastMore}
+          kind={more ?? lastMore}
+          list={candidates[more ?? lastMore]}
+          currentKey={picks.find((p) => p.kind === (more ?? lastMore))?.pick.key ?? null}
+          currentTitle={picks.find((p) => p.kind === (more ?? lastMore))?.pick.title ?? null}
+          destinationId={picks.find((p) => p.kind === "place")?.pick.destinationId ?? null}
+          suggest={suggest}
+          reasonOf={reasonText}
+          onChoose={pickInstead}
+        />
+      </Sheet>
 
       <Sheet open={Boolean(open)} onOpenChange={(o) => !o && setOpen(null)} title={shown?.title ?? "Today"} hideTitle>
         {shown && (
@@ -280,9 +359,14 @@ function TodayBody({ candidates }: { candidates: TodayCandidates }) {
                   </a>
                 ))}
               </div>
-              <Button variant="ghost" onClick={() => notToday(shown)} className="mb-2">
-                Not today
-              </Button>
+              <div className="mb-2 grid grid-cols-2 gap-2">
+                <Button variant="secondary" onClick={() => openMore(shown.kind)}>
+                  Something else
+                </Button>
+                <Button variant="ghost" onClick={() => notToday(shown)}>
+                  Not today
+                </Button>
+              </div>
             </div>
           </div>
         )}

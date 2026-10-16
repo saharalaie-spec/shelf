@@ -19,10 +19,12 @@ type Props = {
   pendingRequests: number;
   summaries: Record<Kind, Summary>;
   today: TodayCandidates;
+  /** "Something else" ideas are on. */
+  suggest: boolean;
 };
 
 /** Where you land after signing in: one card per collection. */
-export function Home({ user, pendingRequests, summaries, today }: Props) {
+export function Home({ user, pendingRequests, summaries, today, suggest }: Props) {
   const [profile, setProfile] = useState<Profile>({
     id: user.id,
     name: user.name,
@@ -63,7 +65,7 @@ export function Home({ user, pendingRequests, summaries, today }: Props) {
         </p>
       </section>
 
-      <TodayCard candidates={today} />
+      <TodayCard candidates={today} suggest={suggest} />
 
       <ul className="grid gap-3 px-5 sm:grid-cols-2">
         {KINDS.map((kind, i) => (

@@ -447,3 +447,69 @@ describe("the sample friend", () => {
     expect(await social.areFriends(me.id, SAMPLE_FRIEND_ID)).toBe(false);
   });
 });
+
+describe("something else: taste map and suggestions", () => {
+  it("reads the whole taste across collections, keeping private things out of what's sent", async () => {
+    const { tasteMap } = await import("@/lib/taste");
+    const me = await signUp({ phone: "+14155550801" }, "Mo");
+    const nia = await signUp({ phone: "+14155550802" }, "Nia");
+    await social.acceptInvite(nia, await social.inviteToken(me.id));
+    await trove.addItems(me.id, "book", [
+      book("fx:k1", "Klara and the Sun", { author: "Kazuo Ishiguro", categories: ["Fiction"], recBy: { id: null, name: "Mom" } }),
+      book("fx:k2", "My Diary Book", { private: true }),
+    ]);
+    await trove.addItems(me.id, "podcast", [book("fx:pod:k3", "SmartLess", { status: "reading" })]);
+    await trove.addItems(nia.id, "screen", [book("fx:screen:k4", "Severance", { status: "reading" })]);
+
+    const t = await tasteMap(me.id);
+    expect(t.text).toMatch(/Books: read: Klara and the Sun \(Kazuo Ishiguro\)/);
+    expect(t.text).toMatch(/Podcasts: .*listening now: SmartLess/);
+    expect(t.text).toMatch(/People whose recommendations they finish: Mom \(1\)/);
+    expect(t.text).toMatch(/Nia is on Severance/);
+    expect(t.text).not.toMatch(/Diary/);
+    // Still never suggested back.
+    expect(t.saved.book).toContain("My Diary Book");
+  });
+
+  it("suggests what isn't on your lists, keeps the day's picks, asks again only when asked, and has a daily limit", async () => {
+    const { suggest, DAILY_LIMIT } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550811" }, "Pat");
+    await trove.addItems(me.id, "podcast", [book("fx:pod:smartless", "SmartLess", { status: "reading" })]);
+    let calls = 0;
+    const seen: string[][] = [];
+    const ask = async ({ exclude }: { exclude: string[] }) => {
+      calls++;
+      seen.push(exclude);
+      return [
+        { title: "SmartLess", creator: "", year: 0, why: "Already yours." },
+        { title: `Idea ${calls}`, creator: "Host", year: 0, why: "Because you love SmartLess." },
+      ];
+    };
+
+    const first = await suggest(me.id, "podcast", "lighter", {}, ask);
+    expect(first.picks.map((p) => [p.hit.title, p.why])).toEqual([["Idea 1", "Because you love SmartLess."]]);
+    expect(seen[0]).toContain("SmartLess");
+
+    // Same mood, same day: kept, no new call.
+    expect((await suggest(me.id, "podcast", "lighter", {}, ask)).picks.map((p) => p.hit.title)).toEqual(["Idea 1"]);
+    expect(calls).toBe(1);
+
+    // "Different ideas": asks again, without what you've already been shown.
+    const again = await suggest(me.id, "podcast", "lighter", { fresh: true }, ask);
+    expect(again.picks.map((p) => p.hit.title)).toEqual(["Idea 2"]);
+    expect(seen[1]).toContain("Idea 1");
+
+    // No place yet: nothing to suggest spots for.
+    expect(await suggest(me.id, "place", "any", {}, ask)).toEqual({ picks: [], destinationId: null });
+
+    const client = await db();
+    const day = new Date().toISOString().slice(0, 10);
+    for (let i = 0; i < DAILY_LIMIT; i++) {
+      await client.execute({
+        sql: "INSERT INTO suggestions (user_id, kind, mood, scope, day, items, created_at) VALUES (?, 'book', 'x', '', ?, '[]', 0)",
+        args: [me.id, day],
+      });
+    }
+    await expect(suggest(me.id, "screen", "any", {}, ask)).rejects.toThrow(/plenty/);
+  });
+});

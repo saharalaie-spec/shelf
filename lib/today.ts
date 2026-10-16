@@ -31,8 +31,9 @@ export type TodayPick = {
   coverUrl: string | null;
   categories: string[];
   place?: PlaceInfo;
-  /** Spots: the destination's name. */
+  /** Spots: the destination's name and id. */
   destination: string | null;
+  destinationId?: string | null;
   tier: "keep" | "want" | "friend";
   reason: TodayReason;
   /** Saving a friend's pick remembers them. */
@@ -57,6 +58,7 @@ const fromItem = (i: Item, tier: TodayPick["tier"], reason: TodayReason, destina
   categories: i.categories,
   ...(i.place ? { place: i.place } : {}),
   destination,
+  destinationId: i.destinationId,
   tier,
   reason,
   friendId: null,
