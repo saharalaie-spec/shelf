@@ -1,9 +1,25 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { AuthError } from "./auth";
 import type { Candidate, Kind } from "./types";
 
 /** Photo and screenshot reading lights up when an Anthropic credential is configured. */
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
+
+/** Why a Claude request failed, in words that say what to fix, instead of a bare "Something went wrong". */
+export function aiProblem(err: unknown): unknown {
+  if (!(err instanceof Anthropic.APIError)) return err;
+  console.error("Claude request failed:", err.status, err.message);
+  const said = (err.error as { error?: { message?: string } } | undefined)?.error?.message ?? "";
+  if (err instanceof Anthropic.AuthenticationError) return new AuthError("AI is off: the Anthropic API key was rejected. Check ANTHROPIC_API_KEY.", 503);
+  if (/credit balance/i.test(said)) return new AuthError("AI is off: the Anthropic account is out of credit.", 503);
+  if (err instanceof Anthropic.PermissionDeniedError) return new AuthError("AI is off: this Anthropic key isn’t allowed to make this request.", 503);
+  if (err instanceof Anthropic.RateLimitError) return new AuthError("Lots of requests right now. Try again in a minute.", 429);
+  if (err instanceof Anthropic.APIConnectionError || err instanceof Anthropic.InternalServerError) {
+    return new AuthError("Couldn’t reach Claude just now. Try again in a minute.", 503);
+  }
+  return new AuthError(`Claude couldn’t do that: ${said || err.message}`.slice(0, 240), 502);
+}
 
 const SCHEMA = {
   type: "object",
@@ -54,26 +70,30 @@ export async function itemsFromPhoto(
   mediaType: "image/jpeg" | "image/png" | "image/webp",
 ): Promise<Candidate[]> {
   const client = new Anthropic();
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5-5",
-    max_tokens: 16000,
-    // If the request is declined, retry on Anthropic's recommended fallback model.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: {
-      effort: "low",
-      format: { type: "json_schema", schema: SCHEMA },
-    },
-    messages: [
-      {
-        role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: mediaType, data } },
-          { type: "text", text: PROMPTS[kind] },
-        ],
+  const response = await client.beta.messages
+    .create({
+      model: "claude-opus-5-5",
+      max_tokens: 16000,
+      // If the request is declined, retry on Anthropic's recommended fallback model.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: {
+        effort: "low",
+        format: { type: "json_schema", schema: SCHEMA },
       },
-    ],
-  });
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "image", source: { type: "base64", media_type: mediaType, data } },
+            { type: "text", text: PROMPTS[kind] },
+          ],
+        },
+      ],
+    })
+    .catch((err) => {
+      throw aiProblem(err);
+    });
 
   if (response.stop_reason === "refusal") return [];
   const text = response.content.find((b) => b.type === "text");
