@@ -369,3 +369,45 @@ describe("your circle", () => {
     expect((await social.listFriends(me.id)).find((f) => f.id === friends[0].id)?.inCircle).toBe(false);
   });
 });
+
+describe("item history", () => {
+  it("records every add and section change, and forgets removed items", async () => {
+    const me = await signUp({ phone: "+14155550601" }, "Hal");
+    const [b] = await trove.addItems(me.id, "book", [book("fx:h1", "History", { status: "want" })]);
+    await trove.updateItem(me.id, b.id, { status: "reading" });
+    await trove.updateItem(me.id, b.id, { status: "reading", categories: ["X"] }); // no change: no event
+    await trove.updateItem(me.id, b.id, { status: "read" });
+    const client = await db();
+    const events = async () =>
+      (await client.execute({ sql: "SELECT status FROM item_events WHERE item_id = ? ORDER BY id", args: [b.id] })).rows.map((r) => r.status);
+    expect(await events()).toEqual(["want", "reading", "read"]);
+    await trove.removeItem(me.id, b.id);
+    expect(await events()).toEqual([]);
+  });
+});
+
+describe("today", () => {
+  it("offers what you're in the middle of, then trusted picks, then what's waited longest, then a friend's", async () => {
+    const today = await import("@/lib/today");
+    const me = await signUp({ phone: "+14155550611" }, "Ivy");
+    const jo = await signUp({ phone: "+14155550612" }, "Jo");
+    await social.acceptInvite(jo, await social.inviteToken(me.id));
+    const t0 = Date.now() - 100_000;
+    await trove.addItems(me.id, "book", [
+      book("fx:t-old", "Old save", { status: "want", addedAt: t0 }),
+      book("fx:t-jo", "Jo's pick", { status: "want", addedAt: t0 + 10, recBy: { id: jo.id, name: "Jo" } }),
+      book("fx:t-jo-done", "Jo's earlier pick", { status: "read", recBy: { id: jo.id, name: "Jo" } }),
+    ]);
+    await trove.addItems(me.id, "screen", [book("fx:screen:t-now", "In the middle", { status: "reading" })]);
+    await trove.addItems(jo.id, "podcast", [book("fx:pod:t-jo", "Jo's podcast", { status: "reading" })]);
+
+    const c = await today.todayCandidates(me.id);
+    expect(c.screen[0]).toMatchObject({ title: "In the middle", tier: "keep" });
+    expect(c.book.map((p) => p.title)).toEqual(["Jo's pick", "Old save"]);
+    expect(c.book[0].reason).toEqual({ type: "trusted", from: "Jo", finished: 1 });
+    expect(c.book[1].reason).toMatchObject({ type: "waiting" });
+    // Nothing of your own to listen to: what a friend is on.
+    expect(c.podcast[0]).toMatchObject({ title: "Jo's podcast", tier: "friend", friendId: jo.id, itemId: null });
+    expect(c.place).toEqual([]);
+  });
+});

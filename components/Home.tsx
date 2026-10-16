@@ -4,11 +4,13 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { VOCAB } from "@/lib/kinds";
+import type { TodayCandidates } from "@/lib/today";
 import type { Summary } from "@/lib/trove";
 import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
+import { TodayCard } from "./TodayCard";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Logo } from "./ui";
 
@@ -16,10 +18,11 @@ type Props = {
   user: Profile & { contact: string };
   pendingRequests: number;
   summaries: Record<Kind, Summary>;
+  today: TodayCandidates;
 };
 
 /** Where you land after signing in: one card per collection. */
-export function Home({ user, pendingRequests, summaries }: Props) {
+export function Home({ user, pendingRequests, summaries, today }: Props) {
   const [profile, setProfile] = useState<Profile>({
     id: user.id,
     name: user.name,
@@ -59,6 +62,8 @@ export function Home({ user, pendingRequests, summaries }: Props) {
           {total ? "Pick a collection to add to or browse." : "Pick a collection and add a few favorites."}
         </p>
       </section>
+
+      <TodayCard candidates={today} />
 
       <ul className="grid gap-3 px-5 sm:grid-cols-2">
         {KINDS.map((kind, i) => (

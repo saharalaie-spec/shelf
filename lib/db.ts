@@ -201,6 +201,35 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX books_by_user_status ON books (user_id, status, status_at)`,
     ],
   },
+  {
+    id: "2026-10-16-item-history",
+    statements: [
+      // Every time something is added or changes section: the history the Today card and a weekly letter
+      // build on. The database keeps it, so no code path can forget to.
+      `CREATE TABLE item_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL,
+        at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX item_events_by_user ON item_events (user_id, at)`,
+      `CREATE INDEX item_events_by_item ON item_events (item_id)`,
+      `CREATE TRIGGER books_added AFTER INSERT ON books BEGIN
+        INSERT INTO item_events (user_id, item_id, kind, status, at) VALUES (NEW.user_id, NEW.id, NEW.kind, NEW.status, NEW.status_at);
+      END`,
+      `CREATE TRIGGER books_moved AFTER UPDATE OF status ON books WHEN NEW.status != OLD.status BEGIN
+        INSERT INTO item_events (user_id, item_id, kind, status, at) VALUES (NEW.user_id, NEW.id, NEW.kind, NEW.status, NEW.status_at);
+      END`,
+      // Removing something removes its history too.
+      `CREATE TRIGGER books_removed AFTER DELETE ON books BEGIN
+        DELETE FROM item_events WHERE item_id = OLD.id;
+      END`,
+      // What's already there counts as where history starts.
+      `INSERT INTO item_events (user_id, item_id, kind, status, at) SELECT user_id, id, kind, status, status_at FROM books`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {
