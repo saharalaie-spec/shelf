@@ -1,7 +1,7 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
 import { findOrCreateDestination, getDestination, type NewDestination } from "@/lib/destinations";
-import { addItems, listItems } from "@/lib/shelf";
+import { addItems, listItems } from "@/lib/trove";
 import { isKind, isStatus, type Hit, type Kind, type PlaceInfo, type Status } from "@/lib/types";
 
 type Incoming = Hit & { addedAt?: number; statusAt?: number; status?: Status; private?: boolean; note?: string };

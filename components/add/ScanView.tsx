@@ -6,7 +6,7 @@ import { api } from "@/lib/client";
 import { isBookBarcode } from "@/lib/parse";
 import type { Hit } from "@/lib/types";
 import { Cover } from "../Cover";
-import type { ShelfActions } from "../ShelfApp";
+import type { TroveActions } from "../TroveApp";
 import { Icon, Spinner } from "../ui";
 
 type Detector = { detect(source: HTMLVideoElement): Promise<{ rawValue: string }[]> };
@@ -24,7 +24,7 @@ async function loadDetector(): Promise<DetectorCtor> {
   return BarcodeDetector as unknown as DetectorCtor;
 }
 
-export function ScanView({ shelf }: { shelf: ShelfActions }) {
+export function ScanView({ trove }: { trove: TroveActions }) {
   const video = useRef<HTMLVideoElement>(null);
   const [status, setStatus] = useState<"starting" | "scanning" | "blocked" | "unavailable">("starting");
   const [scans, setScans] = useState<Scan[]>([]);
@@ -43,9 +43,9 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
       const { results } = await api<{ results: Hit[] }>(`/api/search?isbn=${code}`);
       const book = results[0];
       if (!book) return update(code, { state: "missing" });
-      if (shelf.statusOf.get(book.key) === shelf.target) return update(code, { book, state: "already" });
+      if (trove.statusOf.get(book.key) === trove.target) return update(code, { book, state: "already" });
       // Scanning a book means you've got it in hand: add straight away, no extra tap.
-      const added = await shelf.add([book], { quiet: true });
+      const added = await trove.add([book], { quiet: true });
       update(code, { book, state: added.length ? "added" : "already" });
     } catch {
       seen.current.delete(code);
@@ -159,7 +159,7 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
 
       <div className="flex items-center justify-between pt-4 pb-2">
         <p className="text-[13px] font-medium tracking-wide text-muted uppercase">
-          {scans.length ? `${addedCount} added` : "Barcodes go straight onto your shelf"}
+          {scans.length ? `${addedCount} added` : "Barcodes go straight into your trove"}
         </p>
       </div>
       <ul className="min-h-0 flex-1 space-y-1 overflow-y-auto pb-safe" data-vaul-no-drag="">
@@ -176,7 +176,7 @@ export function ScanView({ shelf }: { shelf: ShelfActions }) {
                 <p className="truncate text-[14px] text-muted">{s.book?.author ?? `ISBN ${s.code}`}</p>
               </div>
               <span className={`text-[13px] font-medium ${s.state === "added" ? "text-good" : "text-muted"}`}>
-                {s.state === "added" ? "Added" : s.state === "already" ? "On your shelf" : s.state === "missing" ? "Try typing it" : ""}
+                {s.state === "added" ? "Added" : s.state === "already" ? "In your trove" : s.state === "missing" ? "Try typing it" : ""}
               </span>
             </motion.li>
           ))}

@@ -68,7 +68,7 @@ function AccountBody({ profile, contact, countLabel, privateCount, onProfile }: 
         className="h-12 w-full rounded-2xl border border-line bg-surface px-4 text-[17px] outline-none focus:border-ink"
       />
 
-      <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Who sees your shelf</p>
+      <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Who sees your trove</p>
       <ProfileSettings profile={profile} privateCount={privateCount} onProfile={onProfile} />
 
       <Button variant="secondary" className="mt-7 w-full" loading={leaving === "here"} disabled={leaving !== null} onClick={() => signOut(false)}>
@@ -108,7 +108,7 @@ function ProfileSettings({
         onProfile({ handle: saved.handle });
         setHandle(saved.handle);
       }
-      toast(isPublic ? "Your profile is public" : "Only friends can see your shelf now");
+      toast(isPublic ? "Your profile is public" : "Only friends can see your trove now");
     } catch (err) {
       onProfile({ isPublic: !isPublic });
       toast.error((err as Error).message);
@@ -148,7 +148,7 @@ function ProfileSettings({
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-medium">Public profile</span>
           <span className="block text-[13px] leading-snug text-muted">
-            {profile.isPublic ? "Anyone with your link can see your shelf." : "Off: only friends can see your shelf."}
+            {profile.isPublic ? "Anyone with your link can see your trove." : "Off: only friends can see your trove."}
           </span>
         </span>
         <Switch checked={profile.isPublic} onChange={setPublic} label="Public profile" disabled={saving} />

@@ -13,7 +13,7 @@ import { SearchView, type Method } from "./add/SearchView";
 import { VoiceView } from "./add/VoiceView";
 import { DestinationPicker } from "./Destinations";
 import { SectionTabs } from "./SectionTabs";
-import type { ShelfActions, ShelfApi } from "./ShelfApp";
+import type { TroveActions, TroveApi } from "./TroveApp";
 import { Sheet } from "./Sheet";
 import { Icon } from "./ui";
 
@@ -48,24 +48,24 @@ type Props = {
   destination?: string | null;
   /** Places: open straight on the destination picker ("New place"). */
   pickDestination?: boolean;
-  shelf: ShelfApi;
+  trove: TroveApi;
   empty: boolean;
   features: { photo: boolean };
 };
 
-export function AddSheet({ kind, open, onOpenChange, section, destination = null, pickDestination, shelf, empty, features }: Props) {
+export function AddSheet({ kind, open, onOpenChange, section, destination = null, pickDestination, trove, empty, features }: Props) {
   const v = vocab(kind);
   const isPlace = kind === "place";
   // Places start by asking where, when there's nowhere yet (a first visit opens the sheet straight away).
   const [view, setView] = useState<View>(() =>
-    isPlace && (pickDestination || !(destination ?? shelf.destinations[0]?.id)) ? "where" : "search",
+    isPlace && (pickDestination || !(destination ?? trove.destinations[0]?.id)) ? "where" : "search",
   );
   const [direction, setDirection] = useState(1);
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [target, setTarget] = useState<Status>(section);
   // Places: which destination spots go to. Defaults to the one on screen, else the latest one.
-  const [destId, setDestId] = useState<string | null>(destination ?? shelf.destinations[0]?.id ?? null);
-  const dest = shelf.destinations.find((d) => d.id === destId) ?? null;
+  const [destId, setDestId] = useState<string | null>(destination ?? trove.destinations[0]?.id ?? null);
+  const dest = trove.destinations.find((d) => d.id === destId) ?? null;
 
   // Each time the sheet opens, start from the section (and destination) being viewed.
   const [wasOpen, setWasOpen] = useState(open);
@@ -74,7 +74,7 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
     if (open) {
       setTarget(section);
       if (isPlace) {
-        const next = destination ?? shelf.destinations[0]?.id ?? null;
+        const next = destination ?? trove.destinations[0]?.id ?? null;
         setDestId(next);
         // No destination yet, or "New place": ask where first.
         if (pickDestination || !next) setView("where");
@@ -82,15 +82,15 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
     }
   }
 
-  const actions: ShelfActions = {
+  const actions: TroveActions = {
     kind,
-    items: shelf.items,
-    statusOf: shelf.statusOf,
-    destinations: shelf.destinations,
-    onDestination: shelf.onDestination,
+    items: trove.items,
+    statusOf: trove.statusOf,
+    destinations: trove.destinations,
+    onDestination: trove.onDestination,
     destination: dest,
     target,
-    add: (hits, opts) => shelf.add(hits, { status: target, destinationId: destId, ...opts }),
+    add: (hits, opts) => trove.add(hits, { status: target, destinationId: destId, ...opts }),
   };
 
   // Come back to search next time; wait for the close animation first.
@@ -171,23 +171,23 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
           >
             {view === "where" && (
               <DestinationPicker
-                destinations={shelf.destinations}
+                destinations={trove.destinations}
                 current={destId}
                 onPicked={(d, created) => {
-                  shelf.onDestination(d, created);
+                  trove.onDestination(d, created);
                   setDestId(d.id);
                   go("search");
                 }}
               />
             )}
-            {view === "search" && <SearchView shelf={actions} empty={empty} features={features} onMethod={go} />}
+            {view === "search" && <SearchView trove={actions} empty={empty} features={features} onMethod={go} />}
             {view === "paste" && <PasteView kind={kind} onReview={review} />}
             {view === "voice" && <VoiceView kind={kind} onReview={review} />}
-            {view === "scan" && <ScanView shelf={actions} />}
+            {view === "scan" && <ScanView trove={actions} />}
             {view === "photo" && <PhotoView kind={kind} onReview={review} />}
             {view === "import" && <ImportView kind={kind} onReview={review} />}
             {view === "review" && (
-              <ReviewView items={candidates} shelf={actions} onAdded={() => onOpenChange(false)} />
+              <ReviewView items={candidates} trove={actions} onAdded={() => onOpenChange(false)} />
             )}
           </motion.div>
         </AnimatePresence>

@@ -1,6 +1,6 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
-import { removeItem, updateItem } from "@/lib/shelf";
+import { removeItem, updateItem } from "@/lib/trove";
 import { isStatus, type Status } from "@/lib/types";
 
 export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/items/[id]">) => {

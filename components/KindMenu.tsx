@@ -59,7 +59,7 @@ export function KindMenu({ kind }: { kind: Kind }) {
                 <span className="flex h-8 w-8 items-center justify-center">
                   <Icon name="home" size={19} />
                 </span>
-                All shelves
+                Your trove
               </Link>
             </motion.nav>
           </>

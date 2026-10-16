@@ -29,7 +29,7 @@ export const POST = route(async (req: Request) => {
   if (typeof body.userId === "string") {
     // Only public profiles show an Add friend button; private ones don't admit they exist.
     const target = await findPerson(body.userId);
-    if (!target || (await accessTo(user.id, target)) === "none") throw new AuthError("That person isn’t on Shelf.", 404);
+    if (!target || (await accessTo(user.id, target)) === "none") throw new AuthError("That person isn’t on Trove.", 404);
     return Response.json(await requestByUserId(user, target.id));
   }
   if (typeof body.identifier !== "string") throw new AuthError("Enter a phone number or email.");

@@ -1,6 +1,6 @@
 import { requireUser } from "@/lib/auth";
 import { origin, readJson, route } from "@/lib/api";
-import { getOrCreateShare } from "@/lib/shelf";
+import { getOrCreateShare } from "@/lib/trove";
 import { isKind, isStatus, type Kind, type Status } from "@/lib/types";
 
 export const POST = route(async (req: Request) => {

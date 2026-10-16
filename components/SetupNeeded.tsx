@@ -6,11 +6,11 @@ export function SetupNeeded() {
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pt-[max(3rem,12vh)] pb-safe">
       <div className="mb-10 flex items-center gap-2.5">
         <Logo />
-        <span className="font-serif text-[22px] font-semibold tracking-tight">Shelf</span>
+        <span className="font-serif text-[22px] font-semibold tracking-tight">Trove</span>
       </div>
       <h1 className="font-serif text-[36px] leading-[1.1] font-medium tracking-tight">Almost live</h1>
       <p className="mt-3 text-[17px] text-muted">
-        Shelf is deployed, but it needs a database to keep shelves in. On Vercel:
+        Trove is deployed, but it needs a database to keep everyone’s favorites in. On Vercel:
       </p>
       <ol className="mt-6 space-y-4 text-[16px] text-ink-2">
         {[

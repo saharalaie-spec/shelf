@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { itemLinks } from "@/lib/client";
-import { shelfCount, spotTally, vocab } from "@/lib/kinds";
+import { troveCount, spotTally, vocab } from "@/lib/kinds";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { PlacesList, StatusTag } from "./PlacesList";
@@ -24,13 +24,13 @@ type Props = {
   viewerSignedIn: boolean;
 };
 
-export function SharedShelf({ title, kind, ownerName, status, category, items: books, destinations, viewerSignedIn }: Props) {
+export function SharedTrove({ title, kind, ownerName, status, category, items: books, destinations, viewerSignedIn }: Props) {
   const v = vocab(kind);
   const [filter, setFilter] = useState<string | null>(null);
   const [open, setOpen] = useState<Item | null>(null);
   const [lastOpen, setLastOpen] = useState<Item | null>(null);
 
-  // A whole-shelf link can still be browsed by category (places are grouped by destination instead).
+  // A link to a whole section can still be browsed by category (places are grouped by destination instead).
   const categories = useMemo(() => {
     if (category || kind === "place") return [];
     const counts = new Map<string, number>();
@@ -46,11 +46,11 @@ export function SharedShelf({ title, kind, ownerName, status, category, items: b
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
           <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Shelf</span>
+          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
         </Link>
         {viewerSignedIn && (
           <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
-            Your shelf
+            Your trove
           </Link>
         )}
       </header>
@@ -62,8 +62,8 @@ export function SharedShelf({ title, kind, ownerName, status, category, items: b
         <h1 className="mt-4 font-serif text-[38px] leading-[1.05] font-medium tracking-tight text-balance">{title}</h1>
         <p className="mt-2 text-[16px] text-muted">
           {kind === "place"
-            ? [shelfCount(books.length, status, kind), spotTally(books)].filter(Boolean).join(" · ")
-            : shelfCount(books.length, status, kind)}
+            ? [troveCount(books.length, status, kind), spotTally(books)].filter(Boolean).join(" · ")
+            : troveCount(books.length, status, kind)}
         </p>
       </section>
 
@@ -137,7 +137,7 @@ export function SharedShelf({ title, kind, ownerName, status, category, items: b
             className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-ink p-4 pl-5 text-paper shadow-float"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-medium">Make your own shelf</p>
+              <p className="text-[16px] font-medium">Make your own trove</p>
               <p className="text-[14px] text-paper/65">Books, podcasts, shows and favorite spots, shared with friends.</p>
             </div>
             <Link href="/" className="inline-flex h-11 shrink-0 items-center rounded-full bg-paper px-5 text-[15px] font-medium text-ink active:scale-[0.97]">

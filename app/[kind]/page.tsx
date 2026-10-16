@@ -5,15 +5,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
-import { listItems } from "@/lib/shelf";
+import { listItems } from "@/lib/trove";
 import { incomingRequests } from "@/lib/social";
 import { Login } from "@/components/Login";
 import { SetupNeeded } from "@/components/SetupNeeded";
-import { ShelfApp } from "@/components/ShelfApp";
+import { TroveApp } from "@/components/TroveApp";
 
 export async function generateMetadata({ params }: PageProps<"/[kind]">): Promise<Metadata> {
   const kind = kindFromSlug((await params).kind);
-  return kind ? { title: `${vocab(kind).label} · Shelf` } : {};
+  return kind ? { title: `${vocab(kind).label} · Trove` } : {};
 }
 
 /** One collection: /books, /podcasts, /movies or /places. */
@@ -29,8 +29,8 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
     kind === "place" ? listDestinations(user.id, { includePrivate: true, includeEmpty: true }) : Promise.resolve([]),
   ]);
   return (
-    <ShelfApp
-      // A fresh shelf per collection, so state never leaks from one to the next.
+    <TroveApp
+      // A fresh view per collection, so state never leaks from one to the next.
       key={kind}
       kind={kind}
       user={{

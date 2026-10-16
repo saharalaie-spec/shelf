@@ -8,14 +8,14 @@ import { vocab, type Vocab } from "@/lib/kinds";
 import type { Hit, Kind, Status } from "@/lib/types";
 import { Cover } from "../Cover";
 import { SpotTile, spotLine } from "../Spot";
-import type { ShelfActions } from "../ShelfApp";
+import type { TroveActions } from "../TroveApp";
 import { Icon, type IconName } from "../ui";
 import { typedHit } from "./typed";
 
 export type Method = "paste" | "voice" | "scan" | "photo" | "import";
 
 type Props = {
-  shelf: ShelfActions;
+  trove: TroveActions;
   empty: boolean;
   features: { photo: boolean };
   onMethod: (m: Method) => void;
@@ -62,8 +62,8 @@ const BROWSE_ICON: Record<string, IconName> = {
   bed: "bed",
 };
 
-export function SearchView({ shelf, empty, features, onMethod }: Props) {
-  const { kind, destination } = shelf;
+export function SearchView({ trove, empty, features, onMethod }: Props) {
+  const { kind, destination } = trove;
   const v = vocab(kind);
   const isPlace = kind === "place";
   // Spots are searched inside the chosen destination.
@@ -82,7 +82,7 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [openedAt] = useState(() => Date.now());
   // Added or moved while this sheet is open.
-  const justAdded = shelf.items.filter((b) => b.addedAt >= openedAt || b.statusAt >= openedAt);
+  const justAdded = trove.items.filter((b) => b.addedAt >= openedAt || b.statusAt >= openedAt);
   const query = q.trim();
   const failed = failedFor === query;
   const loading = query.length >= 2 && resultsFor !== query && !failed;
@@ -100,13 +100,13 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
         hits = [];
       }
     }
-    shelf.add([hits[0] ?? typedHit(kind, { title: text })]);
+    trove.add([hits[0] ?? typedHit(kind, { title: text })]);
   };
 
   const addTyped = (text: string) => {
     setQ("");
     inputRef.current?.focus();
-    shelf.add([typedHit(kind, { title: text })]);
+    trove.add([typedHit(kind, { title: text })]);
   };
 
   useEffect(() => {
@@ -203,9 +203,9 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
                   v={v}
                   hit={hit}
                   top={false}
-                  current={shelf.statusOf.get(hit.key)}
-                  target={shelf.target}
-                  onAdd={() => shelf.add([hit])}
+                  current={trove.statusOf.get(hit.key)}
+                  target={trove.target}
+                  onAdd={() => trove.add([hit])}
                 />
               ))}
             </ul>
@@ -219,9 +219,9 @@ export function SearchView({ shelf, empty, features, onMethod }: Props) {
                 v={v}
                 hit={hit}
                 top={i === 0 && !stale}
-                current={shelf.statusOf.get(hit.key)}
-                target={shelf.target}
-                onAdd={() => shelf.add([hit])}
+                current={trove.statusOf.get(hit.key)}
+                target={trove.target}
+                onAdd={() => trove.add([hit])}
               />
             ))}
             {!loading && (

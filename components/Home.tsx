@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import { VOCAB } from "@/lib/kinds";
-import type { Summary } from "@/lib/shelf";
+import type { Summary } from "@/lib/trove";
 import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { Cover } from "./Cover";
@@ -37,7 +37,7 @@ export function Home({ user, pendingRequests, summaries }: Props) {
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-2">
           <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Shelf</span>
+          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
         </div>
         <div className="flex items-center gap-1">
           <FriendsButton pending={pending} onClick={() => setFriendsOpen(true)} />
@@ -51,10 +51,10 @@ export function Home({ user, pendingRequests, summaries }: Props) {
           animate={{ opacity: 1, y: 0 }}
           className="font-serif text-[38px] leading-[1.05] font-medium tracking-tight"
         >
-          {profile.name ? `Hi, ${profile.name}` : "Your shelves"}
+          {profile.name ? `Hi, ${profile.name}` : "Your trove"}
         </motion.h1>
         <p className="mt-2 text-[16px] text-muted">
-          {total ? "Pick a shelf to add to or browse." : "Pick a shelf and add a few favorites."}
+          {total ? "Pick a collection to add to or browse." : "Pick a collection and add a few favorites."}
         </p>
       </section>
 

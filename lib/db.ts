@@ -43,7 +43,7 @@ const SCHEMA = [
     UNIQUE (user_id, work_key)
   )`,
   `CREATE INDEX IF NOT EXISTS books_by_user ON books (user_id, added_at DESC)`,
-  // category '' means the whole shelf. One stable link per (user, category).
+  // category '' means the whole section. One stable link per (user, category).
   `CREATE TABLE IF NOT EXISTS shares (
     slug TEXT PRIMARY KEY,
     user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -106,7 +106,7 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
         created_at INTEGER NOT NULL,
         PRIMARY KEY (user_id, friend_id)
       )`,
-      // Requests are addressed to a phone number or email, so they can wait for people not on Shelf yet.
+      // Requests are addressed to a phone number or email, so they can wait for people not on Trove yet.
       `CREATE TABLE friend_requests (
         id TEXT PRIMARY KEY,
         from_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -195,7 +195,7 @@ async function migrate(client: Client) {
 }
 
 type DbState = { client: Client; ready: Promise<void> };
-const globalForDb = globalThis as unknown as { __shelfDb?: DbState };
+const globalForDb = globalThis as unknown as { __troveDb?: DbState };
 
 function init(url: string): DbState {
   if (url.startsWith("file:")) {
@@ -216,12 +216,12 @@ function init(url: string): DbState {
 export async function db(): Promise<Client> {
   const url = databaseUrl();
   if (!url) throw new SetupError("This deployment has no database connected yet.");
-  const state = (globalForDb.__shelfDb ??= init(url));
+  const state = (globalForDb.__troveDb ??= init(url));
   try {
     await state.ready;
   } catch (err) {
     // Don't cache a failed connection (bad token, network blip); the next request retries.
-    if (globalForDb.__shelfDb === state) globalForDb.__shelfDb = undefined;
+    if (globalForDb.__troveDb === state) globalForDb.__troveDb = undefined;
     state.client.close();
     throw err;
   }

@@ -155,7 +155,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
               <Link href={`/u/${f.handle ?? f.id}`} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
                 <Avatar name={f.name} size={44} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] font-medium">{f.name ?? "Shelf reader"}</span>
+                  <span className="block truncate text-[16px] font-medium">{f.name ?? "Trove member"}</span>
                   <span className="block truncate text-[13px] text-muted">
                     {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
                   </span>
@@ -244,8 +244,8 @@ function InviteCard({ url, name }: { url: string | null; name: string | null }) 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Be my friend on Shelf",
-          text: `${name ? `${name} here. ` : ""}Let’s swap books, podcasts and shows on Shelf:`,
+          title: "Be my friend on Trove",
+          text: `${name ? `${name} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
           url,
         });
         return;
@@ -295,7 +295,7 @@ function AskForm({ onSent }: { onSent: () => void }) {
     setError(undefined);
     try {
       const res = await api<{ status: "sent" | "friends" }>("/api/friends", { body: { identifier: value, country } });
-      toast(res.status === "friends" ? "You’re friends now" : "Request sent. They’ll see it in Shelf.");
+      toast(res.status === "friends" ? "You’re friends now" : "Request sent. They’ll see it in Trove.");
       setValue("");
       onSent();
     } catch (err) {
@@ -332,7 +332,7 @@ function AskForm({ onSent }: { onSent: () => void }) {
       {error ? (
         <p className="mt-1.5 text-[13px] text-accent">{error}</p>
       ) : (
-        <p className="mt-1.5 text-[13px] text-muted">Not on Shelf yet? They’ll see it when they join.</p>
+        <p className="mt-1.5 text-[13px] text-muted">Not on Trove yet? They’ll see it when they join.</p>
       )}
     </form>
   );

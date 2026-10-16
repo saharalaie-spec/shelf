@@ -22,7 +22,7 @@ type Props = {
   locked?: boolean;
 };
 
-/** The real cover or artwork when we have one; otherwise a typeset one, so a shelf always looks full. */
+/** The real cover or artwork when we have one; otherwise a typeset one, so a grid always looks full. */
 export function Cover({ book, shape = "portrait", className = "", rounded = "rounded-[5px]", locked }: Props) {
   const [failed, setFailed] = useState(false);
   const [loaded, setLoaded] = useState(false);

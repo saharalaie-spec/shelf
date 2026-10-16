@@ -7,17 +7,17 @@ import { vocab } from "@/lib/kinds";
 import type { Hit, Candidate, MatchResult } from "@/lib/types";
 import { Cover } from "../Cover";
 import { SpotTile, spotLine } from "../Spot";
-import type { ShelfActions } from "../ShelfApp";
+import type { TroveActions } from "../TroveApp";
 import { Button, Icon } from "../ui";
 import { normalize, typedHit } from "./typed";
 
 const BATCH = 10;
 const PARALLEL = 3;
 
-type Props = { items: Candidate[]; shelf: ShelfActions; onAdded: () => void };
+type Props = { items: Candidate[]; trove: TroveActions; onAdded: () => void };
 
-export function ReviewView({ items, shelf, onAdded }: Props) {
-  const { kind } = shelf;
+export function ReviewView({ items, trove, onAdded }: Props) {
+  const { kind } = trove;
   const v = vocab(kind);
   const square = v.shape === "square";
   const [results, setResults] = useState<(MatchResult | null)[]>(() => items.map(() => null));
@@ -39,7 +39,7 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
         try {
           rs = (
             await api<{ results: MatchResult[] }>("/api/match", {
-              body: { kind, dest: shelf.destination?.id, items: idx.map((i) => items[i]) },
+              body: { kind, dest: trove.destination?.id, items: idx.map((i) => items[i]) },
             })
           ).results;
         } catch {
@@ -57,15 +57,15 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [items, kind, shelf.destination?.id]);
+  }, [items, kind, trove.destination?.id]);
 
   const done = results.filter(Boolean).length;
   const loading = done < items.length;
 
   const hitFor = (i: number) => picked[i] ?? results[i]?.match ?? typedHit(kind, items[i]);
   // Imports know each item's section; everything else goes where the picker says.
-  const statusFor = (i: number) => items[i].status ?? shelf.target;
-  const alreadyThere = (i: number) => shelf.statusOf.get(hitFor(i).key) === statusFor(i);
+  const statusFor = (i: number) => items[i].status ?? trove.target;
+  const alreadyThere = (i: number) => trove.statusOf.get(hitFor(i).key) === statusFor(i);
   const isTicked = (i: number) => {
     const r = results[i];
     if (!r) return false;
@@ -76,13 +76,13 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
   const selected = useMemo(
     () => results.map((_, i) => i).filter(isTicked),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [results, picked, ticked, shelf.statusOf, shelf.target],
+    [results, picked, ticked, trove.statusOf, trove.target],
   );
   const matched = results.filter((r) => r?.match).length;
 
   const addAll = async () => {
     setAdding(true);
-    const added = await shelf.add(selected.map((i) => ({ ...hitFor(i), status: statusFor(i), note: items[i].note })));
+    const added = await trove.add(selected.map((i) => ({ ...hitFor(i), status: statusFor(i), note: items[i].note })));
     setAdding(false);
     if (added.length) onAdded();
   };
@@ -111,9 +111,9 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
           const r = results[i];
           if (!r) return <PendingRow key={i} input={input} square={square} />;
           const hit = hitFor(i);
-          const onShelf = alreadyThere(i);
-          const current = shelf.statusOf.get(hit.key);
-          const ownSection = input.status && input.status !== shelf.target ? ` · ${v.sections[input.status]}` : "";
+          const inTrove = alreadyThere(i);
+          const current = trove.statusOf.get(hit.key);
+          const ownSection = input.status && input.status !== trove.target ? ` · ${v.sections[input.status]}` : "";
           const isTyped = hit.key.startsWith("typed:");
           const expanded = open === i;
           const options = [r.match, ...r.alternatives].filter((h): h is Hit => Boolean(h));
@@ -122,29 +122,29 @@ export function ReviewView({ items, shelf, onAdded }: Props) {
             <li key={i} className="border-b border-line/60 last:border-0">
               <div className="flex items-center gap-3 px-2 py-2.5">
                 <button
-                  onClick={() => !onShelf && setTicked((t) => ({ ...t, [i]: !isTicked(i) }))}
-                  disabled={onShelf}
+                  onClick={() => !inTrove && setTicked((t) => ({ ...t, [i]: !isTicked(i) }))}
+                  disabled={inTrove}
                   aria-label={isTicked(i) ? "Don’t add" : "Add"}
                   className="flex h-9 w-9 shrink-0 items-center justify-center"
                 >
                   <span
                     className={`flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] transition-colors ${
-                      onShelf ? "border-good bg-good text-white" : isTicked(i) ? "border-ink bg-ink text-paper" : "border-line"
+                      inTrove ? "border-good bg-good text-white" : isTicked(i) ? "border-ink bg-ink text-paper" : "border-line"
                     }`}
                   >
-                    {(isTicked(i) || onShelf) && <Icon name="check" size={14} />}
+                    {(isTicked(i) || inTrove) && <Icon name="check" size={14} />}
                   </span>
                 </button>
                 <button onClick={() => setOpen(expanded ? null : i)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
                   {kind === "place" ? (
-                    <SpotTile spot={hit} size={40} className={`transition-opacity ${isTicked(i) || onShelf ? "" : "opacity-50"}`} />
+                    <SpotTile spot={hit} size={40} className={`transition-opacity ${isTicked(i) || inTrove ? "" : "opacity-50"}`} />
                   ) : (
-                    <Cover book={hit} shape={v.shape} className={`w-10 shrink-0 transition-opacity ${isTicked(i) || onShelf ? "" : "opacity-50"}`} rounded="rounded-[3px]" />
+                    <Cover book={hit} shape={v.shape} className={`w-10 shrink-0 transition-opacity ${isTicked(i) || inTrove ? "" : "opacity-50"}`} rounded="rounded-[3px]" />
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-[16px] font-medium ${isTicked(i) || onShelf ? "" : "text-muted"}`}>{hit.title}</span>
+                    <span className={`block truncate text-[16px] font-medium ${isTicked(i) || inTrove ? "" : "text-muted"}`}>{hit.title}</span>
                     <span className="block truncate text-[14px] text-muted">
-                      {onShelf
+                      {inTrove
                         ? `Already in ${v.sections[statusFor(i)]}`
                         : current
                           ? `Moves from ${v.sections[current]} to ${v.sections[statusFor(i)]}`

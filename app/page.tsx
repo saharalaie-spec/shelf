@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
-import { summarize } from "@/lib/shelf";
+import { summarize } from "@/lib/trove";
 import { incomingRequests } from "@/lib/social";
 import { Home } from "@/components/Home";
 import { Login } from "@/components/Login";
