@@ -35,6 +35,7 @@ const toItem = (r: Row): Item => ({
   status: isStatus(r.status) ? r.status : "read",
   statusAt: Number(r.status_at),
   private: Boolean(r.private),
+  quiet: Boolean(r.quiet),
   destinationId: r.destination_id ? String(r.destination_id) : null,
   note: r.note ? String(r.note) : null,
   // A friend's current name when they're still here, else the name it was saved with.
@@ -126,6 +127,7 @@ export async function addItems(
       status: statusFor(kind, h.status),
       statusAt: h.statusAt ?? addedAt,
       private: Boolean(h.private),
+      quiet: false,
       destinationId: kind === "place" ? destinationId : null,
       note: h.note?.trim().slice(0, 500) || null,
       recBy: h.recBy?.name.trim() ? { id: h.recBy.id, name: h.recBy.name.trim().slice(0, 60) } : null,
@@ -149,7 +151,14 @@ export async function addItems(
 }
 
 /** `recName` is typed by the owner, so it replaces any friend the item was saved from. */
-type ItemPatch = { categories?: string[]; status?: Status; private?: boolean; note?: string | null; recName?: string | null };
+type ItemPatch = {
+  categories?: string[];
+  status?: Status;
+  private?: boolean;
+  quiet?: boolean;
+  note?: string | null;
+  recName?: string | null;
+};
 
 /**
  * Changes an item's categories, section, privacy and/or note. Returns what was saved, or null if it isn't yours.
@@ -168,6 +177,11 @@ export async function updateItem(
     saved.private = patch.private;
     sets.push("private = ?");
     args.push(patch.private ? 1 : 0);
+  }
+  if (patch.quiet !== undefined) {
+    saved.quiet = patch.quiet;
+    sets.push("quiet = ?");
+    args.push(patch.quiet ? 1 : 0);
   }
   if (patch.note !== undefined) {
     saved.note = patch.note?.trim().slice(0, 500) || null;

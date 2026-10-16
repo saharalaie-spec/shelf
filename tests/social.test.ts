@@ -5,6 +5,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { User } from "@/lib/auth";
 
 let social: typeof import("@/lib/social");
+let table: typeof import("@/lib/table");
 let trove: typeof import("@/lib/trove");
 let db: typeof import("@/lib/db").db;
 
@@ -28,12 +29,13 @@ async function signUp(contact: { phone?: string; email?: string }, name: string 
     sql: "INSERT INTO users (id, phone, email, name, created_at) VALUES (?, ?, ?, ?, ?)",
     args: [id, contact.phone ?? null, contact.email ?? null, name, Date.now()],
   });
-  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false };
+  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false, shareActivity: true };
 }
 
 beforeAll(async () => {
   process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "trove-social-")), "test.db")}`;
   social = await import("@/lib/social");
+  table = await import("@/lib/table");
   trove = await import("@/lib/trove");
   db = (await import("@/lib/db")).db;
 });
@@ -251,5 +253,119 @@ describe("recommended by", () => {
     const [cy] = await social.listFriends(b.id);
     // Cy's private save of Di's pick isn't Di's business.
     expect(cy).toMatchObject({ fromThem: 1, fromMe: 1 });
+  });
+});
+
+describe("the Table", () => {
+  const befriend = async (a: User, b: User) => social.acceptInvite(b, await social.inviteToken(a.id));
+  const titles = (items: { title: string }[]) => items.map((i) => i.title);
+
+  it("groups what friends are into by the thing, and leaves out what they keep to themselves", async () => {
+    const me = await signUp({ phone: "+14155550401" }, "Sahar");
+    const bo = await signUp({ phone: "+14155550402" }, "Bo");
+    const mia = await signUp({ phone: "+14155550403" }, "Mia");
+    const stranger = await signUp({ phone: "+14155550404" }, "Zed");
+    await befriend(me, bo);
+    await befriend(me, mia);
+    const now = Date.now();
+    await trove.addItems(bo.id, "screen", [
+      book("fx:screen:sev", "Severance", { status: "reading", statusAt: now - 1000 }),
+      book("fx:screen:secret", "Secret show", { status: "reading", private: true }),
+      book("fx:screen:quiet", "Quiet show", { status: "reading" }),
+      book("fx:screen:later", "Someday show", { status: "want" }),
+    ]);
+    const quiet = (await trove.listItems(bo.id, { includePrivate: true })).find((i) => i.title === "Quiet show")!;
+    await trove.updateItem(bo.id, quiet.id, { quiet: true });
+    // Same show, different catalog key: still one row.
+    await trove.addItems(mia.id, "screen", [book("typed:screen:severance", "severance", { status: "reading", statusAt: now - 500 })]);
+    await trove.addItems(mia.id, "book", [book("fx:dune", "Dune", { status: "read", statusAt: now - 2000 })]);
+    await trove.addItems(stranger.id, "book", [book("fx:z", "Stranger's book", { status: "reading" })]);
+
+    const t = await table.friendsTable(me.id, now);
+    expect(t.friendCount).toBe(2);
+    expect(titles(t.watching)).toEqual(["Severance"]);
+    expect(t.watching[0].friends.map((f) => f.name).sort()).toEqual(["Bo", "Mia"]);
+    expect(titles(t.finished)).toEqual(["Dune"]);
+    expect(t.reading).toEqual([]);
+
+    // Turning sharing off takes you off everyone's Table.
+    // Nor does the "now watching" line in the friends list give a quiet show away.
+    expect((await social.listFriends(me.id)).find((f) => f.id === bo.id)?.now).toEqual({ kind: "screen", title: "Severance" });
+    await trove.updateItem(bo.id, (await trove.listItems(bo.id)).find((i) => i.title === "Severance")!.id, { quiet: true });
+    expect((await social.listFriends(me.id)).find((f) => f.id === bo.id)?.now).toBeNull();
+
+    await social.updateProfile(mia.id, { shareActivity: false });
+    const later = await table.friendsTable(me.id, now);
+    expect(later.watching).toEqual([]);
+    expect(later.finished).toEqual([]);
+    expect((await social.listFriends(me.id)).find((f) => f.id === mia.id)?.now).toBeNull();
+  });
+
+  it("puts what involves you first, then your circle, then what most friends are into", async () => {
+    const me = await signUp({ phone: "+14155550411" }, "Ana");
+    const [a, b, c] = await Promise.all(
+      ["+14155550412", "+14155550413", "+14155550414"].map((p, i) => signUp({ phone: p }, ["Al", "Bea", "Cy"][i])),
+    );
+    for (const f of [a, b, c]) await befriend(me, f);
+    const now = Date.now();
+    // Popular: two friends. Circle: one friend in your circle. Yours: on your own list.
+    await trove.addItems(a.id, "book", [book("fx:pop", "Popular", { status: "reading", statusAt: now - 10 })]);
+    await trove.addItems(b.id, "book", [book("fx:pop", "Popular", { status: "reading", statusAt: now - 10 })]);
+    await trove.addItems(c.id, "book", [
+      book("fx:circle", "Circle pick", { status: "reading", statusAt: now - 20 }),
+      book("fx:yours", "On your list", { status: "reading", statusAt: now - 30 }),
+      book("fx:mypick", "Your pick", { status: "reading", statusAt: now - 40, recBy: { id: me.id, name: "Ana" } }),
+    ]);
+    await trove.addItems(me.id, "book", [book("fx:yours", "On your list", { status: "want" })]);
+    await social.setCircle(me.id, c.id, true);
+
+    const t = await table.friendsTable(me.id, now);
+    expect(titles(t.reading)).toEqual(["On your list", "Your pick", "Circle pick", "Popular"]);
+    expect(t.reading[0].mine).toBe("want");
+    expect(t.reading[1].yourPick).toBe(true);
+    expect(t.reading[2].friends[0]).toMatchObject({ name: "Cy", circle: true });
+  });
+
+  it("groups friends' spots under the place they're in", async () => {
+    const me = await signUp({ phone: "+14155550421" }, "Dee");
+    const ana = await signUp({ phone: "+14155550422" }, "Ana");
+    await befriend(me, ana);
+    const places = await import("@/lib/destinations");
+    const lisbon = await places.findOrCreateDestination(ana.id, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });
+    await trove.addItems(ana.id, "place", [book("fx:spot:a", "Café A", { status: "want" }), book("fx:spot:b", "Bar B", { status: "read" })], {
+      destinationId: lisbon.id,
+    });
+    await places.findOrCreateDestination(me.id, { name: "lisbon", country: null, lat: null, lon: null, bbox: null });
+    const t = await table.friendsTable(me.id);
+    expect(t.places).toHaveLength(1);
+    expect(t.places[0]).toMatchObject({ name: "Lisbon", yours: true, destination: { name: "Lisbon", country: "Portugal" } });
+    expect(titles(t.places[0].spots).sort()).toEqual(["Bar B", "Café A"]);
+  });
+});
+
+describe("your circle", () => {
+  it("is for friends only, holds 15, and clears when you unfriend", async () => {
+    const me = await signUp({ phone: "+14155550431" }, "Eve");
+    const stranger = await signUp({ phone: "+14155550432" });
+    await expect(social.setCircle(me.id, stranger.id, true)).rejects.toThrow(/friends/);
+
+    const friends: User[] = [];
+    for (let i = 0; i < 16; i++) {
+      const f = await signUp({ phone: `+1415555050${String(i).padStart(2, "0")}` }, `F${i}`);
+      await social.acceptInvite(f, await social.inviteToken(me.id));
+      friends.push(f);
+    }
+    for (const f of friends.slice(0, 15)) await social.setCircle(me.id, f.id, true);
+    await expect(social.setCircle(me.id, friends[15].id, true)).rejects.toThrow(/15/);
+    // Re-adding someone already in it is fine.
+    expect(await social.setCircle(me.id, friends[0].id, true)).toBe(true);
+
+    const list = await social.listFriends(me.id);
+    expect(list.filter((f) => f.inCircle)).toHaveLength(15);
+    expect(list[0].inCircle).toBe(true);
+
+    await social.unfriend(me.id, friends[0].id);
+    await social.acceptInvite(friends[0], await social.inviteToken(me.id));
+    expect((await social.listFriends(me.id)).find((f) => f.id === friends[0].id)?.inCircle).toBe(false);
   });
 });

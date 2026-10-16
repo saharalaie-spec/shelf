@@ -7,7 +7,7 @@ import { api } from "@/lib/client";
 import { Sheet } from "./Sheet";
 import { Button, Icon, Switch, useHydrated } from "./ui";
 
-export type Profile = { id: string; name: string | null; handle: string | null; isPublic: boolean };
+export type Profile = { id: string; name: string | null; handle: string | null; isPublic: boolean; shareActivity: boolean };
 
 type Props = {
   open: boolean;
@@ -99,6 +99,17 @@ function ProfileSettings({
   const host = hydrated ? window.location.host : "";
   const url = hydrated ? `${window.location.origin}/u/${ref}` : "";
 
+  const setActivity = async (shareActivity: boolean) => {
+    onProfile({ shareActivity });
+    try {
+      await api("/api/me", { method: "PATCH", body: { shareActivity } });
+      toast(shareActivity ? "Friends see what you’re into on their Table" : "You’re off friends’ Table");
+    } catch (err) {
+      onProfile({ shareActivity: !shareActivity });
+      toast.error((err as Error).message);
+    }
+  };
+
   const setPublic = async (isPublic: boolean) => {
     setSaving(true);
     onProfile({ isPublic });
@@ -143,6 +154,18 @@ function ProfileSettings({
 
   return (
     <div className="overflow-hidden rounded-2xl bg-paper">
+      <label className="flex cursor-pointer items-center gap-3 border-b border-line/70 px-4 py-3.5">
+        <Icon name="people" size={20} className="shrink-0 text-ink-2" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-medium">Show what I’m into</span>
+          <span className="block text-[13px] leading-snug text-muted">
+            {profile.shareActivity
+              ? "What you start and finish shows on friends’ Table."
+              : "Off: you’re not on friends’ Table. Your lists don’t change."}
+          </span>
+        </span>
+        <Switch checked={profile.shareActivity} onChange={setActivity} label="Show what I’m into" />
+      </label>
       <label className="flex cursor-pointer items-center gap-3 px-4 py-3.5">
         <Icon name={profile.isPublic ? "globe" : "lock"} size={20} className="shrink-0 text-ink-2" />
         <span className="min-w-0 flex-1">

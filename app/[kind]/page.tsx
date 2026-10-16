@@ -39,6 +39,7 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
         contact: user.email ?? user.phone ?? "",
         handle: user.handle,
         isPublic: user.isPublic,
+        shareActivity: user.shareActivity,
       }}
       pendingRequests={incoming.length}
       initialItems={items}

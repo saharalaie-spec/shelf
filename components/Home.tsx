@@ -9,7 +9,6 @@ import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
-import { FriendsSheet } from "./FriendsSheet";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Logo } from "./ui";
 
@@ -21,12 +20,15 @@ type Props = {
 
 /** Where you land after signing in: one card per collection. */
 export function Home({ user, pendingRequests, summaries }: Props) {
-  const [profile, setProfile] = useState<Profile>({ id: user.id, name: user.name, handle: user.handle, isPublic: user.isPublic });
-  const [pending, setPending] = useState(pendingRequests);
-  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [profile, setProfile] = useState<Profile>({
+    id: user.id,
+    name: user.name,
+    handle: user.handle,
+    isPublic: user.isPublic,
+    shareActivity: user.shareActivity,
+  });
   const [account, setAccount] = useState(false);
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
-  const setName = useCallback((name: string | null) => updateProfile({ name }), [updateProfile]);
 
   const totals = KINDS.map((k) => STATUSES.reduce((n, s) => n + summaries[k].counts[s], 0));
   const total = totals.reduce((a, b) => a + b, 0);
@@ -40,7 +42,7 @@ export function Home({ user, pendingRequests, summaries }: Props) {
           <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
         </div>
         <div className="flex items-center gap-1">
-          <FriendsButton pending={pending} onClick={() => setFriendsOpen(true)} />
+          <FriendsButton pending={pendingRequests} />
           <AvatarButton name={profile.name} contact={user.contact} onClick={() => setAccount(true)} />
         </div>
       </header>
@@ -75,8 +77,6 @@ export function Home({ user, pendingRequests, summaries }: Props) {
         <Icon name="people" size={15} className="mt-px shrink-0" />
         Everything you add is visible to your friends. Make anything private from its page.
       </p>
-
-      <FriendsSheet open={friendsOpen} onOpenChange={setFriendsOpen} name={profile.name} onName={setName} onPending={setPending} />
       <AccountSheet
         open={account}
         onOpenChange={setAccount}

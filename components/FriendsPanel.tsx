@@ -9,22 +9,21 @@ import { guessCountry, parseIdentifier } from "@/lib/identifier";
 import { VOCAB } from "@/lib/kinds";
 import type { Friend, IncomingRequest, OutgoingRequest } from "@/lib/social";
 import { KINDS } from "@/lib/types";
-import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon } from "./ui";
 
 type Data = { friends: Friend[]; incoming: IncomingRequest[]; outgoing: OutgoingRequest[]; inviteUrl: string };
 
 type Props = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
   name: string | null;
   onName: (name: string) => void;
-  /** Keeps the badge on the Friends button in step. */
+  /** Keeps the requests count in step. */
   onPending: (count: number) => void;
+  /** Someone joined or left your circle, so the Table's order changes. */
+  onCircle: () => void;
 };
 
-export function FriendsSheet({ open, onOpenChange, name, onName, onPending }: Props) {
-  // Kept across opens so the sheet shows the last list instantly while it refreshes.
+/** Inviting people, answering requests, and your friends (with your circle on top). */
+export function FriendsPanel({ name, onName, onPending, onCircle }: Props) {
   const [data, setData] = useState<Data | null>(null);
 
   const apply = (d: Data) => {
@@ -35,7 +34,6 @@ export function FriendsSheet({ open, onOpenChange, name, onName, onPending }: Pr
   const loaded = useEffectEvent(apply);
 
   useEffect(() => {
-    if (!open) return;
     let cancelled = false;
     api<Data>("/api/friends")
       .then((d) => !cancelled && loaded(d))
@@ -43,12 +41,10 @@ export function FriendsSheet({ open, onOpenChange, name, onName, onPending }: Pr
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, []);
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="Friends" tall>
-      <FriendsBody data={data} setData={setData} name={name} onName={onName} reload={reload} onPending={onPending} />
-    </Sheet>
+    <FriendsBody data={data} setData={setData} name={name} onName={onName} reload={reload} onPending={onPending} onCircle={onCircle} />
   );
 }
 
@@ -59,10 +55,28 @@ type BodyProps = {
   onName: (name: string) => void;
   reload: () => Promise<void>;
   onPending: (count: number) => void;
+  onCircle: () => void;
 };
 
-function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyProps) {
+function FriendsBody({ data, setData, name, onName, reload, onPending, onCircle }: BodyProps) {
   const [busy, setBusy] = useState<string | null>(null);
+  const [filter, setFilter] = useState("");
+
+  const toggleCircle = async (f: Friend) => {
+    const on = !f.inCircle;
+    setData((d) => d && { ...d, friends: d.friends.map((x) => (x.id === f.id ? { ...x, inCircle: on } : x)) });
+    try {
+      await api("/api/friends/circle", { body: { friendId: f.id, on } });
+      toast(on ? `${f.name ?? "They"} joined your circle` : `${f.name ?? "They"} left your circle`);
+      onCircle();
+    } catch (err) {
+      setData((d) => d && { ...d, friends: d.friends.map((x) => (x.id === f.id ? { ...x, inCircle: !on } : x)) });
+      toast.error((err as Error).message);
+    }
+  };
+  const circleSize = data?.friends.filter((f) => f.inCircle).length ?? 0;
+  const q = filter.trim().toLowerCase();
+  const shown = data ? data.friends.filter((f) => !q || (f.name ?? "").toLowerCase().includes(q)) : [];
 
   const respond = async (req: IncomingRequest, action: "accept" | "decline") => {
     setBusy(req.id);
@@ -91,7 +105,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
   };
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
+    <div className="pb-safe">
       {!name && <NamePrompt onName={onName} />}
       <InviteCard url={data?.inviteUrl ?? null} name={name} />
       <AskForm onSent={() => reload().catch(() => {})} />
@@ -132,6 +146,20 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
       </AnimatePresence>
 
       <Heading>{data && data.friends.length > 0 ? `Friends · ${data.friends.length}` : "Friends"}</Heading>
+      {data && data.friends.length > 0 && (
+        <p className="-mt-1 mb-2 text-[13px] leading-snug text-muted">
+          Tap ★ to add someone to your circle ({circleSize}/15). Their picks come first on your Table. Only you can see your circle.
+        </p>
+      )}
+      {data && data.friends.length > 12 && (
+        <input
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          placeholder="Find a friend"
+          aria-label="Find a friend"
+          className="mb-2 h-11 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] outline-none focus:border-ink"
+        />
+      )}
       {!data ? (
         <div className="space-y-2">
           {[0, 1].map((i) => (
@@ -150,9 +178,9 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
         </p>
       ) : (
         <ul className="-mx-2">
-          {data.friends.map((f) => (
-            <li key={f.id}>
-              <Link href={`/u/${f.handle ?? f.id}`} className="flex items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
+          {shown.map((f) => (
+            <li key={f.id} className="flex items-center">
+              <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
                 <Avatar name={f.name} size={44} />
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-[16px] font-medium">{f.name ?? "Trove member"}</span>
@@ -163,8 +191,17 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
                     <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>
                   )}
                 </span>
-                <Icon name="chevron" size={16} className="shrink-0 text-muted" />
               </Link>
+              <button
+                onClick={() => toggleCircle(f)}
+                aria-pressed={f.inCircle}
+                aria-label={f.inCircle ? `Take ${f.name ?? "them"} out of your circle` : `Add ${f.name ?? "them"} to your circle`}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[22px] leading-none transition-transform active:scale-90 ${
+                  f.inCircle ? "text-accent" : "text-line"
+                }`}
+              >
+                {f.inCircle ? "★" : "☆"}
+              </button>
             </li>
           ))}
         </ul>
@@ -191,7 +228,8 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
 
       <p className="mt-6 mb-3 flex gap-2 text-[13px] leading-snug text-muted">
         <Icon name="lock" size={15} className="mt-px shrink-0" />
-        Friends see everything you add: books, podcasts, shows and places. Anything you mark private stays yours.
+        Friends see everything you add: books, podcasts, shows and places. Anything you mark private stays yours, and
+        anything you keep quiet stays off their Table.
       </p>
     </div>
   );

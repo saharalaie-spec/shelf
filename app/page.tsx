@@ -19,6 +19,7 @@ export default async function HomePage() {
         contact: user.email ?? user.phone ?? "",
         handle: user.handle,
         isPublic: user.isPublic,
+        shareActivity: user.shareActivity,
       }}
       pendingRequests={incoming.length}
       summaries={summaries}

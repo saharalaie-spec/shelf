@@ -184,6 +184,23 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX books_by_recommender ON books (rec_user_id)`,
     ],
   },
+  {
+    id: "2026-10-16-friends-table",
+    statements: [
+      // "Keep this quiet": stays on your lists (and your profile) but never shows on friends' Table.
+      `ALTER TABLE books ADD COLUMN quiet INTEGER NOT NULL DEFAULT 0`,
+      // Whether what you're into shows on friends' Table at all.
+      `ALTER TABLE users ADD COLUMN share_activity INTEGER NOT NULL DEFAULT 1`,
+      // Your circle: the friends whose taste you follow most closely. Private to you.
+      `CREATE TABLE circle (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        PRIMARY KEY (user_id, friend_id)
+      )`,
+      `CREATE INDEX books_by_user_status ON books (user_id, status, status_at)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {
