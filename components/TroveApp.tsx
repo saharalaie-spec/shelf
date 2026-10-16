@@ -24,8 +24,8 @@ import { Button, Icon, Logo, useHydrated } from "./ui";
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string };
 
-/** What the shelf hands the add sheet. */
-export type ShelfApi = {
+/** What a collection hands the add sheet. */
+export type TroveApi = {
   kind: Kind;
   items: Item[];
   statusOf: Map<string, Status>;
@@ -36,7 +36,7 @@ export type ShelfApi = {
 };
 
 /** What the add sheet's views can do. `target` is the section new items go to, `destination` where spots go. */
-export type ShelfActions = Omit<ShelfApi, "add"> & {
+export type TroveActions = Omit<TroveApi, "add"> & {
   target: Status;
   destination: Dest | null;
   add: (hits: NewHit[], opts?: { quiet?: boolean }) => Promise<Item[]>;
@@ -53,10 +53,11 @@ type Props = {
   features: { photo: boolean };
 };
 
+// The key predates the name Trove; keeping it keeps everyone's remembered section.
 const sectionKey = (kind: Kind) => `shelf:section:${kind}`;
 const byNewest = (a: Item, b: Item) => b.statusAt - a.statusAt || b.addedAt - a.addedAt;
 
-export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDestinations = [], features }: Props) {
+export function TroveApp({ kind, user, pendingRequests, initialItems, initialDestinations = [], features }: Props) {
   const v = vocab(kind);
   const isPlace = kind === "place";
   const [destinations, setDestinations] = useState(initialDestinations);
@@ -239,11 +240,11 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
     async (hits: NewHit[], opts: { status: Status; quiet?: boolean; destinationId?: string | null }) => {
       const unique = hits.filter((h, i) => hits.findIndex((x) => x.key === h.key) === i);
       const statusFor = (h: NewHit) => h.status ?? opts.status;
-      const onShelf = new Map(itemsRef.current.map((b) => [b.key, b]));
-      const fresh = unique.filter((h) => !onShelf.has(h.key));
-      // Already on the shelf in another section: adding it here means it moved (e.g. want → read).
+      const inTrove = new Map(itemsRef.current.map((b) => [b.key, b]));
+      const fresh = unique.filter((h) => !inTrove.has(h.key));
+      // Already in the collection, in another section: adding it here means it moved (e.g. want → read).
       const moves = unique
-        .map((h) => ({ book: onShelf.get(h.key), to: statusFor(h) }))
+        .map((h) => ({ book: inTrove.get(h.key), to: statusFor(h) }))
         .filter((m): m is { book: Item; to: Status } => Boolean(m.book && m.book.status !== m.to));
 
       if (!fresh.length && !moves.length) {
@@ -268,7 +269,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
         destinationId: opts.destinationId ?? null,
         note: h.note ?? null,
       }));
-      // Update the ref right away too, so a second quick add sees these as already on the shelf.
+      // Update the ref right away too, so a second quick add sees these as already added.
       itemsRef.current = [...temp, ...itemsRef.current];
       setItems((bs) => [...temp, ...bs]);
 
@@ -336,7 +337,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
       patchItem(book.id, { private: value });
       try {
         await api(`/api/items/${book.id}`, { method: "PATCH", body: { private: value } });
-        toast(value ? `Only you can see “${book.title}”` : `“${book.title}” is back on your shared shelf`);
+        toast(value ? `Only you can see “${book.title}”` : `“${book.title}” is shared again`);
       } catch (err) {
         patchItem(book.id, { private: book.private });
         toast.error((err as Error).message);
@@ -389,7 +390,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
       <header className="sticky top-0 z-20 bg-paper/85 px-5 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl">
         <div className="flex h-12 items-center justify-between">
           <div className="flex min-w-0 items-center gap-1.5">
-            <Link href="/" aria-label="All shelves" className="-ml-1.5 flex h-10 w-9 shrink-0 items-center justify-center rounded-full active:bg-surface-2">
+            <Link href="/" aria-label="Your trove" className="-ml-1.5 flex h-10 w-9 shrink-0 items-center justify-center rounded-full active:bg-surface-2">
               <Logo size={24} />
             </Link>
             <KindMenu kind={kind} />
@@ -553,7 +554,7 @@ export function ShelfApp({ kind, user, pendingRequests, initialItems, initialDes
         kind={kind}
         destination={dest?.id ?? null}
         pickDestination={pickingDest}
-        shelf={{ kind, items, statusOf, add, destinations, onDestination }}
+        trove={{ kind, items, statusOf, add, destinations, onDestination }}
         empty={items.length === 0}
         features={features}
       />

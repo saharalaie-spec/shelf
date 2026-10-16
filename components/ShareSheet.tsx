@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { shelfCount, shelfTitle, spotTally, vocab } from "@/lib/kinds";
+import { troveCount, troveTitle, spotTally, vocab } from "@/lib/kinds";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
@@ -84,10 +84,10 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
     (b) => b.private && (isPlace || b.status === status) && (!category || scopesOf(b).includes(category)),
   ).length;
   const displayName = name ?? (draftName.trim() || null);
-  const title = shelfTitle(displayName, category && scopeLabel(category), status, kind);
+  const title = troveTitle(displayName, category && scopeLabel(category), status, kind);
   const countLine = isPlace
     ? [v.noun(shown.length), spotTally(shown)].filter(Boolean).join(" · ")
-    : shelfCount(shown.length, status, kind);
+    : troveCount(shown.length, status, kind);
 
   const saveName = () => {
     const n = draftName.trim();

@@ -1,4 +1,4 @@
-# Shelf
+# Trove
 
 Every book, podcast, show and favorite spot you love, in one place, shared with your friends.
 
@@ -15,7 +15,7 @@ Every book, podcast, show and favorite spot you love, in one place, shared with 
   - Paste a list: one per line, messy is fine, and "Title by Author" helps.
   - Say them out loud (dictation, in browsers that support it).
   - Snap or screenshot: a bookshelf photo, a screenshot of your Spotify or Apple Podcasts library, or of a Netflix or Letterboxd watchlist. Claude reads the titles (needs `ANTHROPIC_API_KEY`).
-  - Scan book barcodes. Each scanned book goes straight onto your shelf.
+  - Scan book barcodes. Each scanned book goes straight into your trove.
   - Import:
     - books from a Goodreads or StoryGraph export;
     - podcast subscriptions as OPML (Overcast, Pocket Casts, Castro…);
@@ -37,14 +37,14 @@ Every book, podcast, show and favorite spot you love, in one place, shared with 
   - Movies & TV come from TMDB when `TMDB_API_KEY` is set, and otherwise from iTunes and TVmaze, which need no key. Each one has a "Where to watch" link.
   - Places come from OpenStreetMap through Photon (free, no key), or from Google Places when `GOOGLE_PLACES_API_KEY` is set.
 - **Categories are automatic.** They come from the catalog's subjects and genres, so a philosophy book lands in *Philosophy* and a show in *TV* and *Drama*. You can change them, or add your own, on any item.
-- **Share a link.** Share any section, whole or one category: "Sahar's Philosophy shelf", "What Sahar's listening to", "Sahar's watchlist". Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own shelf" invitation; that's where the "get the app" hook will go.
+- **Share a link.** Share any section, whole or one category: "Sahar's Philosophy books", "What Sahar's listening to", "Sahar's watchlist". Your friend opens a normal web page with no app and no account, and link previews show a cover collage. The page ends with a "Make your own trove" invitation; that's where the "get the app" hook will go.
 - **Friends.** Friendships go both ways, and both people agree. Tap the people icon to:
   - send your invite link: whoever opens it becomes your friend with one tap, signing up first if they're new;
-  - or ask by phone number or email. If they're not on Shelf yet, the request waits until they join, and the answer never reveals whether a number is registered.
+  - or ask by phone number or email. If they're not on Trove yet, the request waits until they join, and the answer never reveals whether a number is registered.
 
   Friends see everything you add, in every collection, unless you make it private. Tap anything of theirs to put it on your own list (Want to read, Up next, Watchlist).
 - **Private items.** Everything is visible to friends by default. Switch on **Private** on any book, podcast, movie or show and only you will ever see it. It's left out of what friends see, of your public profile, and of share links, including links you sent before.
-- **Your profile is private unless you make it public.** By default only friends can see your shelf, and anyone else opening your profile link sees "This shelf is private". The page looks the same whether or not the account exists. In **You → Who sees your shelf** you can switch on a public profile at `/u/yourname`. It isn't listed anywhere and is hidden from search engines. **See what friends see** previews it.
+- **Your profile is private unless you make it public.** By default only friends can see your trove, and anyone else opening your profile link sees "This trove is private". The page looks the same whether or not the account exists. In **You → Who sees your trove** you can switch on a public profile at `/u/yourname`. It isn't listed anywhere and is hidden from search engines. **See what friends see** previews it.
 
 ## Run it
 
@@ -68,14 +68,14 @@ npm run build
 ## Put it online (Vercel, free, works from your phone)
 
 1. **Merge the pull request** into `main`. Vercel publishes `main` as the live site.
-2. Go to [vercel.com/new](https://vercel.com/new), sign in with GitHub, and **import the `shelf` repository**. Leave every setting as it is and tap **Deploy**.
+2. Go to [vercel.com/new](https://vercel.com/new), sign in with GitHub, and **import the `shelf` repository** (the repository kept its original name). Leave every setting as it is and tap **Deploy**.
 3. Open the site it gives you. You'll see an **Almost live** page: the app needs a database.
    In the Vercel project, open **Storage → Create Database → Turso**, create the free database and connect it to the project. This adds `TURSO_DATABASE_URL` and `TURSO_AUTH_TOKEN` for you.
 4. Still in the project, open **Settings → Environment Variables** and add
    `ALLOW_DEV_CODES` = your phone number starting with `+` and your country code, for example `+14155550123`. You can add your email too, separated by a comma.
    This lets you sign in before Twilio or Resend is connected: your code isn't shown on screen; it's written to the project's **Logs**, which only you can open. Anyone else who tries to sign in gets "not set up yet". Friends opening your share links never need to sign in.
 5. Open **Deployments** and tap **⋯ → Redeploy** on the latest one. Then, on your phone:
-   open the site, enter your number, switch to the Vercel project's **Logs** tab and find the line "Login code for +1 …", then type the code. You stay signed in for 400 days. In Safari, **Share → Add to Home Screen** makes Shelf open like an app.
+   open the site, enter your number, switch to the Vercel project's **Logs** tab and find the line "Login code for +1 …", then type the code. You stay signed in for 400 days. In Safari, **Share → Add to Home Screen** makes Trove open like an app.
 
 After that, every push to `main` goes live by itself. Optional extras, in the same Environment Variables screen: `ANTHROPIC_API_KEY` turns on reading photos and screenshots, `TMDB_API_KEY` improves movie & TV search, and the Twilio or Resend keys below send real codes (then remove `ALLOW_DEV_CODES`). **Variables only take effect after a redeploy** (Deployments → ⋯ → Redeploy).
 
@@ -103,17 +103,18 @@ Next.js 16 (App Router) with React 19 and Tailwind CSS 4, plus [vaul](https://va
 
 ```
 app/page.tsx              signed out → Login, signed in → Home (one card per collection)
-app/[kind]/               /books, /podcasts, /movies, /places: one collection's shelf (ShelfApp)
+app/[kind]/               /books, /podcasts, /movies, /places: one collection (TroveApp)
 app/s/[slug]/             the public share page + its link-preview image
 app/u/[ref]/              a profile: friends (or anyone, if public) see every collection
 app/f/[token]/            an invite link: sign in, then one tap to become friends
 app/api/auth/*            start (send code) · verify (check code, set session) · logout
-app/api/books, search, match, shares, me, ai/photo
+app/api/items, destinations, search, match, shares, me, ai/photo
 app/api/friends, friends/requests/[id], invites/[token]
 components/Login.tsx      phone/email → 6-digit code (auto-submits, SMS autofill on iOS/Android)
-components/ShelfApp.tsx   one collection: cover grid, category chips, add/share/item sheets
+components/TroveApp.tsx   one collection: cover grid, category chips, add/share/item sheets
 components/add/*          one view per way of adding books, plus the shared review screen
 lib/auth.ts               codes (hashed, 10-min expiry, 5 tries, resend limits) and sessions
+lib/trove.ts              items, sections, home-screen summaries and share links
 lib/social.ts             who can see whom, friend requests, invite links, profile settings
 lib/kinds.ts              each collection's words: section names, nouns, share titles, empty states
 lib/catalog.ts            search & matching for every collection, dispatching to:

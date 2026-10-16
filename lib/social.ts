@@ -44,7 +44,7 @@ export async function areFriends(a: string, b: string) {
   return Boolean(row);
 }
 
-/** Your own shelf; friends see every section; anyone sees a public profile; nobody else. */
+/** Your own trove; friends see every section; anyone sees a public profile; nobody else. */
 export async function accessTo(viewerId: string | null, owner: Person): Promise<Access> {
   if (viewerId === owner.id) return "self";
   if (viewerId && (await areFriends(viewerId, owner.id))) return "friend";
@@ -54,7 +54,7 @@ export async function accessTo(viewerId: string | null, owner: Person): Promise<
 // ---------- Profile settings ----------
 
 const HANDLE_RE = /^[a-z0-9][a-z0-9_.]{1,18}[a-z0-9]$/;
-const RESERVED = new Set(["admin", "api", "f", "friends", "help", "invite", "login", "me", "s", "settings", "shelf", "u", "www"]);
+const RESERVED = new Set(["admin", "api", "f", "friends", "help", "invite", "login", "me", "s", "settings", "shelf", "trove", "u", "www"]);
 
 export function checkHandle(raw: string): string {
   const handle = raw.trim().toLowerCase().replace(/^@/, "");
@@ -194,7 +194,7 @@ const MAX_REQUESTS_PER_DAY = 30;
 
 /**
  * Asks to be friends with whoever owns a phone number or email. The answer never says whether
- * that person is on Shelf (so nobody can probe numbers); a request to someone not here yet waits
+ * that person is on Trove (so nobody can probe numbers); a request to someone not here yet waits
  * for them to sign up. If they had already asked you, you become friends straight away.
  */
 export async function requestByIdentifier(from: User, input: string, country?: string) {
@@ -212,9 +212,9 @@ export async function requestByIdentifier(from: User, input: string, country?: s
 export async function requestByUserId(from: User, targetId: string) {
   const client = await db();
   const row = (await client.execute({ sql: "SELECT phone, email, name FROM users WHERE id = ?", args: [targetId] })).rows[0];
-  if (!row) throw new AuthError("That person isn’t on Shelf.", 404);
+  if (!row) throw new AuthError("That person isn’t on Trove.", 404);
   const identifier = String(row.phone ?? row.email);
-  return createRequest(from, identifier, row.name ? String(row.name) : "Shelf reader", targetId);
+  return createRequest(from, identifier, row.name ? String(row.name) : "Trove member", targetId);
 }
 
 async function createRequest(from: User, identifier: string, display: string, targetId: string | null) {

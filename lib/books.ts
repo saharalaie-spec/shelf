@@ -106,7 +106,7 @@ async function openLibrary(query: Query, limit: number): Promise<Hit[]> {
   } else params.set("q", query.q ?? "");
 
   const res = await fetch(`https://openlibrary.org/search.json?${params}`, {
-    headers: { "User-Agent": "Shelf/0.1 (book list prototype)" },
+    headers: { "User-Agent": "Trove/0.1 (book list prototype)" },
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Open Library ${res.status}`);

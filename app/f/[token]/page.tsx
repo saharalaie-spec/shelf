@@ -15,10 +15,10 @@ export async function generateMetadata({ params }: PageProps<"/f/[token]">): Pro
   if (!databaseUrl()) return {};
   const inviter = await inviterFor((await params).token);
   const robots = { index: false, follow: false };
-  if (!inviter) return { title: "Shelf", robots };
-  const title = `${inviter.name ?? "A friend"} invited you to Shelf`;
-  const description = "Be friends on Shelf and see each other’s books.";
-  return { title, description, robots, openGraph: { title, description, siteName: "Shelf" } };
+  if (!inviter) return { title: "Trove", robots };
+  const title = `${inviter.name ?? "A friend"} invited you to Trove`;
+  const description = "Be friends on Trove and see each other’s favorite books, podcasts, shows and places.";
+  return { title, description, robots, openGraph: { title, description, siteName: "Trove" } };
 }
 
 export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
@@ -32,7 +32,7 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
         <h1 className="font-serif text-[30px] leading-tight font-medium tracking-tight">This invite link doesn’t work</h1>
         <p className="mt-2 text-[16px] text-muted">Ask your friend to send it again.</p>
         <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-ink px-6 text-[16px] font-medium text-paper">
-          Go to Shelf
+          Go to Trove
         </Link>
       </main>
     );
@@ -42,7 +42,7 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
     return (
       <Login
         channels={signInChannels()}
-        heading={`${inviter.name ?? "A friend"} invited you to Shelf`}
+        heading={`${inviter.name ?? "A friend"} invited you to Trove`}
         subheading="Sign in to be friends and see each other’s books."
       />
     );

@@ -1,38 +1,38 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { shelfCount, shelfTitle } from "@/lib/kinds";
-import { getSharedShelf } from "@/lib/shelf";
-import { SharedShelf } from "@/components/SharedShelf";
+import { troveCount, troveTitle } from "@/lib/kinds";
+import { getSharedTrove } from "@/lib/trove";
+import { SharedTrove } from "@/components/SharedTrove";
 
 export async function generateMetadata({ params }: PageProps<"/s/[slug]">): Promise<Metadata> {
   const { slug } = await params;
-  const shelf = await getSharedShelf(slug);
-  if (!shelf) return { title: "Shelf not found" };
-  const title = shelfTitle(shelf.ownerName, shelf.category, shelf.status, shelf.kind);
-  const sample = shelf.items.slice(0, 3).map((b) => b.title).join(", ");
-  const description = `${shelfCount(shelf.items.length, shelf.status, shelf.kind)}${sample ? `, including ${sample}` : ""}.`;
+  const shared = await getSharedTrove(slug);
+  if (!shared) return { title: "Not found · Trove" };
+  const title = troveTitle(shared.ownerName, shared.category, shared.status, shared.kind);
+  const sample = shared.items.slice(0, 3).map((b) => b.title).join(", ");
+  const description = `${troveCount(shared.items.length, shared.status, shared.kind)}${sample ? `, including ${sample}` : ""}.`;
   return {
-    title: `${title} · Shelf`,
+    title: `${title} · Trove`,
     description,
-    openGraph: { title, description, type: "website", siteName: "Shelf" },
+    openGraph: { title, description, type: "website", siteName: "Trove" },
     twitter: { card: "summary_large_image", title, description },
   };
 }
 
-export default async function SharedShelfPage({ params }: PageProps<"/s/[slug]">) {
+export default async function SharedTrovePage({ params }: PageProps<"/s/[slug]">) {
   const { slug } = await params;
-  const [shelf, viewer] = await Promise.all([getSharedShelf(slug, { countView: true }), getCurrentUser()]);
-  if (!shelf) notFound();
+  const [shared, viewer] = await Promise.all([getSharedTrove(slug, { countView: true }), getCurrentUser()]);
+  if (!shared) notFound();
   return (
-    <SharedShelf
-      title={shelfTitle(shelf.ownerName, shelf.category, shelf.status, shelf.kind)}
-      kind={shelf.kind}
-      ownerName={shelf.ownerName}
-      status={shelf.status}
-      category={shelf.category}
-      items={shelf.items}
-      destinations={shelf.destinations}
+    <SharedTrove
+      title={troveTitle(shared.ownerName, shared.category, shared.status, shared.kind)}
+      kind={shared.kind}
+      ownerName={shared.ownerName}
+      status={shared.status}
+      category={shared.category}
+      items={shared.items}
+      destinations={shared.destinations}
       viewerSignedIn={Boolean(viewer)}
     />
   );

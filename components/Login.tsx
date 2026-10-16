@@ -15,6 +15,7 @@ import {
 import { Button, Icon, Logo, useHydrated } from "./ui";
 
 type Mode = "phone" | "email";
+// The key predates the name Trove; keeping it keeps the remembered number or email.
 const REMEMBER_KEY = "shelf:last-login";
 const RESEND_SECONDS = 20;
 
@@ -42,7 +43,7 @@ export function Login({ channels, heading, subheading, compact }: { channels: Ch
       {!compact && (
         <div className="mb-10 flex items-center gap-2.5">
           <Logo />
-          <span className="font-serif text-[22px] font-semibold tracking-tight">Shelf</span>
+          <span className="font-serif text-[22px] font-semibold tracking-tight">Trove</span>
         </div>
       )}
       <AnimatePresence mode="wait" initial={false}>
@@ -451,7 +452,7 @@ function CodeStep({
       </div>
 
       <div className="mt-3 min-h-6 text-[14px] text-accent" aria-live="polite">
-        {done ? <span className="text-good">You&rsquo;re in. Opening your shelf…</span> : error}
+        {done ? <span className="text-good">You&rsquo;re in. Opening your trove…</span> : error}
       </div>
 
       <div className="mt-3 text-[15px] text-muted">

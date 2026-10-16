@@ -425,7 +425,7 @@ describe("live sources", () => {
     expect(url.searchParams.get("limit")).toBe("16");
     expect(url.searchParams.get("lang")).toBe("en");
     expect(url.searchParams.getAll("osm_tag")).toEqual(["place", "boundary:administrative"]);
-    expect(headers.get("User-Agent")).toBe("Shelf/0.1 (favorites list prototype)");
+    expect(headers.get("User-Agent")).toBe("Trove/0.1 (favorites list prototype)");
 
     expect(hits.map((h) => [h.key, h.name, h.country, h.label])).toEqual([
       ["osm:R344953", "Valencia", "Spain", "City"],

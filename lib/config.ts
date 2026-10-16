@@ -4,6 +4,7 @@ import { parseIdentifier } from "./identifier";
 /**
  * Database location. A local SQLite file in development; on Vercel (read-only disk) it must be a
  * hosted libSQL database: DATABASE_URL, or the TURSO_* variables Vercel's Turso integration adds.
+ * The local file keeps the name it had before the app was called Trove, so existing data stays put.
  */
 export const databaseUrl = () =>
   process.env.DATABASE_URL || process.env.TURSO_DATABASE_URL || (process.env.VERCEL ? null : "file:data/shelf.db");

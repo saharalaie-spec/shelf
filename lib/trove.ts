@@ -268,7 +268,7 @@ export async function getOrCreateShare(userId: string, kind: Kind, status: Statu
   return getOrCreateShare(userId, kind, status, category);
 }
 
-export type SharedShelf = {
+export type SharedTrove = {
   ownerName: string | null;
   kind: Kind;
   status: Status;
@@ -279,7 +279,7 @@ export type SharedShelf = {
   destinations: Destination[];
 };
 
-export async function getSharedShelf(slug: string, { countView = false } = {}): Promise<SharedShelf | null> {
+export async function getSharedTrove(slug: string, { countView = false } = {}): Promise<SharedTrove | null> {
   const client = await db();
   const row = (
     await client.execute({

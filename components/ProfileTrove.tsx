@@ -16,7 +16,7 @@ import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Logo, useHydrated } from "./ui";
 
-/** How the viewer is connected to the person whose shelf this is. */
+/** How the viewer is connected to the person whose trove this is. */
 export type Relation =
   | { kind: "self"; hiddenCount: number }
   | { kind: "friend" }
@@ -39,7 +39,7 @@ type Props = {
 
 const firstSection = (counts: Record<Status, number>) => STATUSES.find((s) => counts[s] > 0) ?? "read";
 
-export function ProfileShelf({ person, items, destinations, relation, mine: initialMine, channels }: Props) {
+export function ProfileTrove({ person, items, destinations, relation, mine: initialMine, channels }: Props) {
   const counts = useMemo(() => {
     const c = Object.fromEntries(KINDS.map((k) => [k, { read: 0, reading: 0, want: 0 }])) as Record<Kind, Record<Status, number>>;
     for (const b of items) c[b.kind][b.status]++;
@@ -59,7 +59,7 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
   const [open, setOpen] = useState<Item | null>(null);
   const [lastOpen, setLastOpen] = useState<Item | null>(null);
   const [signingIn, setSigningIn] = useState(false);
-  const name = person.name ?? "A Shelf reader";
+  const name = person.name ?? "Someone on Trove";
   const signedIn = relation.kind !== "signed-out";
   // Signed in from the sheet: the page re-renders with the viewer, so put the sheet away.
   if (signingIn && signedIn) setSigningIn(false);
@@ -101,11 +101,11 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
           <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Shelf</span>
+          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
         </Link>
         {signedIn && (
           <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
-            Your shelves
+            Your trove
           </Link>
         )}
       </header>
@@ -212,7 +212,7 @@ export function ProfileShelf({ person, items, destinations, relation, mine: init
             className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-ink p-4 pl-5 text-paper shadow-float"
           >
             <div className="min-w-0 flex-1">
-              <p className="text-[16px] font-medium">Make your own shelf</p>
+              <p className="text-[16px] font-medium">Make your own trove</p>
               <p className="text-[14px] text-paper/65">Books, podcasts, shows and favorite spots, shared with friends.</p>
             </div>
             <Link href="/" className="inline-flex h-11 shrink-0 items-center rounded-full bg-paper px-5 text-[15px] font-medium text-ink active:scale-[0.97]">
@@ -302,7 +302,7 @@ function SelfBanner({ hidden, isPublic }: { hidden: number; isPublic: boolean })
         This is what {isPublic ? "friends and anyone with your link" : "your friends"} see.
         {hidden > 0 && ` ${hidden === 1 ? "Your private item is" : `Your ${hidden} private items are`} hidden.`}{" "}
         <Link href="/" className="font-medium text-ink underline underline-offset-2">
-          Back to your shelves
+          Back to your trove
         </Link>
       </p>
     </div>
@@ -394,7 +394,7 @@ function RelationButton({
           <Sheet open={confirming} onOpenChange={setConfirming} title={`Remove ${who}?`}>
             <div className="px-5 pb-safe">
               <p className="text-[15px] text-muted">
-                You’ll stop seeing each other’s shelves{person.isPublic ? " (their public profile stays open to everyone)" : ""}. They won’t be told.
+                You’ll stop seeing each other’s troves{person.isPublic ? " (their public profile stays open to everyone)" : ""}. They won’t be told.
               </p>
               <Button
                 variant="secondary"
@@ -434,7 +434,7 @@ function BookActions({
   if (relation.kind === "signed-out") {
     return (
       <Link href="/" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ink text-[16px] font-medium text-paper active:scale-[0.97]">
-        <Icon name="plus" size={18} /> Start your own shelf
+        <Icon name="plus" size={18} /> Start your own trove
       </Link>
     );
   }
@@ -446,7 +446,7 @@ function BookActions({
           ? mine === "read"
             ? "You’ve been too"
             : "On your Want to go list"
-          : `On your shelf in ${VOCAB[book.kind].sections[mine]}`}
+          : `In your trove · ${VOCAB[book.kind].sections[mine]}`}
       </div>
     );
   }

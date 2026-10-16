@@ -7,7 +7,7 @@ import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from
 // instead, falling back to Photon if Google fails. Areas always come from Photon.
 
 const TIMEOUT_MS = 7000;
-const USER_AGENT = "Shelf/0.1 (favorites list prototype)";
+const USER_AGENT = "Trove/0.1 (favorites list prototype)";
 const PHOTON = "https://photon.komoot.io/api/";
 const GOOGLE_SEARCH = "https://places.googleapis.com/v1/places:searchText";
 const GOOGLE_FIELDS =

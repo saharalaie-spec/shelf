@@ -5,6 +5,7 @@ import { db } from "./db";
 import { deliverCode } from "./delivery";
 import type { Identifier } from "./identifier";
 
+// Named when the app was called Shelf; renaming it would sign everyone out.
 export const SESSION_COOKIE = "shelf_session";
 const SESSION_DAYS = 400; // the longest browsers allow: sign in once, stay signed in
 const CODE_TTL_MS = 10 * 60 * 1000;

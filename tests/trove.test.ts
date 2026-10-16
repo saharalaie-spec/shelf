@@ -4,12 +4,12 @@ import { join } from "node:path";
 import { createClient } from "@libsql/client";
 import { beforeAll, describe, expect, it } from "vitest";
 
-let shelf: typeof import("@/lib/shelf");
+let trove: typeof import("@/lib/trove");
 const USER = "u1";
 
 // A database as the first release left it: no status columns, one share link per (user, category).
 beforeAll(async () => {
-  const url = `file:${join(mkdtempSync(join(tmpdir(), "shelf-db-")), "old.db")}`;
+  const url = `file:${join(mkdtempSync(join(tmpdir(), "trove-db-")), "old.db")}`;
   const old = createClient({ url });
   await old.batch(
     [
@@ -29,87 +29,87 @@ beforeAll(async () => {
   );
   old.close();
   process.env.DATABASE_URL = url;
-  shelf = await import("@/lib/shelf");
+  trove = await import("@/lib/trove");
 });
 
 describe("upgrading an existing database", () => {
   it("files every existing book under Read, keeping its date", async () => {
-    const [book] = await shelf.listItems(USER);
+    const [book] = await trove.listItems(USER);
     expect(book).toMatchObject({ title: "Meditations", kind: "book", status: "read", statusAt: 1000, private: false });
   });
 
   it("keeps old share links working as Read links", async () => {
-    const shared = await shelf.getSharedShelf("oldlink");
+    const shared = await trove.getSharedTrove("oldlink");
     expect(shared).toMatchObject({ ownerName: "Sahar", status: "read", category: null });
     expect(shared!.items.map((b) => b.title)).toEqual(["Meditations"]);
-    expect(await shelf.getOrCreateShare(USER, "book", "read", "")).toBe("oldlink");
+    expect(await trove.getOrCreateShare(USER, "book", "read", "")).toBe("oldlink");
   });
 
   it("gives each section its own link", async () => {
-    const want = await shelf.getOrCreateShare(USER, "book", "want", "");
-    const reading = await shelf.getOrCreateShare(USER, "book", "reading", "");
+    const want = await trove.getOrCreateShare(USER, "book", "want", "");
+    const reading = await trove.getOrCreateShare(USER, "book", "reading", "");
     expect(new Set(["oldlink", want, reading]).size).toBe(3);
-    expect(await shelf.getOrCreateShare(USER, "book", "want", "")).toBe(want);
+    expect(await trove.getOrCreateShare(USER, "book", "want", "")).toBe(want);
   });
 });
 
 describe("sections", () => {
   it("adds books to a section and filters by section and category", async () => {
-    await shelf.addItems(USER, "book", [
+    await trove.addItems(USER, "book", [
       { key: "fx:2", title: "Dune", author: null, year: null, coverUrl: null, categories: ["Science Fiction"], status: "want" },
       { key: "fx:3", title: "The Republic", author: null, year: null, coverUrl: null, categories: ["Philosophy"], status: "reading" },
     ]);
-    expect((await shelf.listItems(USER, { status: "want" })).map((b) => b.title)).toEqual(["Dune"]);
-    expect((await shelf.listItems(USER, { category: "Philosophy" })).map((b) => b.title).sort()).toEqual([
+    expect((await trove.listItems(USER, { status: "want" })).map((b) => b.title)).toEqual(["Dune"]);
+    expect((await trove.listItems(USER, { category: "Philosophy" })).map((b) => b.title).sort()).toEqual([
       "Meditations",
       "The Republic",
     ]);
-    expect((await shelf.listItems(USER, { status: "read", category: "Philosophy" })).map((b) => b.title)).toEqual([
+    expect((await trove.listItems(USER, { status: "read", category: "Philosophy" })).map((b) => b.title)).toEqual([
       "Meditations",
     ]);
   });
 
   it("restamps a book only when it actually changes section", async () => {
-    const dune = (await shelf.listItems(USER, { status: "want" }))[0];
-    const moved = await shelf.updateItem(USER, dune.id, { status: "reading" });
+    const dune = (await trove.listItems(USER, { status: "want" }))[0];
+    const moved = await trove.updateItem(USER, dune.id, { status: "reading" });
     expect(moved!.statusAt).toBeGreaterThan(dune.statusAt - 1);
-    const again = await shelf.updateItem(USER, dune.id, { status: "reading", categories: ["Classics"] });
+    const again = await trove.updateItem(USER, dune.id, { status: "reading", categories: ["Classics"] });
     expect(again!.statusAt).toBe(moved!.statusAt);
     expect(again!.categories).toEqual(["Classics"]);
   });
 
   it("won't touch someone else's book", async () => {
-    const [book] = await shelf.listItems(USER);
-    expect(await shelf.updateItem("someone-else", book.id, { status: "want" })).toBeNull();
+    const [book] = await trove.listItems(USER);
+    expect(await trove.updateItem("someone-else", book.id, { status: "want" })).toBeNull();
   });
 });
 
 describe("collections", () => {
   it("keeps books, podcasts and movies apart, with their own links", async () => {
-    await shelf.addItems(USER, "podcast", [
+    await trove.addItems(USER, "podcast", [
       { key: "fx:pod:daily", title: "The Daily", author: null, year: null, coverUrl: null, categories: [], status: "reading" },
     ]);
-    await shelf.addItems(USER, "screen", [
+    await trove.addItems(USER, "screen", [
       { key: "fx:screen:dune-2021", title: "Dune", author: null, year: 2021, coverUrl: null, categories: ["Movies"], status: "read" },
     ]);
-    expect((await shelf.listItems(USER, { kind: "podcast" })).map((b) => b.title)).toEqual(["The Daily"]);
-    expect((await shelf.listItems(USER, { kind: "screen" })).map((b) => [b.title, b.kind])).toEqual([["Dune", "screen"]]);
-    expect((await shelf.listItems(USER, { kind: "book" })).every((b) => b.kind === "book")).toBe(true);
+    expect((await trove.listItems(USER, { kind: "podcast" })).map((b) => b.title)).toEqual(["The Daily"]);
+    expect((await trove.listItems(USER, { kind: "screen" })).map((b) => [b.title, b.kind])).toEqual([["Dune", "screen"]]);
+    expect((await trove.listItems(USER, { kind: "book" })).every((b) => b.kind === "book")).toBe(true);
 
-    const books = await shelf.getOrCreateShare(USER, "book", "read", "");
-    const movies = await shelf.getOrCreateShare(USER, "screen", "read", "");
+    const books = await trove.getOrCreateShare(USER, "book", "read", "");
+    const movies = await trove.getOrCreateShare(USER, "screen", "read", "");
     expect(books).toBe("oldlink");
     expect(movies).not.toBe(books);
-    expect(await shelf.getSharedShelf(movies)).toMatchObject({ kind: "screen", items: [{ title: "Dune" }] });
+    expect(await trove.getSharedTrove(movies)).toMatchObject({ kind: "screen", items: [{ title: "Dune" }] });
 
-    const home = await shelf.summarize(USER);
+    const home = await trove.summarize(USER);
     expect(home.podcast).toMatchObject({ counts: { read: 0, reading: 1, want: 0 }, now: "The Daily" });
     expect(home.screen.covers.map((c) => c.title)).toEqual(["Dune"]);
   });
 });
 
 describe("places", () => {
-  const spot = (key: string, title: string, extra: Partial<import("@/lib/shelf").NewItem> = {}) => ({
+  const spot = (key: string, title: string, extra: Partial<import("@/lib/trove").NewItem> = {}) => ({
     key,
     title,
     author: "Ruzafa",
@@ -142,13 +142,13 @@ describe("places", () => {
   it("keeps spots in their destination, with where they are and a note", async () => {
     const places = await import("@/lib/destinations");
     const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
-    await shelf.addItems(
+    await trove.addItems(
       USER,
       "place",
       [spot("fx:spot:casa-montana", "Casa Montaña", { note: "Get the anchovies" }), spot("fx:spot:secret", "Secret bar", { private: true })],
       { destinationId: valencia.id },
     );
-    const [casa] = await shelf.listItems(USER, { kind: "place", destinationId: valencia.id });
+    const [casa] = await trove.listItems(USER, { kind: "place", destinationId: valencia.id });
     expect(casa).toMatchObject({
       kind: "place",
       title: "Casa Montaña",
@@ -156,7 +156,7 @@ describe("places", () => {
       note: "Get the anchovies",
       place: { type: "Restaurant", lat: 39.46 },
     });
-    const updated = await shelf.updateItem(USER, casa.id, { note: "  " });
+    const updated = await trove.updateItem(USER, casa.id, { note: "  " });
     expect(updated!.note).toBeNull();
 
     // Friends see the destination only through spots they may see.
@@ -167,27 +167,27 @@ describe("places", () => {
     expect(mine.some((d) => d.name === "Road trip 2024")).toBe(true);
     expect(theirs.some((d) => d.name === "Road trip 2024")).toBe(false);
 
-    expect((await shelf.summarize(USER)).place).toMatchObject({ counts: { read: 1, reading: 0, want: 0 }, areas: 1 });
+    expect((await trove.summarize(USER)).place).toMatchObject({ counts: { read: 1, reading: 0, want: 0 }, areas: 1 });
   });
 
   it("marks each spot Been or Want to go, never in progress", async () => {
     const places = await import("@/lib/destinations");
     const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
-    const [torres] = await shelf.addItems(USER, "place", [spot("fx:spot:torres", "Torres de Serranos", { status: "reading" })], {
+    const [torres] = await trove.addItems(USER, "place", [spot("fx:spot:torres", "Torres de Serranos", { status: "reading" })], {
       destinationId: valencia.id,
     });
     expect(torres.status).toBe("want");
-    const casa = (await shelf.listItems(USER, { kind: "place" })).find((s) => s.title === "Casa Montaña")!;
-    expect(await shelf.updateItem(USER, casa.id, { status: "reading" })).toMatchObject({ status: "want" });
-    expect(await shelf.updateItem(USER, casa.id, { status: "read" })).toMatchObject({ status: "read" });
-    expect((await shelf.summarize(USER)).place.counts).toEqual({ read: 1, reading: 0, want: 1 });
+    const casa = (await trove.listItems(USER, { kind: "place" })).find((s) => s.title === "Casa Montaña")!;
+    expect(await trove.updateItem(USER, casa.id, { status: "reading" })).toMatchObject({ status: "want" });
+    expect(await trove.updateItem(USER, casa.id, { status: "read" })).toMatchObject({ status: "read" });
+    expect((await trove.summarize(USER)).place.counts).toEqual({ read: 1, reading: 0, want: 1 });
   });
 
   it("shares one destination by link, every spot in it but the private ones", async () => {
     const places = await import("@/lib/destinations");
     const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });
-    const slug = await shelf.getOrCreateShare(USER, "place", "read", valencia.id);
-    const shared = await shelf.getSharedShelf(slug);
+    const slug = await trove.getOrCreateShare(USER, "place", "read", valencia.id);
+    const shared = await trove.getSharedTrove(slug);
     expect(shared).toMatchObject({ kind: "place", category: "Valencia" });
     // Been and Want to go alike; there are no sections for places.
     expect(shared!.items.map((s) => [s.title, s.status]).sort()).toEqual([
@@ -196,7 +196,7 @@ describe("places", () => {
     ]);
     expect(shared!.destinations.map((d) => d.name)).toContain("Valencia");
     // An older link made for one section shows the same spots.
-    const older = await shelf.getSharedShelf(await shelf.getOrCreateShare(USER, "place", "want", valencia.id));
+    const older = await trove.getSharedTrove(await trove.getOrCreateShare(USER, "place", "want", valencia.id));
     expect(older!.items.map((s) => s.title).sort()).toEqual(["Casa Montaña", "Torres de Serranos"]);
   });
 
@@ -207,6 +207,6 @@ describe("places", () => {
     expect(await places.getDestination(USER, valencia.id)).not.toBeNull();
     await places.deleteDestination(USER, valencia.id);
     expect(await places.getDestination(USER, valencia.id)).toBeNull();
-    expect(await shelf.listItems(USER, { kind: "place", includePrivate: true })).toEqual([]);
+    expect(await trove.listItems(USER, { kind: "place", includePrivate: true })).toEqual([]);
   });
 });

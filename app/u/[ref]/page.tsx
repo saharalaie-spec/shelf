@@ -3,12 +3,12 @@ import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
-import { listItems } from "@/lib/shelf";
+import { listItems } from "@/lib/trove";
 import { accessTo, findPerson, pendingBetween } from "@/lib/social";
 import type { Status } from "@/lib/types";
 import { Login } from "@/components/Login";
-import { PrivateShelf } from "@/components/PrivateShelf";
-import { ProfileShelf, type Relation } from "@/components/ProfileShelf";
+import { PrivateTrove } from "@/components/PrivateTrove";
+import { ProfileTrove, type Relation } from "@/components/ProfileTrove";
 import { SetupNeeded } from "@/components/SetupNeeded";
 
 /** Who's looking, whose profile it is, and whether they may see it. Shared by metadata and the page. */
@@ -23,10 +23,10 @@ export async function generateMetadata({ params }: PageProps<"/u/[ref]">): Promi
   const { person, access } = await load((await params).ref);
   // Profiles are reachable by link only; keep them out of search engines either way.
   const robots = { index: false, follow: false };
-  if (!person || access === "none") return { title: "Private shelf · Shelf", robots };
-  const title = `${person.name ?? "A reader"} on Shelf`;
+  if (!person || access === "none") return { title: "Private profile · Trove", robots };
+  const title = `${person.name ?? "Someone"} on Trove`;
   const description = `Books, podcasts, movies, shows and places ${person.name ?? "this person"} loves.`;
-  return { title, description, robots, openGraph: { title, description, siteName: "Shelf" } };
+  return { title, description, robots, openGraph: { title, description, siteName: "Trove" } };
 }
 
 export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
@@ -37,10 +37,10 @@ export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
     // Maybe a friend on a new device: let them sign in right here.
     if (!viewer) {
       return (
-        <Login channels={signInChannels()} heading="This shelf is private" subheading="Only friends can see it. If that’s you, sign in." />
+        <Login channels={signInChannels()} heading="This trove is private" subheading="Only friends can see it. If that’s you, sign in." />
       );
     }
-    return <PrivateShelf />;
+    return <PrivateTrove />;
   }
 
   const [books, own, destinations] = await Promise.all([
@@ -64,7 +64,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
 
   const mine: Record<string, Status> = access === "self" ? {} : Object.fromEntries(own.map((b) => [b.key, b.status]));
   return (
-    <ProfileShelf
+    <ProfileTrove
       person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic }}
       items={books}
       destinations={destinations}

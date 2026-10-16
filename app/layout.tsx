@@ -9,9 +9,9 @@ const fraunces = Fraunces({ variable: "--font-fraunces", subsets: ["latin"], axe
 export const metadata: Metadata = {
   // Without APP_URL, Next.js uses the Vercel production domain (or localhost) for preview images.
   metadataBase: process.env.APP_URL ? new URL(process.env.APP_URL) : undefined,
-  title: "Shelf",
-  description: "Every book you've read, in one place. Share your shelf with a link.",
-  appleWebApp: { capable: true, title: "Shelf", statusBarStyle: "default" },
+  title: "Trove",
+  description: "Every book, podcast, show and favorite spot you love, in one place. Share your trove with friends.",
+  appleWebApp: { capable: true, title: "Trove", statusBarStyle: "default" },
 };
 
 export const viewport: Viewport = {

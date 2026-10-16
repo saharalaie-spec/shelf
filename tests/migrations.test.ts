@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 let db: typeof import("@/lib/db").db;
 
 beforeAll(async () => {
-  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "shelf-migrate-")), "test.db")}`;
+  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "trove-migrate-")), "test.db")}`;
   db = (await import("@/lib/db")).db;
 });
 
@@ -26,7 +26,7 @@ describe("places: been or want to go", () => {
       "write",
     );
     // A fresh start runs whatever hasn't been applied yet.
-    (globalThis as { __shelfDb?: unknown }).__shelfDb = undefined;
+    (globalThis as { __troveDb?: unknown }).__troveDb = undefined;
     const again = await db();
     const { rows } = await again.execute("SELECT id, status FROM books ORDER BY id");
     expect(rows.map((r) => [r.id, r.status])).toEqual([

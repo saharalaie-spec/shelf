@@ -14,7 +14,7 @@ type Props = { token: string; inviter: { name: string | null }; viewerName: stri
 export function Invite({ token, inviter, viewerName, own }: Props) {
   const router = useRouter();
   const [joining, setJoining] = useState(false);
-  // New here? Ask for a name, so the inviter's friend list doesn't say "Shelf reader".
+  // New here? Ask for a name, so the inviter's friend list doesn't say "Trove member".
   const [name, setName] = useState("");
   const needsName = !viewerName;
   const who = inviter.name ?? "Your friend";
@@ -42,7 +42,7 @@ export function Invite({ token, inviter, viewerName, own }: Props) {
       <header className="flex h-16 items-center pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
           <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Shelf</span>
+          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
         </Link>
       </header>
       <motion.main
@@ -62,7 +62,7 @@ export function Invite({ token, inviter, viewerName, own }: Props) {
               Copy link
             </Button>
             <Link href="/" className="mt-2 flex h-12 w-full items-center justify-center rounded-full text-[16px] font-medium text-ink-2 active:bg-surface-2">
-              Back to your shelf
+              Back to your trove
             </Link>
           </>
         ) : (

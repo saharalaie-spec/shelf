@@ -249,7 +249,7 @@ function statusWord(value: string): Status | null {
 // spellings, plus the plain words people put in a Type column of their own.
 const MOVIE_TYPES = new Set(["movie", "tvmovie", "short", "video", "film", "featurefilm", "shortfilm", "documentary"]);
 const TV_TYPES = new Set(["tvseries", "tvminiseries", "miniseries", "limitedseries", "series", "tv", "tvshow", "show"]);
-/** Not something you put on a movies & TV shelf (episodes belong to their show). */
+/** Not something you add to movies & TV (episodes belong to their show). */
 const SKIP_TYPES = new Set(["tvepisode", "episode", "podcastseries", "podcastepisode", "videogame", "musicvideo"]);
 
 function screenFormat(type: string): Candidate["format"] | "skip" {

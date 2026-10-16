@@ -1,10 +1,10 @@
-/** The collections on a shelf. "screen" is movies and TV shows together; "place" is favorite spots. */
+/** The collections in a trove. "screen" is movies and TV shows together; "place" is favorite spots. */
 export const KINDS = ["book", "podcast", "screen", "place"] as const;
 export type Kind = (typeof KINDS)[number];
 export const isKind = (k: unknown): k is Kind => KINDS.includes(k as Kind);
 
 /**
- * Something found in a catalog (a book, a podcast, a movie or a show), before it's on anyone's shelf.
+ * Something found in a catalog (a book, a podcast, a movie or a show), before it's in anyone's trove.
  * Keys are namespaced by source ("ol:", "itunes:pod:", "tmdb:movie:", "typed:podcast:"…), so they never
  * collide across collections.
  */
@@ -42,14 +42,14 @@ export type AreaHit = Area & { key: string; label: string | null };
 export type Destination = Area & { id: string; label: string | null; createdAt: number };
 
 /**
- * Where an item sits: done, in progress, or queued. The values date from when Shelf only had books;
+ * Where an item sits: done, in progress, or queued. The values date from when the app only had books;
  * each collection labels them its own way (Read / Listened / Watched…, see lib/kinds.ts).
  */
 export const STATUSES = ["read", "reading", "want"] as const;
 export type Status = (typeof STATUSES)[number];
 export const isStatus = (s: unknown): s is Status => STATUSES.includes(s as Status);
 
-/** An item on someone's shelf. `statusAt` is when it last changed section; `private` items are owner-only. */
+/** An item in someone's trove. `statusAt` is when it last changed section; `private` items are owner-only. */
 export type Item = Hit & {
   id: string;
   kind: Kind;

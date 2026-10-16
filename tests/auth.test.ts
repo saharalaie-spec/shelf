@@ -11,7 +11,7 @@ vi.mock("next/headers", () => ({
 let auth: typeof import("@/lib/auth");
 
 beforeAll(async () => {
-  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "shelf-auth-")), "test.db")}`;
+  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "trove-auth-")), "test.db")}`;
   auth = await import("@/lib/auth");
 });
 

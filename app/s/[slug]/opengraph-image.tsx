@@ -1,8 +1,8 @@
 import { ImageResponse } from "next/og";
-import { shelfCount, shelfTitle } from "@/lib/kinds";
-import { getSharedShelf } from "@/lib/shelf";
+import { troveCount, troveTitle } from "@/lib/kinds";
+import { getSharedTrove } from "@/lib/trove";
 
-export const alt = "A shared list on Shelf";
+export const alt = "A shared list on Trove";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -24,13 +24,13 @@ async function inline(url: string | null) {
 
 export default async function Image({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const shelf = await getSharedShelf(slug);
-  const books = shelf?.items.slice(0, 5) ?? [];
+  const shared = await getSharedTrove(slug);
+  const books = shared?.items.slice(0, 5) ?? [];
   const covers = await Promise.all(books.map((b) => inline(b.coverUrl)));
-  const title = shelf ? shelfTitle(shelf.ownerName, shelf.category, shelf.status, shelf.kind) : "Shelf";
+  const title = shared ? troveTitle(shared.ownerName, shared.category, shared.status, shared.kind) : "Trove";
   const mid = (books.length - 1) / 2;
   // Podcast art and spots are square; books and posters are 2:3.
-  const square = shelf?.kind === "podcast" || shelf?.kind === "place";
+  const square = shared?.kind === "podcast" || shared?.kind === "place";
   const w = square ? 170 : 136;
   const h = square ? 170 : 204;
 
@@ -44,12 +44,12 @@ export default async function Image({ params }: { params: Promise<{ slug: string
               <div style={{ width: 10, height: 40, background: "#b5532c", borderRadius: 2 }} />
               <div style={{ width: 10, height: 32, background: "#4a453e", borderRadius: 2 }} />
             </div>
-            Shelf
+            Trove
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>
             <div style={{ fontSize: 32, color: "#7a7368", marginTop: 20 }}>
-              {shelfCount(shelf?.items.length ?? 0, shelf?.status ?? "read", shelf?.kind ?? "book")}
+              {troveCount(shared?.items.length ?? 0, shared?.status ?? "read", shared?.kind ?? "book")}
             </div>
           </div>
         </div>

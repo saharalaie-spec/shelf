@@ -162,12 +162,12 @@ export const vocab = (kind: Kind) => VOCAB[kind];
 export const kindFromSlug = (slug: string): Kind | null => Object.values(VOCAB).find((v) => v.slug === slug)?.kind ?? null;
 
 /**
- * "Sahar’s Philosophy shelf", "What Sahar’s reading", "Sahar’s want-to-read list";
+ * "Sahar’s Philosophy books", "What Sahar’s reading", "Sahar’s want-to-read list";
  * "Sahar’s podcasts", "What Sahar’s listening to", "Sahar’s podcast queue"; "Sahar’s movies & TV", "Sahar’s watchlist";
  * "Sahar’s Valencia", "Sahar’s places". For places, `category` is the destination's name and there are no
  * sections: a destination is shared whole, each spot marked Been or Want to go.
  */
-export function shelfTitle(name: string | null, category: string | null, status: Status = "read", kind: Kind = "book") {
+export function troveTitle(name: string | null, category: string | null, status: Status = "read", kind: Kind = "book") {
   if (kind === "place") {
     if (name) return `${possessive(name)} ${category ?? "places"}`;
     return category ? `Spots in ${category}` : "Favorite spots";
@@ -176,18 +176,18 @@ export function shelfTitle(name: string | null, category: string | null, status:
     const doing = { book: "reading", podcast: "listening to", screen: "watching" }[kind as Exclude<Kind, "place">];
     return `${name ? `What ${name}’s ${doing}` : `Currently ${doing}`}${category ? ` in ${category}` : ""}`;
   }
-  const owner = name ? possessive(name) : "A";
   const cat = category ? `${category} ` : "";
   if (status === "want") {
     const list = { book: "want-to-read list", podcast: "podcast queue", screen: "watchlist" }[kind as Exclude<Kind, "place">];
-    return `${owner} ${cat}${list}`;
+    return `${name ? possessive(name) : "A"} ${cat}${list}`;
   }
-  const done = { book: "shelf", podcast: "podcasts", screen: category ? "picks" : "movies & TV" }[kind as Exclude<Kind, "place">];
-  return `${owner} ${cat}${done}`;
+  const done = { book: "books", podcast: "podcasts", screen: category ? "picks" : "movies & TV" }[kind as Exclude<Kind, "place">];
+  // Without a name: "Philosophy books", "Favorite podcasts".
+  return name ? `${possessive(name)} ${cat}${done}` : `${category ? cat : "Favorite "}${done}`;
 }
 
 /** "12 books read", "2 podcasts on rotation", "15 movies & shows to watch"; places are just "12 spots". */
-export const shelfCount = (n: number, status: Status, kind: Kind = "book") =>
+export const troveCount = (n: number, status: Status, kind: Kind = "book") =>
   kind === "place" ? VOCAB.place.noun(n) : `${VOCAB[kind].noun(n)} ${VOCAB[kind].countSuffix[status]}`;
 
 /** "5 been · 2 want to go", for a destination's spots. */

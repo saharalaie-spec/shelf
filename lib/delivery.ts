@@ -5,7 +5,7 @@ import type { Identifier } from "./identifier";
 /** `devCode`: show it on screen. `codeInLogs`: it's in the server log for the owner to read. */
 export type DeliveryResult = { devCode?: string; codeInLogs?: boolean };
 
-const appName = "Shelf";
+const appName = "Trove";
 
 export async function deliverCode(to: Identifier, code: string): Promise<DeliveryResult> {
   const configured = to.kind === "phone" ? smsConfigured() : emailConfigured();

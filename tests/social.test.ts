@@ -5,10 +5,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import type { User } from "@/lib/auth";
 
 let social: typeof import("@/lib/social");
-let shelf: typeof import("@/lib/shelf");
+let trove: typeof import("@/lib/trove");
 let db: typeof import("@/lib/db").db;
 
-const book = (key: string, title: string, extra: Partial<import("@/lib/shelf").NewItem> = {}) => ({
+const book = (key: string, title: string, extra: Partial<import("@/lib/trove").NewItem> = {}) => ({
   key,
   title,
   author: null,
@@ -32,18 +32,18 @@ async function signUp(contact: { phone?: string; email?: string }, name: string 
 }
 
 beforeAll(async () => {
-  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "shelf-social-")), "test.db")}`;
+  process.env.DATABASE_URL = `file:${join(mkdtempSync(join(tmpdir(), "trove-social-")), "test.db")}`;
   social = await import("@/lib/social");
-  shelf = await import("@/lib/shelf");
+  trove = await import("@/lib/trove");
   db = (await import("@/lib/db")).db;
 });
 
 describe("private books", () => {
   it("are only listed for their owner", async () => {
     const me = await signUp({ phone: "+14155550101" }, "Ana");
-    await shelf.addItems(me.id, "book", [book("fx:p1", "Public one"), book("fx:p2", "Diary", { private: true })]);
-    expect((await shelf.listItems(me.id)).map((b) => b.title)).toEqual(["Public one"]);
-    const all = await shelf.listItems(me.id, { includePrivate: true });
+    await trove.addItems(me.id, "book", [book("fx:p1", "Public one"), book("fx:p2", "Diary", { private: true })]);
+    expect((await trove.listItems(me.id)).map((b) => b.title)).toEqual(["Public one"]);
+    const all = await trove.listItems(me.id, { includePrivate: true });
     expect(all.map((b) => [b.title, b.private])).toEqual(
       expect.arrayContaining([
         ["Public one", false],
@@ -54,18 +54,18 @@ describe("private books", () => {
 
   it("never appear in share links, even ones made before the book went private", async () => {
     const me = await signUp({ phone: "+14155550102" }, "Bo");
-    const [a] = await shelf.addItems(me.id, "book", [book("fx:s1", "Shared"), book("fx:s2", "Secret")]);
-    const slug = await shelf.getOrCreateShare(me.id, "book", "read", "");
-    const secret = (await shelf.listItems(me.id)).find((b) => b.title === "Secret")!;
-    await shelf.updateItem(me.id, secret.id, { private: true });
-    expect((await shelf.getSharedShelf(slug))!.items.map((b) => b.title)).toEqual([a.title]);
+    const [a] = await trove.addItems(me.id, "book", [book("fx:s1", "Shared"), book("fx:s2", "Secret")]);
+    const slug = await trove.getOrCreateShare(me.id, "book", "read", "");
+    const secret = (await trove.listItems(me.id)).find((b) => b.title === "Secret")!;
+    await trove.updateItem(me.id, secret.id, { private: true });
+    expect((await trove.getSharedTrove(slug))!.items.map((b) => b.title)).toEqual([a.title]);
   });
 
   it("can't be changed by someone else", async () => {
     const owner = await signUp({ phone: "+14155550103" });
     const other = await signUp({ phone: "+14155550104" });
-    const [b] = await shelf.addItems(owner.id, "book", [book("fx:o1", "Mine")]);
-    expect(await shelf.updateItem(other.id, b.id, { private: true })).toBeNull();
+    const [b] = await trove.addItems(owner.id, "book", [book("fx:o1", "Mine")]);
+    expect(await trove.updateItem(other.id, b.id, { private: true })).toBeNull();
   });
 });
 
@@ -119,7 +119,7 @@ describe("profile links", () => {
 });
 
 describe("friend requests", () => {
-  it("answer the same whether or not the number is on Shelf", async () => {
+  it("answer the same whether or not the number is on Trove", async () => {
     const me = await signUp({ phone: "+14155550130" });
     await signUp({ phone: "+14155550131" });
     expect(await social.requestByIdentifier(me, "+1 415 555 0131")).toEqual({ status: "sent" });
@@ -193,14 +193,14 @@ describe("invite links", () => {
   it("count friends' items per collection without their private ones", async () => {
     const a = await signUp({ phone: "+14155550191" });
     const b = await signUp({ phone: "+14155550192" });
-    await shelf.addItems(b.id, "book", [
+    await trove.addItems(b.id, "book", [
       book("fx:f1", "Open"),
       book("fx:f2", "Hidden", { private: true }),
       book("fx:f3", "Now", { status: "reading", statusAt: Date.now() - 1000 }),
       book("fx:f4", "Secret now", { status: "reading", private: true, statusAt: Date.now() + 1000 }),
     ]);
-    await shelf.addItems(b.id, "screen", [book("fx:screen:bear", "The Bear", { status: "reading" })]);
-    await shelf.addItems(b.id, "podcast", [book("fx:pod:daily", "The Daily", { private: true })]);
+    await trove.addItems(b.id, "screen", [book("fx:screen:bear", "The Bear", { status: "reading" })]);
+    await trove.addItems(b.id, "podcast", [book("fx:pod:daily", "The Daily", { private: true })]);
     await social.acceptInvite(a, await social.inviteToken(b.id));
     const [friend] = await social.listFriends(a.id);
     expect(friend.counts).toEqual({ book: 2, podcast: 0, screen: 1, place: 0 });

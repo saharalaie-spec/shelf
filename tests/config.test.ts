@@ -43,7 +43,7 @@ describe("signInChannels", () => {
     vi.stubEnv("ALLOW_DEV_CODES", "");
     vi.stubEnv("TWILIO_ACCOUNT_SID", "");
     vi.stubEnv("RESEND_API_KEY", "re_x");
-    vi.stubEnv("EMAIL_FROM", "Shelf <a@b.co>");
+    vi.stubEnv("EMAIL_FROM", "Trove <a@b.co>");
     expect(signInChannels()).toEqual({ phone: false, email: true });
   });
 });
@@ -56,7 +56,7 @@ describe("databaseUrl", () => {
     expect(databaseUrl()).toBe("file:data/shelf.db");
     vi.stubEnv("VERCEL", "1");
     expect(databaseUrl()).toBeNull();
-    vi.stubEnv("TURSO_DATABASE_URL", "libsql://shelf-me.turso.io");
-    expect(databaseUrl()).toBe("libsql://shelf-me.turso.io");
+    vi.stubEnv("TURSO_DATABASE_URL", "libsql://trove-me.turso.io");
+    expect(databaseUrl()).toBe("libsql://trove-me.turso.io");
   });
 });
