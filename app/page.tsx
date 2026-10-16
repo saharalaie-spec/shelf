@@ -2,6 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
+import { suggestEnabled } from "@/lib/suggest";
 import { todayCandidates } from "@/lib/today";
 import { summarize } from "@/lib/trove";
 import { incomingRequests } from "@/lib/social";
@@ -33,6 +34,7 @@ export default async function HomePage() {
       pendingRequests={incoming.length}
       summaries={summaries}
       today={today}
+      suggest={suggestEnabled()}
     />
   );
 }
