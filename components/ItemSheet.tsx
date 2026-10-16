@@ -34,6 +34,8 @@ type Props = {
   onCategories: (book: Item, categories: string[]) => void;
   onStatus: (book: Item, status: Status) => void;
   onPrivate: (book: Item, value: boolean) => void;
+  /** Keep it off friends' Table while it stays on your lists. */
+  onQuiet: (book: Item, value: boolean) => void;
   onRemove: (book: Item) => void;
   /** Whether the owner's profile is public, which changes who a non-private item is visible to. */
   publicProfile: boolean;
@@ -50,6 +52,7 @@ export function ItemSheet({
   onCategories,
   onStatus,
   onPrivate,
+  onQuiet,
   onRemove,
   publicProfile,
 }: Props) {
@@ -132,6 +135,20 @@ export function ItemSheet({
             </span>
             <Switch checked={b.private} onChange={(v) => onPrivate(b, v)} label="Private" />
           </label>
+          {!b.private && (
+            <label className="mt-2 flex cursor-pointer items-center gap-3 rounded-2xl bg-paper px-4 py-3">
+              <Icon name="eye" size={20} className="shrink-0 text-ink-2" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[16px] font-medium">Keep this quiet</span>
+                <span className="block text-[13px] leading-snug text-muted">
+                  {b.quiet
+                    ? "Stays on your lists, but never shows on friends’ Table."
+                    : "When you start or finish it, friends may see it on their Table."}
+                </span>
+              </span>
+              <Switch checked={b.quiet} onChange={(v) => onQuiet(b, v)} label="Keep this quiet" />
+            </label>
+          )}
 
           <p className="mt-6 mb-2.5 text-[13px] font-medium tracking-wide text-muted uppercase">Categories</p>
           <div className="flex flex-wrap gap-2">

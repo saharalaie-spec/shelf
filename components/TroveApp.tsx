@@ -12,7 +12,6 @@ import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
 import { ItemSheet } from "./ItemSheet";
-import { FriendsSheet } from "./FriendsSheet";
 import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { KindMenu } from "./KindMenu";
@@ -95,10 +94,14 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   // "New place" opens the add sheet on the destination picker.
   const [pickingDest, setPickingDest] = useState(false);
   const [items, setItems] = useState(initialItems);
-  const [profile, setProfile] = useState<Profile>({ id: user.id, name: user.name, handle: user.handle, isPublic: user.isPublic });
+  const [profile, setProfile] = useState<Profile>({
+    id: user.id,
+    name: user.name,
+    handle: user.handle,
+    isPublic: user.isPublic,
+    shareActivity: user.shareActivity,
+  });
   const { name } = profile;
-  const [pending, setPending] = useState(pendingRequests);
-  const [friendsOpen, setFriendsOpen] = useState(false);
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
   const [adding, setAdding] = useState(initialItems.length === 0 && initialDestinations.length === 0);
@@ -266,6 +269,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         statusAt: now - i,
         kind,
         private: false,
+        quiet: false,
         destinationId: opts.destinationId ?? null,
         note: h.note ?? null,
         recBy: h.recBy ?? null,
@@ -341,6 +345,20 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         toast(value ? `Only you can see “${book.title}”` : `“${book.title}” is shared again`);
       } catch (err) {
         patchItem(book.id, { private: book.private });
+        toast.error((err as Error).message);
+      }
+    },
+    [patchItem],
+  );
+
+  const setQuiet = useCallback(
+    async (book: Item, value: boolean) => {
+      patchItem(book.id, { quiet: value });
+      try {
+        await api(`/api/items/${book.id}`, { method: "PATCH", body: { quiet: value } });
+        toast(value ? `“${book.title}” stays off friends’ Table` : `Friends can see “${book.title}” on their Table`);
+      } catch (err) {
+        patchItem(book.id, { quiet: book.quiet });
         toast.error((err as Error).message);
       }
     },
@@ -424,7 +442,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                 <Icon name="share" size={18} />
               </button>
             )}
-            <FriendsButton pending={pending} onClick={() => setFriendsOpen(true)} />
+            <FriendsButton pending={pendingRequests} />
             <AvatarButton name={name} contact={user.contact} onClick={() => setAccount(true)} />
           </div>
         </div>
@@ -586,6 +604,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         onCategories={setCategories}
         onStatus={(book, status) => changeStatus(book, status)}
         onPrivate={setPrivate}
+        onQuiet={setQuiet}
         onRemove={remove}
         publicProfile={profile.isPublic}
       />
@@ -622,7 +641,6 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
           }}
         />
       )}
-      <FriendsSheet open={friendsOpen} onOpenChange={setFriendsOpen} name={name} onName={setName} onPending={setPending} />
     </div>
   );
 }

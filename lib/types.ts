@@ -66,6 +66,8 @@ export type Item = Hit & {
   note: string | null;
   /** Who recommended it. Only ever sent to the owner. */
   recBy: RecBy | null;
+  /** Kept off friends' Table, though still on your lists. */
+  quiet: boolean;
 };
 
 /** One line of a pasted list, dictation, photo or import, before matching. Imports may know more. */

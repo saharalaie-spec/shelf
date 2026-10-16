@@ -67,16 +67,21 @@ export function checkHandle(raw: string): string {
 
 export async function updateProfile(
   userId: string,
-  patch: { name?: string; isPublic?: boolean; handle?: string | null },
+  patch: { name?: string; isPublic?: boolean; handle?: string | null; shareActivity?: boolean },
 ) {
   const client = await db();
   const sets: string[] = [];
   const args: (string | number | null)[] = [];
-  const saved: { name?: string | null; isPublic?: boolean; handle?: string | null } = {};
+  const saved: { name?: string | null; isPublic?: boolean; handle?: string | null; shareActivity?: boolean } = {};
   if (patch.name !== undefined) {
     saved.name = patch.name.trim().slice(0, 40) || null;
     sets.push("name = ?");
     args.push(saved.name);
+  }
+  if (patch.shareActivity !== undefined) {
+    saved.shareActivity = patch.shareActivity;
+    sets.push("share_activity = ?");
+    args.push(patch.shareActivity ? 1 : 0);
   }
   if (patch.isPublic !== undefined) {
     saved.isPublic = patch.isPublic;
@@ -139,6 +144,8 @@ export type Friend = Person & {
   /** How many of their recommendations you've saved, and how many of yours they've saved (their private ones aside). */
   fromThem: number;
   fromMe: number;
+  /** In your circle. Only you know. */
+  inCircle: boolean;
 };
 
 export async function listFriends(userId: string): Promise<Friend[]> {
@@ -149,13 +156,15 @@ export async function listFriends(userId: string): Promise<Friend[]> {
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'podcast') AS n_podcast,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'screen') AS n_screen,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'place') AS n_place,
-            (SELECT b.kind || ':' || b.title FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading'
-              ORDER BY b.status_at DESC LIMIT 1) AS now,
+            -- What they're on right now is activity, so quiet items and people who don't share it are left out.
+            (SELECT b.kind || ':' || b.title FROM books b WHERE b.user_id = u.id AND u.share_activity = 1 AND b.private = 0
+              AND b.quiet = 0 AND b.status = 'reading' ORDER BY b.status_at DESC LIMIT 1) AS now,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = ?1 AND b.rec_user_id = u.id) AS from_them,
-            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.rec_user_id = ?1) AS from_me
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.rec_user_id = ?1) AS from_me,
+            EXISTS (SELECT 1 FROM circle c WHERE c.user_id = ?1 AND c.friend_id = u.id) AS in_circle
           FROM friendships f JOIN users u ON u.id = f.friend_id
           WHERE f.user_id = ?1
-          ORDER BY lower(coalesce(u.name, '')), f.created_at`,
+          ORDER BY in_circle DESC, lower(coalesce(u.name, '')), f.created_at`,
     args: [userId],
   });
   return rows.map((r) => {
@@ -168,6 +177,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
       now: now && isKind(kind) ? { kind, title: now.slice(split + 1) } : null,
       fromThem: Number(r.from_them),
       fromMe: Number(r.from_me),
+      inCircle: Boolean(r.in_circle),
     };
   });
 }
@@ -198,6 +208,33 @@ export async function unfriend(userId: string, friendId: string) {
     sql: "DELETE FROM friendships WHERE (user_id = ?1 AND friend_id = ?2) OR (user_id = ?2 AND friend_id = ?1)",
     args: [userId, friendId],
   });
+  await client.execute({
+    sql: "DELETE FROM circle WHERE (user_id = ?1 AND friend_id = ?2) OR (user_id = ?2 AND friend_id = ?1)",
+    args: [userId, friendId],
+  });
+}
+
+/** How many friends a circle holds: small enough to mean something. */
+export const CIRCLE_MAX = 15;
+
+/** Adds a friend to (or takes them out of) your circle. Returns whether they're in it now. */
+export async function setCircle(userId: string, friendId: string, on: boolean): Promise<boolean> {
+  const client = await db();
+  if (!on) {
+    await client.execute({ sql: "DELETE FROM circle WHERE user_id = ? AND friend_id = ?", args: [userId, friendId] });
+    return false;
+  }
+  if (!(await areFriends(userId, friendId))) throw new AuthError("Only friends can be in your circle.", 404);
+  const n = Number(
+    (await client.execute({ sql: "SELECT COUNT(*) AS n FROM circle WHERE user_id = ? AND friend_id != ?", args: [userId, friendId] }))
+      .rows[0].n,
+  );
+  if (n >= CIRCLE_MAX) throw new AuthError(`Your circle holds ${CIRCLE_MAX} people. Take someone out first.`);
+  await client.execute({
+    sql: "INSERT INTO circle (user_id, friend_id, created_at) VALUES (?, ?, ?) ON CONFLICT DO NOTHING",
+    args: [userId, friendId, Date.now()],
+  });
+  return true;
 }
 
 const MAX_REQUESTS_PER_DAY = 30;

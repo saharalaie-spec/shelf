@@ -1,13 +1,14 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import Link from "next/link";
 import { Icon } from "./ui";
 
-/** The people icon, with a badge for friend requests waiting on you. */
-export function FriendsButton({ pending, onClick }: { pending: number; onClick: () => void }) {
+/** The people icon, to the Friends page, with a badge for friend requests waiting on you. */
+export function FriendsButton({ pending }: { pending: number }) {
   return (
-    <button
-      onClick={onClick}
+    <Link
+      href="/friends"
       aria-label={pending ? `Friends, ${pending} new ${pending === 1 ? "request" : "requests"}` : "Friends"}
       className="relative flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 transition-transform active:scale-95"
     >
@@ -24,7 +25,7 @@ export function FriendsButton({ pending, onClick }: { pending: number; onClick: 
           </motion.span>
         )}
       </AnimatePresence>
-    </button>
+    </Link>
   );
 }
 
