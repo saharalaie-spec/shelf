@@ -8,6 +8,7 @@ import { VOCAB } from "@/lib/kinds";
 import type { FriendsTable, TableFriend, TableItem, TablePlace } from "@/lib/table";
 import type { Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
+import { SampleCard } from "./FriendsPanel";
 import { Sheet } from "./Sheet";
 import { SpotTile, spotLine } from "./Spot";
 import { Avatar, Button, Icon, useHydrated } from "./ui";
@@ -22,10 +23,11 @@ type Props = {
   table: FriendsTable;
   /** Somewhere to go when there's nobody yet. */
   onFindFriends: () => void;
+  onSampleAdded: () => void;
 };
 
 /** What your friends are into, grouped by the thing. A place to visit, not a feed: every section ends. */
-export function FriendsTableView({ table, onFindFriends }: Props) {
+export function FriendsTableView({ table, onFindFriends, onSampleAdded }: Props) {
   // What you've saved from here, so rows update without a reload.
   const [saved, setSaved] = useState<Record<string, Status>>({});
   const [openItem, setOpenItem] = useState<TableItem | null>(null);
@@ -66,6 +68,7 @@ export function FriendsTableView({ table, onFindFriends }: Props) {
         <Button onClick={onFindFriends} icon={<Icon name="addPerson" size={18} />} className="mt-5">
           Invite friends
         </Button>
+        <SampleCard onAdded={onSampleAdded} compact />
       </Empty>
     );
   }

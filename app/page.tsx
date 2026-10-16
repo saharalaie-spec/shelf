@@ -1,6 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
+import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { todayCandidates } from "@/lib/today";
 import { summarize } from "@/lib/trove";
 import { incomingRequests } from "@/lib/social";
@@ -12,6 +13,7 @@ export default async function HomePage() {
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
   if (!user) return <Login channels={signInChannels()} />;
+  await refreshSampleFriendFor(user.id);
   const [summaries, incoming, destinations] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
     incomingRequests(user),

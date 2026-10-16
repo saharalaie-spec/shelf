@@ -411,3 +411,39 @@ describe("today", () => {
     expect(c.place).toEqual([]);
   });
 });
+
+describe("the sample friend", () => {
+  it("is made once, fills your Table, and stays recent", async () => {
+    const sample = await import("@/lib/sample-friend");
+    const { SAMPLE_FRIEND_ID } = await import("@/lib/sample");
+    const me = await signUp({ phone: "+14155550701" }, "Kim");
+    const you = await signUp({ phone: "+14155550702" }, "Lee");
+    await sample.addSampleFriend(me.id);
+    await sample.addSampleFriend(you.id);
+    await sample.addSampleFriend(me.id); // again: nothing doubles
+
+    expect((await social.listFriends(me.id)).map((f) => f.name)).toContain("Juno");
+    const items = await trove.listItems(SAMPLE_FRIEND_ID, { includePrivate: true });
+    expect(new Set(items.map((i) => i.kind))).toEqual(new Set(["book", "podcast", "screen", "place"]));
+    expect(items.length).toBe(new Set(items.map((i) => i.key)).size);
+
+    const t = await table.friendsTable(me.id);
+    expect(t.reading.map((i) => i.title)).toContain("Piranesi");
+    expect(t.watching.map((i) => i.title)).toContain("Severance");
+    expect(t.finished.map((i) => i.title)).toContain("Klara and the Sun");
+    expect(t.places.map((p) => p.name)).toContain("Lisbon");
+
+    // A month later she's still "on" things right now.
+    const client = await db();
+    await client.execute({ sql: "UPDATE books SET status_at = status_at - ?, added_at = added_at - ? WHERE user_id = ?", args: [30 * 864e5, 30 * 864e5, SAMPLE_FRIEND_ID] });
+    expect((await table.friendsTable(me.id)).finished.map((i) => i.title)).not.toContain("Klara and the Sun");
+    await sample.refreshSampleFriendFor(me.id);
+    expect((await table.friendsTable(me.id)).finished.map((i) => i.title)).toContain("Klara and the Sun");
+
+    // She can't be signed into, and leaving works like any friend.
+    const row = (await client.execute({ sql: "SELECT phone, email FROM users WHERE id = ?", args: [SAMPLE_FRIEND_ID] })).rows[0];
+    expect([row.phone, row.email]).toEqual([null, null]);
+    await social.unfriend(me.id, SAMPLE_FRIEND_ID);
+    expect(await social.areFriends(me.id, SAMPLE_FRIEND_ID)).toBe(false);
+  });
+});
