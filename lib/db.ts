@@ -174,6 +174,16 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `UPDATE books SET status = 'want' WHERE kind = 'place' AND status = 'reading'`,
     ],
   },
+  {
+    id: "2026-10-16-recommended-by",
+    statements: [
+      // Who recommended an item: a friend (whose current name is shown) or a name typed by the owner.
+      // rec_name keeps the friend's name as it was, for when their account goes.
+      `ALTER TABLE books ADD COLUMN rec_user_id TEXT REFERENCES users(id) ON DELETE SET NULL`,
+      `ALTER TABLE books ADD COLUMN rec_name TEXT`,
+      `CREATE INDEX books_by_recommender ON books (rec_user_id)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

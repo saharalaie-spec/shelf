@@ -208,3 +208,48 @@ describe("invite links", () => {
     expect(friend.now).toEqual({ kind: "screen", title: "The Bear" });
   });
 });
+
+describe("recommended by", () => {
+  it("remembers which friend a save came from, for the owner's eyes only", async () => {
+    const me = await signUp({ phone: "+14155550301" }, "Sahar");
+    const bo = await signUp({ phone: "+14155550302" }, "Bo");
+    await social.acceptInvite(bo, await social.inviteToken(me.id));
+    await trove.addItems(me.id, "book", [book("fx:r1", "Piranesi", { status: "want", recBy: { id: bo.id, name: "Bo" } })]);
+
+    const [mine] = await trove.listItems(me.id, { includePrivate: true });
+    expect(mine.recBy).toEqual({ id: bo.id, name: "Bo" });
+    // Friends, profiles and share links never learn who recommended what.
+    expect((await trove.listItems(me.id))[0].recBy).toBeNull();
+
+    // A friend's new name shows up.
+    await social.updateProfile(bo.id, { name: "Bobby" });
+    expect((await trove.listItems(me.id, { includePrivate: true }))[0].recBy).toEqual({ id: bo.id, name: "Bobby" });
+  });
+
+  it("can be any name you type, which replaces a friend", async () => {
+    const me = await signUp({ phone: "+14155550303" }, "Ana");
+    const bo = await signUp({ phone: "+14155550304" }, "Bo");
+    const [item] = await trove.addItems(me.id, "book", [book("fx:r2", "Stoner", { recBy: { id: bo.id, name: "Bo" } })]);
+    expect(await trove.updateItem(me.id, item.id, { recName: "  Mom " })).toMatchObject({ recName: "Mom" });
+    expect((await trove.listItems(me.id, { includePrivate: true }))[0].recBy).toEqual({ id: null, name: "Mom" });
+    await trove.updateItem(me.id, item.id, { recName: "" });
+    expect((await trove.listItems(me.id, { includePrivate: true }))[0].recBy).toBeNull();
+  });
+
+  it("counts the picks friends have swapped, leaving out private saves", async () => {
+    const a = await signUp({ phone: "+14155550305" }, "Cy");
+    const b = await signUp({ phone: "+14155550306" }, "Di");
+    await social.acceptInvite(b, await social.inviteToken(a.id));
+    await trove.addItems(a.id, "book", [
+      book("fx:r3", "One", { recBy: { id: b.id, name: "Di" } }),
+      book("fx:r4", "Two", { recBy: { id: b.id, name: "Di" }, private: true }),
+    ]);
+    await trove.addItems(b.id, "screen", [book("fx:screen:r5", "Three", { recBy: { id: a.id, name: "Cy" } })]);
+
+    const [di] = await social.listFriends(a.id);
+    expect(di).toMatchObject({ fromThem: 2, fromMe: 1 });
+    const [cy] = await social.listFriends(b.id);
+    // Cy's private save of Di's pick isn't Di's business.
+    expect(cy).toMatchObject({ fromThem: 1, fromMe: 1 });
+  });
+});

@@ -133,7 +133,13 @@ async function freeHandle(name: string): Promise<string | null> {
 // ---------- Friends ----------
 
 /** A friend, with how much they share in each collection and what they're into right now. */
-export type Friend = Person & { counts: Record<Kind, number>; now: { kind: Kind; title: string } | null };
+export type Friend = Person & {
+  counts: Record<Kind, number>;
+  now: { kind: Kind; title: string } | null;
+  /** How many of their recommendations you've saved, and how many of yours they've saved (their private ones aside). */
+  fromThem: number;
+  fromMe: number;
+};
 
 export async function listFriends(userId: string): Promise<Friend[]> {
   const client = await db();
@@ -144,9 +150,11 @@ export async function listFriends(userId: string): Promise<Friend[]> {
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'screen') AS n_screen,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'place') AS n_place,
             (SELECT b.kind || ':' || b.title FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.status = 'reading'
-              ORDER BY b.status_at DESC LIMIT 1) AS now
+              ORDER BY b.status_at DESC LIMIT 1) AS now,
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = ?1 AND b.rec_user_id = u.id) AS from_them,
+            (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.rec_user_id = ?1) AS from_me
           FROM friendships f JOIN users u ON u.id = f.friend_id
-          WHERE f.user_id = ?
+          WHERE f.user_id = ?1
           ORDER BY lower(coalesce(u.name, '')), f.created_at`,
     args: [userId],
   });
@@ -158,6 +166,8 @@ export async function listFriends(userId: string): Promise<Friend[]> {
       ...toPerson(r),
       counts: { book: Number(r.n_book), podcast: Number(r.n_podcast), screen: Number(r.n_screen), place: Number(r.n_place) },
       now: now && isKind(kind) ? { kind, title: now.slice(split + 1) } : null,
+      fromThem: Number(r.from_them),
+      fromMe: Number(r.from_me),
     };
   });
 }

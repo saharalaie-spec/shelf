@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { itemLinks } from "@/lib/client";
@@ -11,7 +12,7 @@ import { Cover } from "./Cover";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
-import { Icon, Switch } from "./ui";
+import { Avatar, Icon, Switch } from "./ui";
 
 const CATEGORY_LISTS: Record<Kind, readonly string[]> = {
   book: CATEGORIES,
@@ -26,6 +27,8 @@ type Props = {
   /** Spots: the destination it's in. */
   destination?: Destination | null;
   onNote: (book: Item, note: string) => void;
+  /** A typed name, or null to clear. */
+  onRecBy: (book: Item, name: string | null) => void;
   allCategories: string[];
   onClose: () => void;
   onCategories: (book: Item, categories: string[]) => void;
@@ -41,6 +44,7 @@ export function ItemSheet({
   book,
   destination,
   onNote,
+  onRecBy,
   allCategories,
   onClose,
   onCategories,
@@ -112,6 +116,7 @@ export function ItemSheet({
           </div>
 
           {kind === "place" && <NoteField key={b.id} note={b.note} onSave={(n) => onNote(b, n)} />}
+          <RecField key={`rec:${b.id}:${b.recBy?.id ?? ""}`} recBy={b.recBy} onSave={(n) => onRecBy(b, n)} />
 
           <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-paper px-4 py-3">
             <Icon name="lock" size={20} className="shrink-0 text-ink-2" />
@@ -193,6 +198,49 @@ export function ItemSheet({
         </div>
       )}
     </Sheet>
+  );
+}
+
+/**
+ * Who recommended it. Saved from a friend, it shows them (with a way to their trove); otherwise it's a name
+ * you type, like "Mom" or "the bartender in Lisbon".
+ */
+function RecField({ recBy, onSave }: { recBy: Item["recBy"]; onSave: (name: string | null) => void }) {
+  const [draft, setDraft] = useState(recBy?.id ? "" : (recBy?.name ?? ""));
+  if (recBy?.id) {
+    return (
+      <div className="mt-3 flex items-center gap-3 rounded-2xl bg-paper px-4 py-2.5">
+        <Avatar name={recBy.name} size={32} />
+        <Link href={`/u/${recBy.id}`} className="min-w-0 flex-1 active:opacity-70">
+          <span className="block text-[13px] text-muted">Recommended by</span>
+          <span className="block truncate text-[16px] font-medium">{recBy.name}</span>
+        </Link>
+        <button
+          onClick={() => onSave(null)}
+          aria-label={`Remove ${recBy.name} as who recommended it`}
+          className="-mr-1.5 flex h-9 w-9 items-center justify-center rounded-full text-muted active:bg-surface-2"
+        >
+          <Icon name="x" size={16} />
+        </button>
+      </div>
+    );
+  }
+  return (
+    <label className="mt-3 flex items-center gap-3 rounded-2xl bg-paper px-4 py-2.5">
+      <Icon name="people" size={20} className="shrink-0 text-ink-2" />
+      <span className="min-w-0 flex-1">
+        <span className="block text-[13px] text-muted">Recommended by</span>
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={() => onSave(draft)}
+          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+          placeholder="Who told you about it?"
+          maxLength={60}
+          className="block w-full bg-transparent text-[16px] font-medium outline-none placeholder:font-normal placeholder:text-muted"
+        />
+      </span>
+    </label>
   );
 }
 

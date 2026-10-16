@@ -73,6 +73,7 @@ function SpotRow({ item, onOpen, onToggle }: { item: Item; onOpen: () => void; o
           </span>
           <span className="block truncate text-[14px] text-muted">{spotLine(item) || "Spot"}</span>
           {item.note && <span className="block truncate text-[13px] text-ink-2 italic">“{item.note}”</span>}
+          {item.recBy && <span className="block truncate text-[13px] text-muted">From {item.recBy.name}</span>}
         </span>
       </button>
       <StatusTag status={item.status} onToggle={item.id.startsWith("tmp:") ? undefined : onToggle} title={item.title} />

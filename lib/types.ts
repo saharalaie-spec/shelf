@@ -50,6 +50,9 @@ export type Status = (typeof STATUSES)[number];
 export const isStatus = (s: unknown): s is Status => STATUSES.includes(s as Status);
 
 /** An item in someone's trove. `statusAt` is when it last changed section; `private` items are owner-only. */
+/** Who recommended something: a friend on Trove (`id`), or anyone the owner names ("Mom"). */
+export type RecBy = { id: string | null; name: string };
+
 export type Item = Hit & {
   id: string;
   kind: Kind;
@@ -61,6 +64,8 @@ export type Item = Hit & {
   destinationId: string | null;
   /** The owner's own words about it ("order the horchata"). */
   note: string | null;
+  /** Who recommended it. Only ever sent to the owner. */
+  recBy: RecBy | null;
 };
 
 /** One line of a pasted list, dictation, photo or import, before matching. Imports may know more. */
