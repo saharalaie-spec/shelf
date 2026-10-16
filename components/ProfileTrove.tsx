@@ -74,12 +74,13 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
     try {
       // Only things you don't have get these buttons, so this is always a fresh add.
       const { key, title, author, year, coverUrl, categories, place } = book;
-      // A spot lands in your destination of the same name, which is made for you if you don't have one.
+      // Remembered as their recommendation. A spot lands in your destination of the same name, which is made
+      // for you if you don't have one.
       const where = destinations.find((d) => d.id === book.destinationId);
       await api("/api/items", {
         body: {
           kind: book.kind,
-          items: [{ key, title, author, year, coverUrl, categories, place, status }],
+          items: [{ key, title, author, year, coverUrl, categories, place, status, recBy: { id: person.id } }],
           ...(book.kind === "place" && where
             ? { destination: { name: where.name, country: where.country, label: where.label, lat: where.lat, lon: where.lon, bbox: where.bbox } }
             : {}),

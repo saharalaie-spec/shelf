@@ -159,6 +159,9 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
                   <span className="block truncate text-[13px] text-muted">
                     {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
                   </span>
+                  {(f.fromThem > 0 || f.fromMe > 0) && (
+                    <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>
+                  )}
                 </span>
                 <Icon name="chevron" size={16} className="shrink-0 text-muted" />
               </Link>
@@ -188,7 +191,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending }: BodyPro
 
       <p className="mt-6 mb-3 flex gap-2 text-[13px] leading-snug text-muted">
         <Icon name="lock" size={15} className="mt-px shrink-0" />
-        Friends see everything you add: books, podcasts, movies and shows. Anything you mark private stays yours.
+        Friends see everything you add: books, podcasts, shows and places. Anything you mark private stays yours.
       </p>
     </div>
   );
@@ -340,6 +343,17 @@ function AskForm({ onSent }: { onSent: () => void }) {
 
 function Heading({ children }: { children: React.ReactNode }) {
   return <h3 className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">{children}</h3>;
+}
+
+/** "You saved 3 of their picks · they saved 1 of yours" */
+function swapLine(f: Friend) {
+  const pick = (n: number) => `${n.toLocaleString()} ${n === 1 ? "pick" : "picks"}`;
+  return [
+    f.fromThem > 0 && `You saved ${pick(f.fromThem)} from them`,
+    f.fromMe > 0 && `${f.fromThem > 0 ? "they" : "They"} saved ${f.fromMe.toLocaleString()} of yours`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function summary(c: Friend["counts"]) {

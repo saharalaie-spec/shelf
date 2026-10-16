@@ -44,6 +44,7 @@ Every book, podcast, show and favorite spot you love, in one place, shared with 
 
   Friends see everything you add, in every collection, unless you make it private. Tap anything of theirs to put it on your own list (Want to read, Up next, Watchlist).
 - **Private items.** Everything is visible to friends by default. Switch on **Private** on any book, podcast, movie or show and only you will ever see it. It's left out of what friends see, of your public profile, and of share links, including links you sent before.
+- **Recommended by.** Anything you save from a friend's trove remembers it came from them ("Recommended by Bo" on its page, "from Bo" in lists). On anything else you can type who told you about it ("Mom", "the bartender in Lisbon"). Only you see who recommended what. The Friends list shows the picks you've swapped: "You saved 3 picks from them · they saved 1 of yours".
 - **Your profile is private unless you make it public.** By default only friends can see your trove, and anyone else opening your profile link sees "This trove is private". The page looks the same whether or not the account exists. In **You → Who sees your trove** you can switch on a public profile at `/u/yourname`. It isn't listed anywhere and is hidden from search engines. **See what friends see** previews it.
 
 ## Run it

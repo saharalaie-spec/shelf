@@ -3,7 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
 import { db } from "./db";
 import { getDestination, listDestinations } from "./destinations";
-import { isKind, isStatus, KINDS, type Destination, type Hit, type Item, type Kind, type PlaceInfo, type Status } from "./types";
+import { isKind, isStatus, KINDS, type Destination, type Hit, type Item, type Kind, type PlaceInfo, type RecBy, type Status } from "./types";
 
 // Every collection lives in the `books` table (it predates the others); `kind` tells them apart.
 
@@ -37,6 +37,11 @@ const toItem = (r: Row): Item => ({
   private: Boolean(r.private),
   destinationId: r.destination_id ? String(r.destination_id) : null,
   note: r.note ? String(r.note) : null,
+  // A friend's current name when they're still here, else the name it was saved with.
+  recBy:
+    r.rec_user_id || r.rec_name
+      ? { id: r.rec_user_id ? String(r.rec_user_id) : null, name: String(r.rec_user_name || r.rec_name || "A friend") }
+      : null,
   ...(r.geo ? { place: parseGeo(r.geo) } : {}),
 });
 
@@ -50,37 +55,48 @@ export type ItemFilter = {
 
 /**
  * A user's items. Private ones are only included when `includePrivate` is set, which only the
- * owner's own views should do: friends, public profiles and share links never see them.
+ * owner's own views should do: friends, public profiles and share links never see them. The same goes
+ * for who recommended what, which is the owner's business.
  */
 export async function listItems(userId: string, filter: ItemFilter = {}): Promise<Item[]> {
   const client = await db();
-  const where = ["user_id = ?"];
+  const where = ["b.user_id = ?"];
   const args: string[] = [userId];
-  if (!filter.includePrivate) where.push("private = 0");
+  if (!filter.includePrivate) where.push("b.private = 0");
   if (filter.kind) {
-    where.push("kind = ?");
+    where.push("b.kind = ?");
     args.push(filter.kind);
   }
   if (filter.status) {
-    where.push("status = ?");
+    where.push("b.status = ?");
     args.push(filter.status);
   }
   if (filter.category) {
-    where.push("EXISTS (SELECT 1 FROM json_each(books.categories) WHERE value = ?)");
+    where.push("EXISTS (SELECT 1 FROM json_each(b.categories) WHERE value = ?)");
     args.push(filter.category);
   }
   if (filter.destinationId) {
-    where.push("destination_id = ?");
+    where.push("b.destination_id = ?");
     args.push(filter.destinationId);
   }
   const { rows } = await client.execute({
-    sql: `SELECT * FROM books WHERE ${where.join(" AND ")} ORDER BY status_at DESC, added_at DESC`,
+    sql: `SELECT b.*, r.name AS rec_user_name FROM books b LEFT JOIN users r ON r.id = b.rec_user_id
+          WHERE ${where.join(" AND ")} ORDER BY b.status_at DESC, b.added_at DESC`,
     args,
   });
-  return rows.map(toItem);
+  const items = rows.map(toItem);
+  return filter.includePrivate ? items : items.map((i) => ({ ...i, recBy: null }));
 }
 
-export type NewItem = Hit & { status: Status; addedAt?: number; statusAt?: number; private?: boolean; note?: string | null };
+export type NewItem = Hit & {
+  status: Status;
+  addedAt?: number;
+  statusAt?: number;
+  private?: boolean;
+  note?: string | null;
+  /** Checked by the caller: a friend's id must be someone this user can see. */
+  recBy?: RecBy | null;
+};
 
 /**
  * Adds items to one collection, skipping ones already there. Returns only the newly added.
@@ -112,17 +128,19 @@ export async function addItems(
       private: Boolean(h.private),
       destinationId: kind === "place" ? destinationId : null,
       note: h.note?.trim().slice(0, 500) || null,
+      recBy: h.recBy?.name.trim() ? { id: h.recBy.id, name: h.recBy.name.trim().slice(0, 60) } : null,
       ...(kind === "place" && h.place ? { place: h.place } : {}),
     };
   });
   const results = await client.batch(
     prepared.map((b) => ({
       sql: `INSERT INTO books (id, user_id, kind, work_key, title, author, year, cover_url, categories, added_at, status,
-              status_at, private, destination_id, geo, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
+              status_at, private, destination_id, geo, note, rec_user_id, rec_name)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT (user_id, work_key) DO NOTHING`,
       args: [
         b.id, userId, kind, b.key, b.title, b.author, b.year, b.coverUrl, JSON.stringify(b.categories),
         b.addedAt, b.status, b.statusAt, b.private ? 1 : 0, b.destinationId, b.place ? JSON.stringify(b.place) : null, b.note,
+        b.recBy?.id ?? null, b.recBy?.name ?? null,
       ],
     })),
     "write",
@@ -130,7 +148,8 @@ export async function addItems(
   return prepared.filter((_, i) => results[i].rowsAffected > 0);
 }
 
-type ItemPatch = { categories?: string[]; status?: Status; private?: boolean; note?: string | null };
+/** `recName` is typed by the owner, so it replaces any friend the item was saved from. */
+type ItemPatch = { categories?: string[]; status?: Status; private?: boolean; note?: string | null; recName?: string | null };
 
 /**
  * Changes an item's categories, section, privacy and/or note. Returns what was saved, or null if it isn't yours.
@@ -154,6 +173,11 @@ export async function updateItem(
     saved.note = patch.note?.trim().slice(0, 500) || null;
     sets.push("note = ?");
     args.push(saved.note);
+  }
+  if (patch.recName !== undefined) {
+    saved.recName = patch.recName?.trim().slice(0, 60) || null;
+    sets.push("rec_name = ?", "rec_user_id = NULL");
+    args.push(saved.recName);
   }
   if (patch.categories) {
     saved.categories = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))].slice(0, 8);

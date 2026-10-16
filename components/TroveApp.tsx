@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ago, api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
-import { STATUSES, type Hit, type Item, type Kind, type Status } from "@/lib/types";
+import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
@@ -22,7 +22,7 @@ import { SectionTabs } from "./SectionTabs";
 import { Button, Icon, Logo, useHydrated } from "./ui";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
-export type NewHit = Hit & { status?: Status; note?: string };
+export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
 
 /** What a collection hands the add sheet. */
 export type TroveApi = {
@@ -268,6 +268,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         private: false,
         destinationId: opts.destinationId ?? null,
         note: h.note ?? null,
+        recBy: h.recBy ?? null,
       }));
       // Update the ref right away too, so a second quick add sees these as already added.
       itemsRef.current = [...temp, ...itemsRef.current];
@@ -355,6 +356,22 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         await api(`/api/items/${book.id}`, { method: "PATCH", body: { note: next } });
       } catch (err) {
         patchItem(book.id, { note: book.note });
+        toast.error((err as Error).message);
+      }
+    },
+    [patchItem],
+  );
+
+  const setRecBy = useCallback(
+    async (book: Item, name: string | null) => {
+      const next = name?.trim() || null;
+      // A typed name that hasn't changed is a no-op; anything replaces (or clears) a friend.
+      if (!book.recBy?.id && next === (book.recBy?.name ?? null)) return;
+      patchItem(book.id, { recBy: next ? { id: null, name: next } : null });
+      try {
+        await api(`/api/items/${book.id}`, { method: "PATCH", body: { recName: next } });
+      } catch (err) {
+        patchItem(book.id, { recBy: book.recBy });
         toast.error((err as Error).message);
       }
     },
@@ -563,6 +580,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         book={openItem}
         destination={destinations.find((d) => d.id === openItem?.destinationId) ?? null}
         onNote={setNote}
+        onRecBy={setRecBy}
         allCategories={allCategories}
         onClose={() => setOpenId(null)}
         onCategories={setCategories}
@@ -642,7 +660,9 @@ function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOp
           {book.author && <span className="mt-0.5 block truncate text-[14px] text-ink-2">{book.author}</span>}
           {/* Relative dates depend on the viewer's clock and locale, so they render after hydration. */}
           <span className="mt-1 block min-h-5 text-[13px] text-muted">
-            {hydrated && book.statusAt ? `${v.started} ${ago(book.statusAt)}` : ""}
+            {[hydrated && book.statusAt ? `${v.started} ${ago(book.statusAt)}` : "", book.recBy && `from ${book.recBy.name}`]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </span>
       </button>

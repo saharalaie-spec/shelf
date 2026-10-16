@@ -6,16 +6,18 @@ import { isStatus, type Status } from "@/lib/types";
 export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/items/[id]">) => {
   const user = await requireUser();
   const { id } = await ctx.params;
-  const body = await readJson<{ categories: string[]; status: Status; private: boolean; note: string | null }>(req);
+  const body = await readJson<{ categories: string[]; status: Status; private: boolean; note: string | null; recName: string | null }>(req);
   if (body.categories !== undefined && !Array.isArray(body.categories)) throw new AuthError("categories must be a list.");
   if (body.status !== undefined && !isStatus(body.status)) throw new AuthError("Unknown status.");
   if (body.private !== undefined && typeof body.private !== "boolean") throw new AuthError("private must be true or false.");
   if (body.note !== undefined && body.note !== null && typeof body.note !== "string") throw new AuthError("Notes are text.");
+  if (body.recName !== undefined && body.recName !== null && typeof body.recName !== "string") throw new AuthError("Names are text.");
   const saved = await updateItem(user.id, id, {
     categories: body.categories?.map(String),
     status: body.status,
     private: body.private,
     note: body.note,
+    recName: body.recName,
   });
   if (!saved) throw new AuthError("Not found.", 404);
   return Response.json(saved);
