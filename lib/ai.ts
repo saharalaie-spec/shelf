@@ -12,12 +12,20 @@ export const cleanKey = (key: string | undefined) => key?.trim().replace(/^["']|
 /** A Claude client, tolerant of how the key was pasted. */
 export const anthropic = () => new Anthropic({ apiKey: cleanKey(process.env.ANTHROPIC_API_KEY) });
 
+/** What the configured key looks like, without giving it away: its public prefix and its length. */
+export function keyShape(raw = process.env.ANTHROPIC_API_KEY) {
+  const key = cleanKey(raw);
+  if (!key) return "ANTHROPIC_API_KEY isn’t set on this deployment.";
+  const start = key.startsWith("sk-ant-") ? key.slice(0, 13) : key.slice(0, 7);
+  return `The key here starts with “${start}…” and is ${key.length} characters; a real one starts with “sk-ant-api03-” and is about 100.`;
+}
+
 /** Why a Claude request failed, in words that say what to fix, instead of a bare "Something went wrong". */
 export function aiProblem(err: unknown): unknown {
   if (!(err instanceof Anthropic.APIError)) return err;
   console.error("Claude request failed:", err.status, err.message);
   const said = (err.error as { error?: { message?: string } } | undefined)?.error?.message ?? "";
-  if (err instanceof Anthropic.AuthenticationError) return new AuthError("AI is off: the Anthropic API key was rejected. Check ANTHROPIC_API_KEY.", 503);
+  if (err instanceof Anthropic.AuthenticationError) return new AuthError(`AI is off: Anthropic rejected the API key. ${keyShape()}`, 503);
   if (/credit balance/i.test(said)) return new AuthError("AI is off: the Anthropic account is out of credit.", 503);
   if (err instanceof Anthropic.PermissionDeniedError) return new AuthError("AI is off: this Anthropic key isn’t allowed to make this request.", 503);
   if (err instanceof Anthropic.RateLimitError) return new AuthError("Lots of requests right now. Try again in a minute.", 429);
