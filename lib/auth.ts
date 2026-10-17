@@ -23,6 +23,8 @@ export type User = {
   isPublic: boolean;
   /** Whether what they're into shows on friends' Table. */
   shareActivity: boolean;
+  /** Done with (or skipped) getting started. */
+  started: boolean;
 };
 
 export class AuthError extends Error {
@@ -174,7 +176,7 @@ export async function getCurrentUser(): Promise<User | null> {
   const client = await db();
   const row = (
     await client.execute({
-      sql: `SELECT u.id, u.name, u.email, u.phone, u.handle, u.is_public, u.share_activity FROM sessions s JOIN users u ON u.id = s.user_id
+      sql: `SELECT u.id, u.name, u.email, u.phone, u.handle, u.is_public, u.share_activity, u.started_at FROM sessions s JOIN users u ON u.id = s.user_id
             WHERE s.token_hash = ? AND s.expires_at > ?`,
       args: [hashToken(token), Date.now()],
     })
@@ -188,6 +190,7 @@ export async function getCurrentUser(): Promise<User | null> {
     handle: row.handle ? String(row.handle) : null,
     isPublic: Boolean(row.is_public),
     shareActivity: row.share_activity == null ? true : Boolean(row.share_activity),
+    started: row.started_at != null,
   };
 }
 

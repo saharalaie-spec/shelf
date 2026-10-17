@@ -8,10 +8,17 @@ import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { Avatar, Button, Icon, Logo } from "./ui";
 
-type Props = { token: string; inviter: { name: string | null }; viewerName: string | null; own: boolean };
+type Props = {
+  token: string;
+  inviter: { name: string | null };
+  viewerName: string | null;
+  own: boolean;
+  /** Just joined: start from the inviter's trove instead of landing on it. */
+  newcomer: boolean;
+};
 
 /** Someone's invite link, opened by a signed-in person: one tap and you're friends. */
-export function Invite({ token, inviter, viewerName, own }: Props) {
+export function Invite({ token, inviter, viewerName, own, newcomer }: Props) {
   const router = useRouter();
   const [joining, setJoining] = useState(false);
   // New here? Ask for a name, so the inviter's friend list doesn't say "Trove member".
@@ -25,7 +32,7 @@ export function Invite({ token, inviter, viewerName, own }: Props) {
       if (needsName && name.trim()) await api("/api/me", { method: "PATCH", body: { name: name.trim() } });
       const { ref } = await api<{ ref: string }>(`/api/invites/${token}`, { body: {} });
       toast(`You and ${inviter.name ?? "your friend"} are friends now`);
-      router.replace(`/u/${ref}`);
+      router.replace(newcomer ? `/start?from=${encodeURIComponent(ref)}` : `/u/${ref}`);
     } catch (err) {
       toast.error((err as Error).message);
       setJoining(false);

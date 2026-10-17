@@ -10,16 +10,18 @@ import {
   requestByIdentifier,
   requestByUserId,
 } from "@/lib/social";
+import { starterPicks } from "@/lib/start";
 
 export const GET = route(async (req: Request) => {
   const user = await requireUser();
-  const [friends, incoming, outgoing, token] = await Promise.all([
+  const [friends, incoming, outgoing, token, picks] = await Promise.all([
     listFriends(user.id),
     incomingRequests(user),
     outgoingRequests(user.id),
     inviteToken(user.id),
+    starterPicks(user.id),
   ]);
-  return Response.json({ friends, incoming, outgoing, inviteUrl: `${origin(req)}/f/${token}` });
+  return Response.json({ friends, incoming, outgoing, inviteUrl: `${origin(req)}/f/${token}`, picks });
 });
 
 /** Ask to be friends: by phone number or email, or by user id from a public profile. */
