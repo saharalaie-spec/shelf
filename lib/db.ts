@@ -247,6 +247,21 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX suggestions_by_day ON suggestions (user_id, day)`,
     ],
   },
+  {
+    id: "2026-10-17-first-run",
+    statements: [
+      // When someone finished (or skipped) getting started. People who already have things never see it.
+      `ALTER TABLE users ADD COLUMN started_at INTEGER`,
+      `UPDATE users SET started_at = created_at WHERE EXISTS (SELECT 1 FROM books b WHERE b.user_id = users.id)`,
+      // Up to three things you pick for people who join through your invite link.
+      `CREATE TABLE starter_picks (
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id TEXT NOT NULL REFERENCES books(id) ON DELETE CASCADE,
+        position INTEGER NOT NULL,
+        PRIMARY KEY (user_id, item_id)
+      )`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

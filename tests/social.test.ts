@@ -29,7 +29,7 @@ async function signUp(contact: { phone?: string; email?: string }, name: string 
     sql: "INSERT INTO users (id, phone, email, name, created_at) VALUES (?, ?, ?, ?, ?)",
     args: [id, contact.phone ?? null, contact.email ?? null, name, Date.now()],
   });
-  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false, shareActivity: true };
+  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false, shareActivity: true, started: false };
 }
 
 beforeAll(async () => {
@@ -511,5 +511,93 @@ describe("something else: taste map and suggestions", () => {
       });
     }
     await expect(suggest(me.id, "screen", "any", {}, ask)).rejects.toThrow(/plenty/);
+  });
+});
+
+describe("getting started", () => {
+  it("is for new people only, and done once", async () => {
+    const { markStarted } = await import("@/lib/start");
+    const me = await signUp({ phone: "+14155550901" }, "Lu");
+    const client = await db();
+    const startedAt = async () =>
+      (await client.execute({ sql: "SELECT started_at FROM users WHERE id = ?", args: [me.id] })).rows[0].started_at;
+    expect(await startedAt()).toBeNull();
+    await markStarted(me.id);
+    const first = await startedAt();
+    expect(first).not.toBeNull();
+    await markStarted(me.id);
+    expect(await startedAt()).toBe(first);
+  });
+
+  it("starts from the inviter's trove, with what they picked for new friends on top", async () => {
+    const { setStarterPicks, startFrom, starterPicks } = await import("@/lib/start");
+    const sam = await signUp({ phone: "+14155550911" }, "Sam");
+    const newbie = await signUp({ phone: "+14155550912" }, "Ana");
+    const added = await trove.addItems(sam.id, "book", [
+      book("fx:s1", "Stoner", { statusAt: 1000 }),
+      book("fx:s2", "Middlemarch", { statusAt: 3000 }),
+      book("fx:s3", "Gilead", { statusAt: 2000, note: "Read it slowly." }),
+      book("fx:s4", "Diary", { private: true }),
+      book("fx:s5", "Next up", { status: "want" }),
+    ]);
+    const id = (title: string) => added.find((i) => i.title === title)!.id;
+
+    // Not friends yet: nothing to start from.
+    expect(await startFrom(newbie.id, sam.id)).toBeNull();
+    await social.acceptInvite(newbie, await social.inviteToken(sam.id));
+
+    // No picks yet: their favorites lately, the ones with a note first. Never private, never what they only want.
+    let from = (await startFrom(newbie.id, sam.id))!;
+    expect(from.friend.name).toBe("Sam");
+    expect(from.chosen).toBe(false);
+    expect(from.picks.map((i) => i.title)).toEqual(["Gilead", "Middlemarch", "Stoner"]);
+    expect(from.items.map((i) => i.title)).not.toContain("Diary");
+
+    await expect(setStarterPicks(sam.id, [id("Diary")])).rejects.toThrow(/friends can see/);
+    expect(await setStarterPicks(sam.id, [id("Next up"), id("Stoner"), id("Stoner"), id("Gilead"), id("Middlemarch")])).toEqual([
+      id("Next up"),
+      id("Stoner"),
+      id("Gilead"),
+    ]);
+    expect((await starterPicks(sam.id)).map((i) => i.title)).toEqual(["Next up", "Stoner", "Gilead"]);
+    from = (await startFrom(newbie.id, "someone-else"))!;
+    // Unknown ref: the friend you made most recently, who here is Sam.
+    expect(from.chosen).toBe(true);
+    expect(from.items.slice(0, 3).map((i) => i.title)).toEqual(["Next up", "Stoner", "Gilead"]);
+    expect(from.items).toHaveLength(4);
+
+    // A pick that's removed drops out.
+    await trove.removeItem(sam.id, id("Stoner"));
+    expect((await starterPicks(sam.id)).map((i) => i.title)).toEqual(["Next up", "Gilead"]);
+  });
+
+  it("deals a deck across collections, without what's on your lists, kept for the day", async () => {
+    const { tasteDeck } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550921" }, "Ida");
+    await trove.addItems(me.id, "book", [book("fx:d1", "Beloved")]);
+    let calls = 0;
+    const seen: string[][] = [];
+    const ask = async ({ exclude }: { exclude: string[] }) => {
+      calls++;
+      seen.push(exclude);
+      return [
+        { kind: "book" as const, title: "Beloved", creator: "Toni Morrison", year: 1987 },
+        { kind: "podcast" as const, title: `Pod ${calls}`, creator: "Host", year: 0 },
+        { kind: "screen" as const, title: `Film ${calls}`, creator: "Movie · Someone", year: 2020 },
+      ];
+    };
+    const first = await tasteDeck(me.id, {}, ask);
+    expect(first.map((c) => [c.kind, c.hit.title])).toEqual([
+      ["podcast", "Pod 1"],
+      ["screen", "Film 1"],
+    ]);
+    expect(seen[0]).toContain("Beloved");
+    // Same day: kept, minus anything added since.
+    await trove.addItems(me.id, "podcast", [book("fx:pod:x", "Pod 1")]);
+    expect((await tasteDeck(me.id, {}, ask)).map((c) => c.hit.title)).toEqual(["Film 1"]);
+    expect(calls).toBe(1);
+    // Another round: new ones, never what was dealt before.
+    expect((await tasteDeck(me.id, { fresh: true }, ask)).map((c) => c.hit.title)).toEqual(["Pod 2", "Film 2"]);
+    expect(seen[1]).toEqual(expect.arrayContaining(["Pod 1", "Film 1"]));
   });
 });

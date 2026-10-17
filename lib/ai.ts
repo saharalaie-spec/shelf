@@ -12,6 +12,29 @@ export const cleanKey = (key: string | undefined) => key?.trim().replace(/^["']|
 /** A Claude client, tolerant of how the key was pasted. */
 export const anthropic = () => new Anthropic({ apiKey: cleanKey(process.env.ANTHROPIC_API_KEY) });
 
+/**
+ * One request to Claude for JSON in the given shape. Null when it declines. Failures come back as readable errors.
+ */
+export async function askJson<T>(content: string | Anthropic.Beta.BetaContentBlockParam[], schema: Record<string, unknown>): Promise<T | null> {
+  const response = await anthropic()
+    .beta.messages.create({
+      model: "claude-opus-5-5",
+      max_tokens: 16000,
+      // If the request is declined, retry on Anthropic's recommended fallback model.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low", format: { type: "json_schema", schema } },
+      messages: [{ role: "user", content }],
+    })
+    .catch((err) => {
+      throw aiProblem(err);
+    });
+  if (response.stop_reason === "refusal") return null;
+  const text = response.content.find((b) => b.type === "text");
+  if (!text || text.type !== "text") return null;
+  return JSON.parse(text.text) as T;
+}
+
 /** What the configured key looks like, without giving it away: its public prefix and its length. */
 export function keyShape(raw = process.env.ANTHROPIC_API_KEY) {
   const key = cleanKey(raw);
@@ -83,36 +106,14 @@ export async function itemsFromPhoto(
   data: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
 ): Promise<Candidate[]> {
-  const client = anthropic();
-  const response = await client.beta.messages
-    .create({
-      model: "claude-opus-5-5",
-      max_tokens: 16000,
-      // If the request is declined, retry on Anthropic's recommended fallback model.
-      betas: ["server-side-fallback-2026-07-01"],
-      fallbacks: "default",
-      output_config: {
-        effort: "low",
-        format: { type: "json_schema", schema: SCHEMA },
-      },
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data } },
-            { type: "text", text: PROMPTS[kind] },
-          ],
-        },
-      ],
-    })
-    .catch((err) => {
-      throw aiProblem(err);
-    });
-
-  if (response.stop_reason === "refusal") return [];
-  const text = response.content.find((b) => b.type === "text");
-  if (!text || text.type !== "text") return [];
-  const parsed = JSON.parse(text.text) as { items: { title: string; creator: string; year: number }[] };
+  const parsed = await askJson<{ items: { title: string; creator: string; year: number }[] }>(
+    [
+      { type: "image", source: { type: "base64", media_type: mediaType, data } },
+      { type: "text", text: PROMPTS[kind] },
+    ],
+    SCHEMA,
+  );
+  if (!parsed) return [];
   return parsed.items
     .filter((b) => b.title.trim())
     .map((b) => ({

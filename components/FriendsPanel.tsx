@@ -9,10 +9,20 @@ import { guessCountry, parseIdentifier } from "@/lib/identifier";
 import { SAMPLE_FRIEND_ID, SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import { VOCAB } from "@/lib/kinds";
 import type { Friend, IncomingRequest, OutgoingRequest } from "@/lib/social";
-import { KINDS } from "@/lib/types";
+import { KINDS, type Item } from "@/lib/types";
+import { Cover } from "./Cover";
+import { Sheet } from "./Sheet";
+import { SpotTile } from "./Spot";
 import { Avatar, Button, Icon } from "./ui";
 
-type Data = { friends: Friend[]; incoming: IncomingRequest[]; outgoing: OutgoingRequest[]; inviteUrl: string };
+type Data = {
+  friends: Friend[];
+  incoming: IncomingRequest[];
+  outgoing: OutgoingRequest[];
+  inviteUrl: string;
+  /** What you picked for people who join through your link. */
+  picks: Item[];
+};
 
 type Props = {
   name: string | null;
@@ -108,7 +118,12 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
   return (
     <div className="pb-safe">
       {!name && <NamePrompt onName={onName} />}
-      <InviteCard url={data?.inviteUrl ?? null} name={name} />
+      <InviteCard
+        url={data?.inviteUrl ?? null}
+        name={name}
+        picks={data?.picks ?? null}
+        onPicks={(picks) => setData((d) => d && { ...d, picks })}
+      />
       <AskForm onSent={() => reload().catch(() => {})} />
       {data && !data.friends.some((f) => f.id === SAMPLE_FRIEND_ID) && (
         <SampleCard
@@ -281,8 +296,19 @@ function NamePrompt({ onName }: { onName: (name: string) => void }) {
   );
 }
 
-function InviteCard({ url, name }: { url: string | null; name: string | null }) {
+function InviteCard({
+  url,
+  name,
+  picks,
+  onPicks,
+}: {
+  url: string | null;
+  name: string | null;
+  picks: Item[] | null;
+  onPicks: (picks: Item[]) => void;
+}) {
   const [copied, setCopied] = useState(false);
+  const [choosing, setChoosing] = useState(false);
 
   const copy = async () => {
     if (!url) return;
@@ -328,7 +354,130 @@ function InviteCard({ url, name }: { url: string | null; name: string | null }) 
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
+      {picks && (
+        <button
+          onClick={() => setChoosing(true)}
+          className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-2 p-3 text-left active:opacity-80"
+        >
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-medium">{picks.length ? "Your picks for new friends" : "Pick 3 for new friends"}</span>
+            <span className="block truncate text-[13px] text-muted">
+              {picks.length ? picks.map((p) => p.title).join(" · ") : "What people see first when they join from your link"}
+            </span>
+          </span>
+          <span className="flex shrink-0 -space-x-2">
+            {picks.map((p) => (
+              <PickThumb key={p.id} item={p} />
+            ))}
+          </span>
+          <Icon name="chevron" size={17} className="shrink-0 text-muted" />
+        </button>
+      )}
+      <PicksSheet open={choosing} onOpenChange={setChoosing} picks={picks ?? []} onSaved={onPicks} />
     </section>
+  );
+}
+
+function PickThumb({ item }: { item: Item }) {
+  return item.kind === "place" ? (
+    <SpotTile spot={item} size={32} className="ring-2 ring-surface-2" />
+  ) : (
+    <Cover book={item} shape={VOCAB[item.kind].shape} className="w-7 ring-2 ring-surface-2" rounded="rounded-[3px]" />
+  );
+}
+
+const PICKS_MAX = 3;
+
+/** Choose up to three things from your lists for people who join from your invite link. */
+function PicksSheet({ open, onOpenChange, picks, onSaved }: { open: boolean; onOpenChange: (o: boolean) => void; picks: Item[]; onSaved: (p: Item[]) => void }) {
+  const [items, setItems] = useState<Item[] | null>(null);
+  const [chosen, setChosen] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open) setChosen(picks.map((p) => p.id));
+  }
+
+  useEffect(() => {
+    if (!open || items) return;
+    api<{ items: Item[] }>("/api/items")
+      .then((r) => setItems(r.items.filter((i) => !i.private)))
+      .catch((err) => toast.error(err.message));
+  }, [open, items]);
+
+  const toggle = (id: string) =>
+    setChosen((c) => (c.includes(id) ? c.filter((x) => x !== id) : c.length < PICKS_MAX ? [...c, id] : c));
+  const save = async () => {
+    setSaving(true);
+    try {
+      await api("/api/me/picks", { method: "PUT", body: { itemIds: chosen } });
+      const byId = new Map((items ?? []).map((i) => [i.id, i]));
+      onSaved(chosen.map((id) => byId.get(id)).filter((i): i is Item => Boolean(i)));
+      toast(chosen.length ? "New friends will see these first" : "Picks cleared");
+      onOpenChange(false);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange} title="Picks for new friends" tall>
+      <p className="shrink-0 px-5 pb-3 text-[14px] leading-snug text-muted">
+        Up to {PICKS_MAX} things people see first when they join from your link, ready to add to their lists in one tap.
+      </p>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5" data-vaul-no-drag="">
+        {!items ? (
+          <p className="py-6 text-center text-[15px] text-muted">Loading your lists…</p>
+        ) : !items.length ? (
+          <p className="py-6 text-center text-[15px] text-muted">Add a few things to your lists first.</p>
+        ) : (
+          KINDS.map((kind) => {
+            const mine = items.filter((i) => i.kind === kind);
+            if (!mine.length) return null;
+            return (
+              <section key={kind} className="mb-5">
+                <h3 className="mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">{VOCAB[kind].label}</h3>
+                <ul>
+                  {mine.map((i) => {
+                    const on = chosen.includes(i.id);
+                    const full = !on && chosen.length >= PICKS_MAX;
+                    return (
+                      <li key={i.id}>
+                        <button
+                          onClick={() => toggle(i.id)}
+                          disabled={full}
+                          aria-pressed={on}
+                          className="flex w-full items-center gap-3 rounded-2xl px-1 py-2 text-left active:bg-surface-2 disabled:opacity-40"
+                        >
+                          <PickThumb item={i} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[15px] font-medium">{i.title}</span>
+                            {i.author && <span className="block truncate text-[13px] text-muted">{i.author}</span>}
+                          </span>
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${on ? "bg-ink text-paper" : "border border-line text-transparent"}`}
+                          >
+                            <Icon name="check" size={15} />
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </section>
+            );
+          })
+        )}
+      </div>
+      <div className="shrink-0 px-5 pt-2 pb-safe">
+        <Button onClick={save} loading={saving} disabled={!items} className="mb-3 w-full">
+          {chosen.length ? `Save ${chosen.length} ${chosen.length === 1 ? "pick" : "picks"}` : "Save"}
+        </Button>
+      </div>
+    </Sheet>
   );
 }
 

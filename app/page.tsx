@@ -1,4 +1,5 @@
 import { getCurrentUser } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
@@ -14,6 +15,8 @@ export default async function HomePage() {
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
   if (!user) return <Login channels={signInChannels()} />;
+  // New here: get started first (it can be skipped).
+  if (!user.started) redirect("/start");
   await refreshSampleFriendFor(user.id);
   const [summaries, incoming, destinations] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
