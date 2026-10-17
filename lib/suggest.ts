@@ -1,7 +1,6 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
 import { normalize, typedHit } from "@/components/add/typed";
-import { aiEnabled } from "./ai";
+import { aiEnabled, aiProblem, anthropic } from "./ai";
 import { AuthError } from "./auth";
 import { matchCandidates, searchCatalog } from "./catalog";
 import { db } from "./db";
@@ -91,16 +90,20 @@ ${exclude.slice(0, 200).join("\n")}
 
 /** Claude, the same way the photo reader calls it. */
 const askClaude: Ask = async (input) => {
-  const client = new Anthropic();
-  const response = await client.beta.messages.create({
-    model: "claude-opus-5-5",
-    max_tokens: 16000,
-    // If the request is declined, retry on Anthropic's recommended fallback model.
-    betas: ["server-side-fallback-2026-07-01"],
-    fallbacks: "default",
-    output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
-    messages: [{ role: "user", content: prompt(input) }],
-  });
+  const client = anthropic();
+  const response = await client.beta.messages
+    .create({
+      model: "claude-opus-5-5",
+      max_tokens: 16000,
+      // If the request is declined, retry on Anthropic's recommended fallback model.
+      betas: ["server-side-fallback-2026-07-01"],
+      fallbacks: "default",
+      output_config: { effort: "low", format: { type: "json_schema", schema: SCHEMA } },
+      messages: [{ role: "user", content: prompt(input) }],
+    })
+    .catch((err) => {
+      throw aiProblem(err);
+    });
   if (response.stop_reason === "refusal") return [];
   const text = response.content.find((b) => b.type === "text");
   if (!text || text.type !== "text") return [];
