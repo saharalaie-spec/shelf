@@ -1,6 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { describe, expect, it, vi } from "vitest";
-import { aiProblem } from "@/lib/ai";
+import { aiProblem, cleanKey } from "@/lib/ai";
 import { AuthError } from "@/lib/auth";
 
 const body = (message: string) => ({ type: "error", error: { type: "invalid_request_error", message } });
@@ -25,5 +25,13 @@ describe("aiProblem", () => {
   it("leaves other errors alone", () => {
     const err = new Error("db down");
     expect(aiProblem(err)).toBe(err);
+  });
+});
+
+describe("cleanKey", () => {
+  it("drops what a paste can add around the key", () => {
+    expect(cleanKey("sk-ant-api03-abc\n")).toBe("sk-ant-api03-abc");
+    expect(cleanKey(' "sk-ant-api03-abc" ')).toBe("sk-ant-api03-abc");
+    expect(cleanKey("")).toBeUndefined();
   });
 });

@@ -6,6 +6,12 @@ import type { Candidate, Kind } from "./types";
 /** Photo and screenshot reading lights up when an Anthropic credential is configured. */
 export const aiEnabled = () => Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
+/** The key as pasted into a dashboard can carry stray spaces, line breaks or quotes; those make it "invalid". */
+export const cleanKey = (key: string | undefined) => key?.trim().replace(/^["']|["']$/g, "").trim() || undefined;
+
+/** A Claude client, tolerant of how the key was pasted. */
+export const anthropic = () => new Anthropic({ apiKey: cleanKey(process.env.ANTHROPIC_API_KEY) });
+
 /** Why a Claude request failed, in words that say what to fix, instead of a bare "Something went wrong". */
 export function aiProblem(err: unknown): unknown {
   if (!(err instanceof Anthropic.APIError)) return err;
@@ -69,7 +75,7 @@ export async function itemsFromPhoto(
   data: string,
   mediaType: "image/jpeg" | "image/png" | "image/webp",
 ): Promise<Candidate[]> {
-  const client = new Anthropic();
+  const client = anthropic();
   const response = await client.beta.messages
     .create({
       model: "claude-opus-5-5",
