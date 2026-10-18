@@ -10,20 +10,22 @@ import { SetupNeeded } from "@/components/SetupNeeded";
 
 export const metadata: Metadata = { title: "Get started · Trove" };
 
-/** Getting started: from a friend's trove, one thing you loved per collection, then a quick deck. */
+/** Getting started: two things you loved per collection, a friend's trove, then a quick deck. */
 export default async function StartPage({ searchParams }: PageProps<"/start">) {
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
   if (!user) redirect("/");
   const from = (await searchParams).from;
+  const ref = typeof from === "string" ? from : null;
   const [start, own] = await Promise.all([
-    startFrom(user.id, typeof from === "string" ? from : null),
+    startFrom(user.id, ref),
     listItems(user.id, { includePrivate: true }),
   ]);
   return (
     <Start
       name={user.name}
       from={start}
+      invited={Boolean(ref && start && (start.friend.id === ref || start.friend.handle === ref))}
       mine={own.map((i) => ({ id: i.id, key: i.key, kind: i.kind, title: i.title, status: i.status }))}
       features={{ deck: suggestEnabled() }}
     />

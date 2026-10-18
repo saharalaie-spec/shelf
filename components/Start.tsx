@@ -8,11 +8,11 @@ import { api } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import { SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import type { StartFrom } from "@/lib/start";
-import type { DeckCard, DeckKind } from "@/lib/suggest";
-import { KINDS, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
+import type { DeckCard } from "@/lib/suggest";
+import { KINDS, type AreaHit, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile, spotLine } from "./Spot";
-import { Avatar, Button, Icon, Logo } from "./ui";
+import { Avatar, Button, Icon, KIND_ICON, Logo } from "./ui";
 
 type Mine = { id: string; key: string; kind: Kind; title: string; status: Status };
 
@@ -20,31 +20,41 @@ type Props = {
   name: string | null;
   /** The friend to start from, or null when there's no one yet. */
   from: StartFrom | null;
+  /** Came in on that friend's invite link: start with their trove. */
+  invited: boolean;
   /** What's on your lists already. */
   mine: Mine[];
   features: { deck: boolean };
 };
 
-type Step = "friend" | "loved" | "deck";
+type Step = "friend" | `loved:${Kind}` | "deck";
+const lovedKind = (s: Step) => (s.startsWith("loved:") ? (s.slice(6) as Kind) : null);
 
 /** Something saved here, by work key. `id` starts "tmp:" until the server answers. */
 type Have = Map<string, { id: string; kind: Kind; status: Status }>;
-type Save = (kind: Kind, hit: Hit, status: Status, extra?: { recBy?: Pick<RecBy, "id">; destination?: object }) => void;
-
-const PROMPT: Record<DeckKind, { label: string; placeholder: string }> = {
-  book: { label: "A book you loved", placeholder: "Search books" },
-  podcast: { label: "A podcast you love", placeholder: "Search podcasts" },
-  screen: { label: "Something you loved watching", placeholder: "Search movies and shows" },
-};
+type Save = (
+  kind: Kind,
+  hit: Hit,
+  status: Status,
+  extra?: { recBy?: Pick<RecBy, "id">; destination?: object; destinationId?: string },
+) => void;
 
 const LOVED = (kind: Kind) => (kind === "place" ? "Been" : "Me too");
 const WANT = (kind: Kind) => (kind === "place" ? "Want to go" : "Want it");
 
-/** Getting started without logging everything: start from a friend, name one thing you loved, then a quick deck. */
-export function Start({ name, from, mine, features }: Props) {
+/**
+ * Getting started without logging everything: two things you loved per collection (each one skippable), a friend's
+ * trove (first, when you came in on their invite), then a quick deck.
+ */
+export function Start({ name, from, invited, mine, features }: Props) {
   const router = useRouter();
-  const steps: Step[] = ["friend", "loved", ...(features.deck ? (["deck"] as const) : [])];
-  const [step, setStep] = useState<Step>("friend");
+  const loved = KINDS.map((k) => `loved:${k}` as const);
+  const steps: Step[] = [
+    ...(invited ? (["friend", ...loved] as const) : ([...loved, "friend"] as const)),
+    ...(features.deck ? (["deck"] as const) : []),
+  ];
+  const [step, setStep] = useState<Step>(steps[0]);
+  const [picks, setPicks] = useState<Partial<Record<Kind, Hit[]>>>({});
   const [have, setHave] = useState<Have>(() => new Map(mine.map((m) => [m.key, { id: m.id, kind: m.kind, status: m.status }])));
   const [finishing, setFinishing] = useState(false);
   const at = steps.indexOf(step);
@@ -60,7 +70,11 @@ export function Start({ name, from, mine, features }: Props) {
         return;
       }
       const { added } = await api<{ added: Item[] }>("/api/items", {
-        body: { kind, items: [{ ...hit, status, recBy: extra.recBy ?? null }], ...(extra.destination ? { destination: extra.destination } : {}) },
+        body: {
+          kind,
+          items: [{ ...hit, status, recBy: extra.recBy ?? null }],
+          ...(extra.destinationId ? { destinationId: extra.destinationId } : extra.destination ? { destination: extra.destination } : {}),
+        },
       });
       setHave((m) => new Map(m).set(hit.key, { id: added[0]?.id ?? `saved:${hit.key}`, kind, status }));
     } catch (err) {
@@ -80,6 +94,32 @@ export function Start({ name, from, mine, features }: Props) {
       window.scrollTo({ top: 0 });
     } else finish();
   };
+  // A collection's second pick moves on by itself, unless you've moved on already.
+  const advanceFrom = (from: Step) =>
+    setTimeout(() => {
+      setStep((cur) => (cur === from && steps.indexOf(cur) < steps.length - 1 ? steps[steps.indexOf(cur) + 1] : cur));
+      window.scrollTo({ top: 0 });
+    }, 650);
+
+  const pickLoved = (kind: Kind, hit: Hit, destinationId?: string) => {
+    const now = [...(picks[kind] ?? []).filter((h) => h.key !== hit.key), hit];
+    setPicks((p) => ({ ...p, [kind]: now }));
+    save(kind, hit, "read", { destinationId });
+    if (now.length >= ASK_COUNT) advanceFrom(step);
+  };
+  const removeLoved = (kind: Kind, hit: Hit) => {
+    setPicks((p) => ({ ...p, [kind]: (p[kind] ?? []).filter((h) => h.key !== hit.key) }));
+    const had = have.get(hit.key);
+    if (!had || had.id.startsWith("tmp:") || mine.some((m) => m.id === had.id)) return;
+    setHave((m) => {
+      const n = new Map(m);
+      n.delete(hit.key);
+      return n;
+    });
+    api(`/api/items/${had.id}`, { method: "DELETE" }).catch((err) => toast.error((err as Error).message));
+  };
+  const askingFor = lovedKind(step);
+  const skipping = askingFor !== null && !(picks[askingFor] ?? []).length;
   const finish = async () => {
     setFinishing(true);
     try {
@@ -106,7 +146,7 @@ export function Start({ name, from, mine, features }: Props) {
             ))}
           </span>
           <button onClick={finish} disabled={finishing} className="h-9 rounded-full px-2 text-[15px] font-medium text-ink-2 active:opacity-60">
-            Skip
+            Skip all
           </button>
         </div>
       </header>
@@ -120,8 +160,17 @@ export function Start({ name, from, mine, features }: Props) {
           transition={{ type: "spring", stiffness: 380, damping: 36 }}
           className="px-5"
         >
-          {step === "friend" && <FromFriend from={from} name={name} have={have} save={save} />}
-          {step === "loved" && <Loved have={have} save={save} mine={mine} />}
+          {step === "friend" && <FromFriend from={from} have={have} save={save} />}
+          {askingFor && (
+            <LovedKind
+              welcome={at === 0 ? (name ? `Welcome, ${name}. A few quick ones to start.` : "Welcome to Trove. A few quick ones to start.") : null}
+              kind={askingFor}
+              picks={picks[askingFor] ?? []}
+              have={have}
+              onPick={(h, d) => pickLoved(askingFor, h, d)}
+              onRemove={(h) => removeLoved(askingFor, h)}
+            />
+          )}
           {step === "deck" && <Deck have={have} save={save} />}
         </motion.main>
       </AnimatePresence>
@@ -129,8 +178,13 @@ export function Start({ name, from, mine, features }: Props) {
       <div className="fixed inset-x-0 bottom-0 z-30 bg-gradient-to-t from-paper via-paper/95 to-transparent px-5 pt-6 pb-safe">
         <div className="mx-auto flex max-w-xl items-center gap-3 pb-3">
           <p className="min-w-0 flex-1 text-[14px] text-muted">{added ? `${added} added so far` : "Nothing has to be complete."}</p>
-          <Button onClick={next} loading={finishing} icon={at === steps.length - 1 ? undefined : <Icon name="arrow" size={18} />}>
-            {at === steps.length - 1 ? "Done" : "Next"}
+          <Button
+            onClick={next}
+            loading={finishing}
+            variant={skipping ? "secondary" : "primary"}
+            icon={at === steps.length - 1 || skipping ? undefined : <Icon name="arrow" size={18} />}
+          >
+            {skipping ? SKIP[askingFor] : at === steps.length - 1 ? "Done" : "Next"}
           </Button>
         </div>
       </div>
@@ -139,7 +193,7 @@ export function Start({ name, from, mine, features }: Props) {
 }
 
 /** Step one: a friend's trove, their picks for you up top, each thing a tap from your lists. */
-function FromFriend({ from, name, have, save }: { from: StartFrom | null; name: string | null; have: Have; save: Save }) {
+function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; save: Save }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Partial<Record<Kind, boolean>>>({});
@@ -157,7 +211,7 @@ function FromFriend({ from, name, have, save }: { from: StartFrom | null; name: 
     };
     return (
       <>
-        <Title title={name ? `Welcome, ${name}` : "Welcome to Trove"} sub="You don’t have to log everything you’ve ever read or watched. Start small, and start from a friend." />
+        <Title title="Start from a friend" sub="Tap what a friend loves and you’ll have a trove in a minute. When your friends join, you’ll start from theirs." />
         <section className="mt-6 rounded-3xl bg-surface p-5 shadow-book">
           <p className="font-serif text-[20px] leading-tight font-medium">Start from {SAMPLE_FRIEND_NAME}’s picks</p>
           <p className="mt-1 text-[15px] leading-snug text-muted">
@@ -293,102 +347,221 @@ function Toggle({ on, onClick, label, children }: { on: boolean; onClick: () => 
   );
 }
 
-/** Step two: one thing you loved in each collection, if you like. Any of them can stay empty. */
-function Loved({ have, save, mine }: { have: Have; save: Save; mine: Mine[] }) {
+const ASK: Record<Kind, { title: string; placeholder: string }> = {
+  book: { title: "Two books you loved", placeholder: "Search books" },
+  podcast: { title: "Two podcasts you love", placeholder: "Search podcasts" },
+  screen: { title: "Two movies or shows you loved", placeholder: "Search movies and shows" },
+  place: { title: "Two places you loved", placeholder: "Search spots" },
+};
+const ASK_COUNT = 2;
+const SKIP: Record<Kind, string> = { book: "Skip books", podcast: "Skip podcasts", screen: "Skip movies & TV", place: "Skip places" };
+
+/** One collection at a time: two things you loved, or skip. Picking the second moves on by itself. */
+function LovedKind({
+  welcome,
+  kind,
+  picks,
+  have,
+  onPick,
+  onRemove,
+}: {
+  /** On the very first screen. */
+  welcome: string | null;
+  kind: Kind;
+  picks: Hit[];
+  have: Have;
+  onPick: (hit: Hit, destinationId?: string) => void;
+  onRemove: (hit: Hit) => void;
+}) {
+  const v = VOCAB[kind];
+  const isPlace = kind === "place";
+  const [city, setCity] = useState<{ id: string; name: string } | null>(null);
+  const full = picks.length >= ASK_COUNT;
+
   return (
     <>
-      <Title title="One you loved, from each" sub="Only if one comes to mind. Ideas for you start from these; skip any you like." />
-      {(Object.keys(PROMPT) as DeckKind[]).map((kind) => (
-        <QuickAdd key={kind} kind={kind} have={have} mine={mine} save={save} />
-      ))}
+      <div className="pt-2">
+        {welcome && <p className="mb-4 text-[15px] font-medium text-ink-2">{welcome}</p>}
+        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-full text-white" style={{ background: v.tint }}>
+          <Icon name={KIND_ICON[kind]} size={18} />
+        </span>
+        <h1 className="font-serif text-[32px] leading-[1.05] font-medium tracking-tight text-balance">{ASK[kind].title}</h1>
+        <p className="mt-2 text-[16px] leading-snug text-muted">Nothing comes to mind? Skip it.</p>
+      </div>
+
+      {picks.length > 0 && (
+        <ul className="mt-5 space-y-2">
+          {picks.map((h) => (
+            <li key={h.key} className="flex items-center gap-3 rounded-2xl bg-surface p-2 pr-3 shadow-book">
+              {isPlace ? <SpotTile spot={h} size={44} /> : <Cover book={h} shape={v.shape} className="w-10 shrink-0" rounded="rounded-[3px]" />}
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[15px] font-medium">{h.title}</span>
+                <span className="block truncate text-[13px] text-muted">{(isPlace ? spotLine(h) : h.author) || v.one}</span>
+              </span>
+              <button
+                onClick={() => onRemove(h)}
+                aria-label={`Remove ${h.title}`}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-surface-2"
+              >
+                <Icon name="x" size={17} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!full &&
+        (isPlace && !city ? (
+          <CitySearch onCity={setCity} />
+        ) : (
+          <div className="mt-5">
+            {isPlace && city && (
+              <p className="mb-2 px-1 text-[14px] text-muted">
+                In <span className="font-medium text-ink">{city.name}</span> ·{" "}
+                <button onClick={() => setCity(null)} className="font-medium text-ink-2 underline underline-offset-2">
+                  change
+                </button>
+              </p>
+            )}
+            <Search
+              key={city?.id ?? kind}
+              url={(q) => `/api/search?kind=${kind}${city ? `&dest=${city.id}` : ""}&q=${encodeURIComponent(q)}`}
+              placeholder={isPlace && city ? `Search spots in ${city.name}` : ASK[kind].placeholder}
+              label={ASK[kind].title}
+              render={(h: Hit) => (
+                <>
+                  {isPlace ? <SpotTile spot={h} size={36} /> : <Cover book={h} shape={v.shape} className="w-9 shrink-0" rounded="rounded-[3px]" />}
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-[15px] font-medium">{h.title}</span>
+                    <span className="block truncate text-[13px] text-muted">
+                      {isPlace ? spotLine(h) : [h.author, h.year].filter(Boolean).join(" · ")}
+                    </span>
+                  </span>
+                  <Icon name={have.has(h.key) ? "check" : "plus"} size={18} className={`shrink-0 ${have.has(h.key) ? "text-good" : "text-ink-2"}`} />
+                </>
+              )}
+              onPick={(h: Hit) => onPick(h, city?.id)}
+            />
+            <p className="mt-2 px-1 text-[13px] text-muted">{picks.length ? "One more, or move on." : `Up to ${ASK_COUNT}.`}</p>
+          </div>
+        ))}
     </>
   );
 }
 
-function QuickAdd({ kind, have, mine, save }: { kind: DeckKind; have: Have; mine: Mine[]; save: Save }) {
-  const v = VOCAB[kind];
+/** Places start with a city: pick one from the map, and it's saved as one of your places. */
+function CitySearch({ onCity }: { onCity: (d: { id: string; name: string }) => void }) {
+  const [saving, setSaving] = useState(false);
+  const pick = async (a: AreaHit) => {
+    setSaving(true);
+    try {
+      const { destination } = await api<{ destination: { id: string; name: string } }>("/api/destinations", {
+        body: { name: a.name, country: a.country, label: a.label, lat: a.lat, lon: a.lon, bbox: a.bbox },
+      });
+      onCity(destination);
+    } catch (err) {
+      toast.error((err as Error).message);
+      setSaving(false);
+    }
+  };
+  return (
+    <div className="mt-5">
+      <p className="mb-2 px-1 text-[15px] font-medium">First, which city?</p>
+      <Search
+        url={(q) => `/api/search?kind=area&q=${encodeURIComponent(q)}`}
+        placeholder="Search cities"
+        label="Which city?"
+        disabled={saving}
+        render={(a: AreaHit) => (
+          <>
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3d5a3c] text-white">
+              <Icon name="pin" size={17} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-[15px] font-medium">{a.name}</span>
+              <span className="block truncate text-[13px] text-muted">{[a.label, a.country].filter(Boolean).join(" · ")}</span>
+            </span>
+          </>
+        )}
+        onPick={pick}
+      />
+    </div>
+  );
+}
+
+/** A search box with a few results under it. */
+function Search<T extends { key: string }>({
+  url,
+  placeholder,
+  label,
+  render,
+  onPick,
+  disabled,
+}: {
+  url: (q: string) => string;
+  placeholder: string;
+  label: string;
+  render: (r: T) => React.ReactNode;
+  onPick: (r: T) => void;
+  disabled?: boolean;
+}) {
   const [q, setQ] = useState("");
-  const [results, setResults] = useState<{ q: string; hits: Hit[] } | null>(null);
-  const [savedHere, setSavedHere] = useState<Hit[]>([]);
+  const [results, setResults] = useState<{ q: string; items: T[] } | null>(null);
   const text = q.trim();
 
   useEffect(() => {
     if (text.length < 2) return;
     let live = true;
     const t = setTimeout(() => {
-      api<{ results: Hit[] }>(`/api/search?kind=${kind}&q=${encodeURIComponent(text)}`)
-        .then((r) => live && setResults({ q: text, hits: r.results.slice(0, 4) }))
-        .catch(() => live && setResults({ q: text, hits: [] }));
+      api<{ results: T[] }>(url(text))
+        .then((r) => live && setResults({ q: text, items: r.results.slice(0, 4) }))
+        .catch(() => live && setResults({ q: text, items: [] }));
     }, 280);
     return () => {
       live = false;
       clearTimeout(t);
     };
-  }, [kind, text]);
+    // The url builder is a fresh function each render; what it depends on is in the component's key.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text]);
 
-  const add = (hit: Hit) => {
-    save(kind, hit, "read");
-    setSavedHere((s) => (s.some((h) => h.key === hit.key) ? s : [...s, hit]));
-    setQ("");
-    setResults(null);
-  };
-  const shown = text.length >= 2 && results ? results.hits : [];
-  const already = mine.filter((m) => m.kind === kind && m.status === "read").length;
-
+  const shown = text.length >= 2 && results ? results.items : [];
   return (
-    <section className="mt-7">
-      <label htmlFor={`start-${kind}`} className="mb-2 flex items-center gap-2 px-1 text-[16px] font-medium">
-        <span className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ background: v.tint }}>
-          <Icon name={kind === "book" ? "book" : kind === "podcast" ? "headphones" : "film"} size={15} />
-        </span>
-        {PROMPT[kind].label}
-      </label>
+    <>
       <div className="relative">
         <Icon name="search" size={18} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" />
         <input
-          id={`start-${kind}`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={PROMPT[kind].placeholder}
+          placeholder={placeholder}
+          aria-label={label}
           autoComplete="off"
           className="h-12 w-full rounded-2xl border border-line bg-surface pr-4 pl-11 text-[16px] outline-none focus:border-ink"
         />
       </div>
       {shown.length > 0 && (
         <ul className="mt-1 rounded-2xl bg-surface p-1 shadow-book">
-          {shown.map((h) => (
-            <li key={h.key}>
-              <button onClick={() => add(h)} className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-surface-2">
-                <Cover book={h} shape={v.shape} className="w-9 shrink-0" rounded="rounded-[3px]" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[15px] font-medium">{h.title}</span>
-                  <span className="block truncate text-[13px] text-muted">{[h.author, h.year].filter(Boolean).join(" · ")}</span>
-                </span>
-                {have.has(h.key) ? (
-                  <Icon name="check" size={18} className="shrink-0 text-good" />
-                ) : (
-                  <Icon name="plus" size={18} className="shrink-0 text-ink-2" />
-                )}
+          {shown.map((r) => (
+            <li key={r.key}>
+              <button
+                disabled={disabled}
+                onClick={() => {
+                  onPick(r);
+                  setQ("");
+                  setResults(null);
+                }}
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-surface-2 disabled:opacity-50"
+              >
+                {render(r)}
               </button>
             </li>
           ))}
         </ul>
       )}
-      {text.length >= 2 && results?.q === text && !results.hits.length && (
-        <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact title?</p>
+      {text.length >= 2 && results?.q === text && !results.items.length && (
+        <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact name?</p>
       )}
-      {savedHere.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {savedHere.map((h) => (
-            <li key={h.key} className="flex h-8 max-w-full items-center gap-1 rounded-full bg-ink px-3 text-[13px] font-medium text-paper">
-              <Icon name="check" size={14} className="shrink-0" />
-              <span className="truncate">{h.title}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-      {already > savedHere.length && <p className="mt-1 px-1 text-[13px] text-muted">{already} on your lists</p>}
-    </section>
+    </>
   );
 }
 
