@@ -188,7 +188,8 @@ export type DeckKind = (typeof DECK_KINDS)[number];
 export type DeckCard = { kind: DeckKind; hit: Hit };
 export type DeckAsked = { kind: DeckKind; title: string; creator: string; year: number };
 export type DeckAsk = (input: { taste: Taste; exclude: string[] }) => Promise<DeckAsked[]>;
-const DECK_SIZE = 15;
+// Short on purpose: enough to learn a taste, not a chore.
+const DECK_SIZE = 9;
 
 const DECK_SCHEMA = {
   type: "object",

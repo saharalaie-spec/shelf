@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl } from "@/lib/config";
 import { startFrom } from "@/lib/start";
@@ -26,7 +25,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
       name={user.name}
       from={start}
       mine={own.map((i) => ({ id: i.id, key: i.key, kind: i.kind, title: i.title, status: i.status }))}
-      features={{ photo: aiEnabled(), deck: suggestEnabled() }}
+      features={{ deck: suggestEnabled() }}
     />
   );
 }

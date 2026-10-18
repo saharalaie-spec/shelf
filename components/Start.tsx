@@ -9,13 +9,9 @@ import { VOCAB } from "@/lib/kinds";
 import { SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import type { StartFrom } from "@/lib/start";
 import type { DeckCard, DeckKind } from "@/lib/suggest";
-import { KINDS, type Candidate, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
-import { PhotoView } from "./add/PhotoView";
-import { ReviewView } from "./add/ReviewView";
+import { KINDS, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
-import { Sheet } from "./Sheet";
 import { SpotTile, spotLine } from "./Spot";
-import type { TroveActions } from "./TroveApp";
 import { Avatar, Button, Icon, Logo } from "./ui";
 
 type Mine = { id: string; key: string; kind: Kind; title: string; status: Status };
@@ -26,7 +22,7 @@ type Props = {
   from: StartFrom | null;
   /** What's on your lists already. */
   mine: Mine[];
-  features: { photo: boolean; deck: boolean };
+  features: { deck: boolean };
 };
 
 type Step = "friend" | "loved" | "deck";
@@ -35,10 +31,10 @@ type Step = "friend" | "loved" | "deck";
 type Have = Map<string, { id: string; kind: Kind; status: Status }>;
 type Save = (kind: Kind, hit: Hit, status: Status, extra?: { recBy?: Pick<RecBy, "id">; destination?: object }) => void;
 
-const DECK_KINDS_LABEL: Record<DeckKind, { prompt: string; snap: string }> = {
-  book: { prompt: "A book you loved", snap: "Or snap your shelf" },
-  podcast: { prompt: "A podcast you love", snap: "Or screenshot your podcast app" },
-  screen: { prompt: "Something you loved watching", snap: "Or screenshot a watchlist" },
+const PROMPT: Record<DeckKind, { label: string; placeholder: string }> = {
+  book: { label: "A book you loved", placeholder: "Search books" },
+  podcast: { label: "A podcast you love", placeholder: "Search podcasts" },
+  screen: { label: "Something you loved watching", placeholder: "Search movies and shows" },
 };
 
 const LOVED = (kind: Kind) => (kind === "place" ? "Been" : "Me too");
@@ -125,7 +121,7 @@ export function Start({ name, from, mine, features }: Props) {
           className="px-5"
         >
           {step === "friend" && <FromFriend from={from} name={name} have={have} save={save} />}
-          {step === "loved" && <Loved have={have} save={save} photo={features.photo} mine={mine} />}
+          {step === "loved" && <Loved have={have} save={save} mine={mine} />}
           {step === "deck" && <Deck have={have} save={save} />}
         </motion.main>
       </AnimatePresence>
@@ -297,33 +293,19 @@ function Toggle({ on, onClick, label, children }: { on: boolean; onClick: () => 
   );
 }
 
-/** Step two: one thing you loved in each collection, found by typing, or a whole shelf from a photo. */
-function Loved({ have, save, photo, mine }: { have: Have; save: Save; photo: boolean; mine: Mine[] }) {
-  const [snap, setSnap] = useState<DeckKind | null>(null);
-  const [lastSnap, setLastSnap] = useState<DeckKind>("book");
+/** Step two: one thing you loved in each collection, if you like. Any of them can stay empty. */
+function Loved({ have, save, mine }: { have: Have; save: Save; mine: Mine[] }) {
   return (
     <>
-      <Title title="One you loved, from each" sub="Just one is enough. Ideas for you start from these, and you can add more any time." />
-      {(Object.keys(DECK_KINDS_LABEL) as DeckKind[]).map((kind) => (
-        <QuickAdd
-          key={kind}
-          kind={kind}
-          have={have}
-          mine={mine}
-          save={save}
-          onSnap={photo ? () => (setSnap(kind), setLastSnap(kind)) : undefined}
-        />
+      <Title title="One you loved, from each" sub="Only if one comes to mind. Ideas for you start from these; skip any you like." />
+      {(Object.keys(PROMPT) as DeckKind[]).map((kind) => (
+        <QuickAdd key={kind} kind={kind} have={have} mine={mine} save={save} />
       ))}
-      <p className="mt-8 flex gap-2 text-[14px] leading-snug text-muted">
-        <Icon name="pin" size={16} className="mt-px shrink-0" />
-        Places start with a city: add one, and the spots you loved there, from Places whenever you like.
-      </p>
-      <SnapSheet kind={snap ?? lastSnap} open={snap !== null} onOpenChange={(o) => !o && setSnap(null)} have={have} save={save} />
     </>
   );
 }
 
-function QuickAdd({ kind, have, mine, save, onSnap }: { kind: DeckKind; have: Have; mine: Mine[]; save: Save; onSnap?: () => void }) {
+function QuickAdd({ kind, have, mine, save }: { kind: DeckKind; have: Have; mine: Mine[]; save: Save }) {
   const v = VOCAB[kind];
   const [q, setQ] = useState("");
   const [results, setResults] = useState<{ q: string; hits: Hit[] } | null>(null);
@@ -359,7 +341,7 @@ function QuickAdd({ kind, have, mine, save, onSnap }: { kind: DeckKind; have: Ha
         <span className="flex h-7 w-7 items-center justify-center rounded-full text-white" style={{ background: v.tint }}>
           <Icon name={kind === "book" ? "book" : kind === "podcast" ? "headphones" : "film"} size={15} />
         </span>
-        {DECK_KINDS_LABEL[kind].prompt}
+        {PROMPT[kind].label}
       </label>
       <div className="relative">
         <Icon name="search" size={18} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" />
@@ -367,7 +349,7 @@ function QuickAdd({ kind, have, mine, save, onSnap }: { kind: DeckKind; have: Ha
           id={`start-${kind}`}
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder={v.placeholder}
+          placeholder={PROMPT[kind].placeholder}
           autoComplete="off"
           className="h-12 w-full rounded-2xl border border-line bg-surface pr-4 pl-11 text-[16px] outline-none focus:border-ink"
         />
@@ -405,56 +387,8 @@ function QuickAdd({ kind, have, mine, save, onSnap }: { kind: DeckKind; have: Ha
           ))}
         </ul>
       )}
-      <div className="mt-1 flex items-center justify-between gap-2 px-1">
-        {onSnap ? (
-          <button onClick={onSnap} className="flex h-9 items-center gap-1.5 text-[14px] font-medium text-ink-2 active:opacity-60">
-            <Icon name="camera" size={16} /> {DECK_KINDS_LABEL[kind].snap}
-          </button>
-        ) : (
-          <span />
-        )}
-        {already > savedHere.length && <span className="text-[13px] text-muted">{already} on your lists</span>}
-      </div>
+      {already > savedHere.length && <p className="mt-1 px-1 text-[13px] text-muted">{already} on your lists</p>}
     </section>
-  );
-}
-
-/** A whole shelf (or app screen) at once, with the usual photo reader and review. */
-function SnapSheet({ kind, open, onOpenChange, have, save }: { kind: DeckKind; open: boolean; onOpenChange: (o: boolean) => void; have: Have; save: Save }) {
-  const [items, setItems] = useState<Candidate[] | null>(null);
-  // Start from the photo each time the sheet opens.
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) setItems(null);
-  }
-  const trove: TroveActions = {
-    kind,
-    items: [],
-    statusOf: new Map([...have.entries()].filter(([, h]) => h.kind === kind).map(([key, h]) => [key, h.status])),
-    destinations: [],
-    onDestination: () => {},
-    destination: null,
-    target: "read",
-    add: async (hits) => {
-      const fresh = hits.filter((h) => !have.has(h.key));
-      if (!fresh.length) return [];
-      const { added } = await api<{ added: Item[] }>("/api/items", { body: { kind, items: fresh.map((h) => ({ ...h, status: h.status ?? "read" })) } });
-      added.forEach((a) => save(kind, a, a.status));
-      toast(`Added ${added.length} to ${VOCAB[kind].sections.read}`);
-      return added;
-    },
-  };
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={DECK_KINDS_LABEL[kind].snap.replace(/^Or s/, "S")} tall>
-      <div className="flex min-h-0 flex-1 flex-col">
-        {items ? (
-          <ReviewView items={items} trove={trove} onAdded={() => onOpenChange(false)} />
-        ) : (
-          <PhotoView kind={kind} onReview={setItems} />
-        )}
-      </div>
-    </Sheet>
   );
 }
 
