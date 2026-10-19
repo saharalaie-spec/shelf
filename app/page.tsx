@@ -4,6 +4,7 @@ import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { suggestEnabled } from "@/lib/suggest";
+import { unseenThanks } from "@/lib/thanks";
 import { todayCandidates } from "@/lib/today";
 import { summarize } from "@/lib/trove";
 import { incomingRequests } from "@/lib/social";
@@ -18,10 +19,11 @@ export default async function HomePage() {
   // New here: get started first (it can be skipped).
   if (!user.started) redirect("/start");
   await refreshSampleFriendFor(user.id);
-  const [summaries, incoming, destinations] = await Promise.all([
+  const [summaries, incoming, destinations, thanks] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
     incomingRequests(user),
     listDestinations(user.id, { includePrivate: true, includeEmpty: true }),
+    unseenThanks(user.id),
   ]);
   const today = await todayCandidates(user.id, new Map(destinations.map((d) => [d.id, d.name])));
   return (
@@ -37,6 +39,7 @@ export default async function HomePage() {
       pendingRequests={incoming.length}
       summaries={summaries}
       today={today}
+      thanks={thanks}
       suggest={suggestEnabled()}
     />
   );

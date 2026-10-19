@@ -601,3 +601,52 @@ describe("getting started", () => {
     expect(seen[1]).toEqual(expect.arrayContaining(["Pod 1", "Film 1"]));
   });
 });
+
+describe("closing the loop", () => {
+  it("tells the friend who recommended it, once, and they can put it away", async () => {
+    const { sendThanks, unseenThanks, markThanksSeen } = await import("@/lib/thanks");
+    const me = await signUp({ phone: "+14155550931" }, "Ro");
+    const bo = await signUp({ phone: "+14155550932" }, "Bo");
+    const stranger = await signUp({ phone: "+14155550933" }, "Zed");
+    await social.acceptInvite(bo, await social.inviteToken(me.id));
+    const [fromBo, fromMom] = await trove.addItems(me.id, "book", [
+      book("fx:t1", "Gilead", { recBy: { id: bo.id, name: "Bo" } }),
+      book("fx:t2", "Mom's pick", { recBy: { id: null, name: "Mom" } }),
+    ]);
+    const [fromZed] = await trove.addItems(me.id, "book", [book("fx:t3", "Zed's pick", { recBy: { id: stranger.id, name: "Zed" } })]);
+
+    expect(await sendThanks(me.id, fromBo.id, "  You were right.  ")).toEqual({ to: "Bo" });
+    await sendThanks(me.id, fromBo.id, "Again");
+    await expect(sendThanks(me.id, fromMom.id)).rejects.toThrow(/no friend/);
+    await expect(sendThanks(me.id, fromZed.id)).rejects.toThrow(/no friend/);
+    // Not someone else's item.
+    await expect(sendThanks(bo.id, fromBo.id)).rejects.toThrow(/no friend/);
+
+    const notes = await unseenThanks(bo.id);
+    expect(notes.map((t) => [t.from.name, t.title, t.message])).toEqual([["Ro", "Gilead", "You were right."]]);
+    expect((await trove.listItems(me.id, { includePrivate: true })).find((i) => i.id === fromBo.id)!.thanked).toBe(true);
+    // Only the owner learns whether they said thanks.
+    expect((await trove.listItems(me.id)).find((i) => i.id === fromBo.id)!.thanked).toBeUndefined();
+
+    await markThanksSeen(stranger.id, [notes[0].id]);
+    expect(await unseenThanks(bo.id)).toHaveLength(1);
+    await markThanksSeen(bo.id, [notes[0].id]);
+    expect(await unseenThanks(bo.id)).toEqual([]);
+  });
+
+  it("offers recent recommenders first for who told you", async () => {
+    const me = await signUp({ phone: "+14155550941" }, "Ari");
+    const ann = await signUp({ phone: "+14155550942" }, "Ann");
+    const cal = await signUp({ phone: "+14155550943" }, "Cal");
+    await social.acceptInvite(ann, await social.inviteToken(me.id));
+    await social.acceptInvite(cal, await social.inviteToken(me.id));
+    await trove.addItems(me.id, "book", [
+      book("fx:r1", "One", { recBy: { id: cal.id, name: "Cal" }, addedAt: 2000 }),
+      book("fx:r2", "Two", { recBy: { id: null, name: "Mom" }, addedAt: 1000 }),
+      book("fx:r3", "Three", { recBy: { id: null, name: "Barber" }, addedAt: 3000 }),
+    ]);
+    const r = await social.recommenders(me.id);
+    expect(r.friends.map((f) => f.name)).toEqual(["Cal", "Ann"]);
+    expect(r.names).toEqual(["Barber", "Mom"]);
+  });
+});

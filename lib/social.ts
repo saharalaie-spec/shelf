@@ -400,3 +400,32 @@ export async function acceptInvite(user: User, token: string): Promise<Person> {
   await befriend(inviter.id, user.id);
   return inviter;
 }
+
+/**
+ * Who might have recommended something, for the quick "who told you?": friends (the ones whose picks you saved most
+ * recently first, then your circle), and the names you've typed before ("Mom").
+ */
+export async function recommenders(userId: string): Promise<{ friends: { id: string; name: string }[]; names: string[] }> {
+  const client = await db();
+  const [friends, names] = await Promise.all([
+    client.execute({
+      sql: `SELECT u.id, u.name,
+              (SELECT max(b.added_at) FROM books b WHERE b.user_id = ?1 AND b.rec_user_id = u.id) AS last_rec,
+              EXISTS (SELECT 1 FROM circle c WHERE c.user_id = ?1 AND c.friend_id = u.id) AS in_circle
+            FROM friendships f JOIN users u ON u.id = f.friend_id
+            WHERE f.user_id = ?1 AND u.name IS NOT NULL
+            ORDER BY last_rec IS NULL, last_rec DESC, in_circle DESC, lower(u.name)
+            LIMIT 30`,
+      args: [userId],
+    }),
+    client.execute({
+      sql: `SELECT rec_name FROM books WHERE user_id = ? AND rec_user_id IS NULL AND rec_name IS NOT NULL
+            GROUP BY lower(rec_name) ORDER BY max(added_at) DESC LIMIT 8`,
+      args: [userId],
+    }),
+  ]);
+  return {
+    friends: friends.rows.map((r) => ({ id: String(r.id), name: String(r.name) })),
+    names: names.rows.map((r) => String(r.rec_name)),
+  };
+}

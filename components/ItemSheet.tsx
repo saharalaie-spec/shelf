@@ -7,12 +7,13 @@ import { itemLinks } from "@/lib/client";
 import { PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
 import { PLACE_CATEGORIES } from "@/lib/place-categories";
 import { vocab } from "@/lib/kinds";
+import { SAMPLE_FRIEND_ID } from "@/lib/sample";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
-import { Avatar, Icon, Switch } from "./ui";
+import { Avatar, Button, Icon, Switch } from "./ui";
 
 const CATEGORY_LISTS: Record<Kind, readonly string[]> = {
   book: CATEGORIES,
@@ -29,6 +30,8 @@ type Props = {
   onNote: (book: Item, note: string) => void;
   /** A typed name, or null to clear. */
   onRecBy: (book: Item, name: string | null) => void;
+  /** Tell the friend who recommended it that you loved it. */
+  onThank: (book: Item, message: string) => Promise<void>;
   allCategories: string[];
   onClose: () => void;
   onCategories: (book: Item, categories: string[]) => void;
@@ -47,6 +50,7 @@ export function ItemSheet({
   destination,
   onNote,
   onRecBy,
+  onThank,
   allCategories,
   onClose,
   onCategories,
@@ -120,6 +124,9 @@ export function ItemSheet({
 
           {kind === "place" && <NoteField key={b.id} note={b.note} onSave={(n) => onNote(b, n)} />}
           <RecField key={`rec:${b.id}:${b.recBy?.id ?? ""}`} recBy={b.recBy} onSave={(n) => onRecBy(b, n)} />
+          {b.status === "read" && b.recBy?.id && b.recBy.id !== SAMPLE_FRIEND_ID && (
+            <TellField key={`tell:${b.id}`} name={b.recBy.name} told={Boolean(b.thanked)} onSend={(m) => onThank(b, m)} />
+          )}
 
           <label className="mt-3 flex cursor-pointer items-center gap-3 rounded-2xl bg-paper px-4 py-3">
             <Icon name="lock" size={20} className="shrink-0 text-ink-2" />
@@ -258,6 +265,48 @@ function RecField({ recBy, onSave }: { recBy: Item["recBy"]; onSave: (name: stri
         />
       </span>
     </label>
+  );
+}
+
+/** Finished something a friend recommended: tell them you loved it, with a word if you like. */
+function TellField({ name, told, onSend }: { name: string; told: boolean; onSend: (message: string) => Promise<void> }) {
+  const [message, setMessage] = useState("");
+  const [sending, setSending] = useState(false);
+  if (told) {
+    return (
+      <p className="mt-2 flex items-center gap-2 px-1 text-[14px] text-muted">
+        <Icon name="check" size={15} className="text-good" /> {name} knows you loved it
+      </p>
+    );
+  }
+  const send = async () => {
+    setSending(true);
+    try {
+      await onSend(message);
+    } finally {
+      setSending(false);
+    }
+  };
+  return (
+    <div className="mt-3 rounded-2xl bg-paper px-4 py-3">
+      <p className="text-[15px] font-medium">
+        Loved it? Tell {name}
+      </p>
+      <div className="mt-2 flex gap-2">
+        <input
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && send()}
+          placeholder="Add a word (optional)"
+          aria-label={`A word for ${name}`}
+          maxLength={280}
+          className="h-11 min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 text-[15px] outline-none focus:border-ink"
+        />
+        <Button onClick={send} loading={sending} className="h-11 px-4">
+          Send
+        </Button>
+      </div>
+    </div>
   );
 }
 

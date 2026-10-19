@@ -9,8 +9,9 @@ import { VOCAB } from "@/lib/kinds";
 import { SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import type { StartFrom } from "@/lib/start";
 import type { DeckCard } from "@/lib/suggest";
-import { KINDS, type AreaHit, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
+import { KINDS, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
+import { CitySearch, Search } from "./QuickSearch";
 import { SpotTile, spotLine } from "./Spot";
 import { Avatar, Button, Icon, KIND_ICON, Logo } from "./ui";
 
@@ -445,122 +446,6 @@ function LovedKind({
             <p className="mt-2 px-1 text-[13px] text-muted">{picks.length ? "One more, or move on." : `Up to ${ASK_COUNT}.`}</p>
           </div>
         ))}
-    </>
-  );
-}
-
-/** Places start with a city: pick one from the map, and it's saved as one of your places. */
-function CitySearch({ onCity }: { onCity: (d: { id: string; name: string }) => void }) {
-  const [saving, setSaving] = useState(false);
-  const pick = async (a: AreaHit) => {
-    setSaving(true);
-    try {
-      const { destination } = await api<{ destination: { id: string; name: string } }>("/api/destinations", {
-        body: { name: a.name, country: a.country, label: a.label, lat: a.lat, lon: a.lon, bbox: a.bbox },
-      });
-      onCity(destination);
-    } catch (err) {
-      toast.error((err as Error).message);
-      setSaving(false);
-    }
-  };
-  return (
-    <div className="mt-5">
-      <p className="mb-2 px-1 text-[15px] font-medium">First, which city?</p>
-      <Search
-        url={(q) => `/api/search?kind=area&q=${encodeURIComponent(q)}`}
-        placeholder="Search cities"
-        label="Which city?"
-        disabled={saving}
-        render={(a: AreaHit) => (
-          <>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3d5a3c] text-white">
-              <Icon name="pin" size={17} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-[15px] font-medium">{a.name}</span>
-              <span className="block truncate text-[13px] text-muted">{[a.label, a.country].filter(Boolean).join(" · ")}</span>
-            </span>
-          </>
-        )}
-        onPick={pick}
-      />
-    </div>
-  );
-}
-
-/** A search box with a few results under it. */
-function Search<T extends { key: string }>({
-  url,
-  placeholder,
-  label,
-  render,
-  onPick,
-  disabled,
-}: {
-  url: (q: string) => string;
-  placeholder: string;
-  label: string;
-  render: (r: T) => React.ReactNode;
-  onPick: (r: T) => void;
-  disabled?: boolean;
-}) {
-  const [q, setQ] = useState("");
-  const [results, setResults] = useState<{ q: string; items: T[] } | null>(null);
-  const text = q.trim();
-
-  useEffect(() => {
-    if (text.length < 2) return;
-    let live = true;
-    const t = setTimeout(() => {
-      api<{ results: T[] }>(url(text))
-        .then((r) => live && setResults({ q: text, items: r.results.slice(0, 4) }))
-        .catch(() => live && setResults({ q: text, items: [] }));
-    }, 280);
-    return () => {
-      live = false;
-      clearTimeout(t);
-    };
-    // The url builder is a fresh function each render; what it depends on is in the component's key.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
-
-  const shown = text.length >= 2 && results ? results.items : [];
-  return (
-    <>
-      <div className="relative">
-        <Icon name="search" size={18} className="pointer-events-none absolute top-1/2 left-4 -translate-y-1/2 text-muted" />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={placeholder}
-          aria-label={label}
-          autoComplete="off"
-          className="h-12 w-full rounded-2xl border border-line bg-surface pr-4 pl-11 text-[16px] outline-none focus:border-ink"
-        />
-      </div>
-      {shown.length > 0 && (
-        <ul className="mt-1 rounded-2xl bg-surface p-1 shadow-book">
-          {shown.map((r) => (
-            <li key={r.key}>
-              <button
-                disabled={disabled}
-                onClick={() => {
-                  onPick(r);
-                  setQ("");
-                  setResults(null);
-                }}
-                className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-surface-2 disabled:opacity-50"
-              >
-                {render(r)}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-      {text.length >= 2 && results?.q === text && !results.items.length && (
-        <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact name?</p>
-      )}
     </>
   );
 }
