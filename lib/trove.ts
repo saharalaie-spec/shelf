@@ -44,6 +44,7 @@ const toItem = (r: Row): Item => ({
       ? { id: r.rec_user_id ? String(r.rec_user_id) : null, name: String(r.rec_user_name || r.rec_name || "A friend") }
       : null,
   ...(r.geo ? { place: parseGeo(r.geo) } : {}),
+  ...(r.thanked != null ? { thanked: Boolean(r.thanked) } : {}),
 });
 
 export type ItemFilter = {
@@ -81,7 +82,9 @@ export async function listItems(userId: string, filter: ItemFilter = {}): Promis
     args.push(filter.destinationId);
   }
   const { rows } = await client.execute({
-    sql: `SELECT b.*, r.name AS rec_user_name FROM books b LEFT JOIN users r ON r.id = b.rec_user_id
+    sql: `SELECT b.*, r.name AS rec_user_name${
+      filter.includePrivate ? ", EXISTS (SELECT 1 FROM thanks t WHERE t.item_id = b.id AND t.from_user = b.user_id) AS thanked" : ""
+    } FROM books b LEFT JOIN users r ON r.id = b.rec_user_id
           WHERE ${where.join(" AND ")} ORDER BY b.status_at DESC, b.added_at DESC`,
     args,
   });

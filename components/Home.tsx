@@ -2,12 +2,16 @@
 
 import { motion } from "motion/react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
+import { api } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
+import type { Thanks } from "@/lib/thanks";
 import type { TodayCandidates } from "@/lib/today";
 import type { Summary } from "@/lib/trove";
 import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
+import { CaptureSheet } from "./CaptureSheet";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { TodayCard } from "./TodayCard";
@@ -19,12 +23,16 @@ type Props = {
   pendingRequests: number;
   summaries: Record<Kind, Summary>;
   today: TodayCandidates;
+  /** Friends who loved something you recommended, not yet put away. */
+  thanks: Thanks[];
   /** "Something else" ideas are on. */
   suggest: boolean;
 };
 
 /** Where you land after signing in: one card per collection. */
-export function Home({ user, pendingRequests, summaries, today, suggest }: Props) {
+export function Home({ user, pendingRequests, summaries, today, thanks, suggest }: Props) {
+  const router = useRouter();
+  const [capturing, setCapturing] = useState(false);
   const [profile, setProfile] = useState<Profile>({
     id: user.id,
     name: user.name,
@@ -65,6 +73,21 @@ export function Home({ user, pendingRequests, summaries, today, suggest }: Props
         </p>
       </section>
 
+      {thanks.length > 0 && <ThanksCard thanks={thanks} />}
+
+      <button
+        onClick={() => setCapturing(true)}
+        className="mx-5 mb-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-3xl bg-ink p-4 pl-5 text-left text-paper shadow-book active:scale-[0.99]"
+      >
+        <span className="min-w-0 flex-1">
+          <span className="block text-[17px] font-medium">Someone recommended something?</span>
+          <span className="block text-[14px] text-paper/65">Save it and who said it, in seconds.</span>
+        </span>
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper text-ink">
+          <Icon name="plus" size={22} />
+        </span>
+      </button>
+
       <TodayCard candidates={today} suggest={suggest} />
 
       <ul className="grid gap-3 px-5 sm:grid-cols-2">
@@ -97,7 +120,46 @@ export function Home({ user, pendingRequests, summaries, today, suggest }: Props
         privateCount={hidden}
         onProfile={updateProfile}
       />
+      <CaptureSheet open={capturing} onOpenChange={setCapturing} onSaved={() => router.refresh()} />
     </div>
+  );
+}
+
+/** "Sahar loved your pick": friends closing the loop on what you recommended. */
+function ThanksCard({ thanks }: { thanks: Thanks[] }) {
+  const [shown, setShown] = useState(thanks);
+  const dismiss = (ids: string[]) => {
+    setShown((t) => t.filter((x) => !ids.includes(x.id)));
+    api("/api/thanks/seen", { body: { ids } }).catch(() => {});
+  };
+  if (!shown.length) return null;
+  return (
+    <section className="mx-5 mb-5 rounded-3xl bg-surface p-4 shadow-book" aria-label="From friends">
+      <ul className="space-y-3">
+        {shown.map((t) => (
+          <li key={t.id} className="flex items-center gap-3">
+            {t.kind === "place" ? (
+              <SpotTile spot={{ categories: [] }} size={44} />
+            ) : (
+              <Cover book={{ title: t.title, author: null, coverUrl: t.coverUrl }} shape={VOCAB[t.kind].shape} className="w-11 shrink-0" rounded="rounded-[3px]" />
+            )}
+            <span className="min-w-0 flex-1">
+              <span className="block text-[15px] leading-snug">
+                <b className="font-medium">{t.from.name}</b> loved your pick <span className="font-medium">{t.title}</span>
+              </span>
+              {t.message && <span className="mt-0.5 block text-[14px] text-ink-2 italic">“{t.message}”</span>}
+            </span>
+            <button
+              onClick={() => dismiss([t.id])}
+              aria-label="Put away"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-surface-2"
+            >
+              <Icon name="x" size={17} />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

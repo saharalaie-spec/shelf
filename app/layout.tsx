@@ -40,6 +40,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
               // One line, so a toast never grows down over a sheet's header buttons.
               title: "line-clamp-1",
               actionButton: "!bg-paper/15 !text-paper !rounded-full !px-3 !font-medium",
+              cancelButton: "!bg-transparent !text-paper/70 !rounded-full !px-2 !font-medium",
               description: "!text-paper/70",
             },
           }}

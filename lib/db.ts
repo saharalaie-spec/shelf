@@ -262,6 +262,27 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       )`,
     ],
   },
+  {
+    id: "2026-10-19-thanks",
+    statements: [
+      // "Sahar loved your pick": closing the loop with whoever recommended something. The title and kind are kept,
+      // so the note still reads right if the item is later removed.
+      `CREATE TABLE thanks (
+        id TEXT PRIMARY KEY,
+        from_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        item_id TEXT REFERENCES books(id) ON DELETE SET NULL,
+        kind TEXT NOT NULL,
+        title TEXT NOT NULL,
+        cover_url TEXT,
+        message TEXT,
+        created_at INTEGER NOT NULL,
+        seen_at INTEGER,
+        UNIQUE (from_user, item_id)
+      )`,
+      `CREATE INDEX thanks_to ON thanks (to_user, seen_at, created_at)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

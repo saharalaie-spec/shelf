@@ -68,6 +68,8 @@ export type Item = Hit & {
   recBy: RecBy | null;
   /** Kept off friends' Table, though still on your lists. */
   quiet: boolean;
+  /** Owner only: they've told the friend who recommended it that they loved it. */
+  thanked?: boolean;
 };
 
 /** One line of a pasted list, dictation, photo or import, before matching. Imports may know more. */

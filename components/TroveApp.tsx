@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { ago, api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
+import { SAMPLE_FRIEND_ID } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
@@ -220,6 +221,20 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
     [patchItem],
   );
 
+  /** Tells the friend who recommended it that you loved it. */
+  const thank = useCallback(
+    async (book: Item, message = "") => {
+      try {
+        const { to } = await api<{ to: string }>(`/api/items/${book.id}/thanks`, { body: { message } });
+        patchItem(book.id, { thanked: true });
+        toast(`${to} will see you loved it`);
+      } catch (err) {
+        toast.error((err as Error).message);
+      }
+    },
+    [patchItem],
+  );
+
   const changeStatus = useCallback(
     async (book: Item, status: Status) => {
       try {
@@ -228,14 +243,20 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
           status === "read"
             ? v.doneToast(book.title)
             : `${isPlace ? "Marked" : "Moved"} “${book.title}” ${isPlace ? "as" : "to"} ${v.sections[status]}`;
-        toast(moved, {
-          action: { label: "Undo", onClick: () => moveItem({ ...book, status }, book.status).catch(() => {}) },
-        });
+        const undo = { label: "Undo", onClick: () => moveItem({ ...book, status }, book.status).catch(() => {}) };
+        // Finished a friend's pick: the moment to close the loop with them.
+        const from = status === "read" && !book.thanked && book.recBy?.id && book.recBy.id !== SAMPLE_FRIEND_ID ? book.recBy : null;
+        toast(
+          moved,
+          from
+            ? { action: { label: `Tell ${from.name}`, onClick: () => thank(book) }, cancel: undo, duration: 9000 }
+            : { action: undo },
+        );
       } catch (err) {
         toast.error((err as Error).message);
       }
     },
-    [moveItem, v, isPlace],
+    [moveItem, v, isPlace, thank],
   );
   const toggleSpot = useCallback((spot: Item) => changeStatus(spot, spot.status === "read" ? "want" : "read"), [changeStatus]);
 
@@ -599,6 +620,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         destination={destinations.find((d) => d.id === openItem?.destinationId) ?? null}
         onNote={setNote}
         onRecBy={setRecBy}
+        onThank={thank}
         allCategories={allCategories}
         onClose={() => setOpenId(null)}
         onCategories={setCategories}
