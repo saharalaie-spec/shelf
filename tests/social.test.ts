@@ -650,3 +650,41 @@ describe("closing the loop", () => {
     expect(r.names).toEqual(["Barber", "Mom"]);
   });
 });
+
+describe("deleting an account", () => {
+  it("removes everything of theirs, leaves friends' lists intact, and a new sign-in starts fresh", async () => {
+    const { deleteAccount } = await import("@/lib/account");
+    const { setStarterPicks } = await import("@/lib/start");
+    const { sendThanks } = await import("@/lib/thanks");
+    const me = await signUp({ phone: "+14155550951" }, "Del");
+    const pal = await signUp({ phone: "+14155550952" }, "Pal");
+    await social.acceptInvite(pal, await social.inviteToken(me.id));
+    await social.setCircle(pal.id, me.id, true);
+    const [mine] = await trove.addItems(me.id, "book", [book("fx:del1", "Mine")]);
+    await setStarterPicks(me.id, [mine.id]);
+    const [fromPal] = await trove.addItems(me.id, "book", [book("fx:del2", "From Pal", { recBy: { id: pal.id, name: "Pal" } })]);
+    await sendThanks(me.id, fromPal.id);
+    // Pal saved one of mine.
+    await trove.addItems(pal.id, "book", [book("fx:del1", "Mine", { recBy: { id: me.id, name: "Del" } })]);
+    await social.requestByIdentifier(pal, "+14155550959");
+
+    await deleteAccount(me);
+
+    const client = await db();
+    const count = async (sql: string, args: string[]) => Number((await client.execute({ sql, args })).rows[0].n);
+    for (const [table, col] of [
+      ["users", "id"],
+      ["books", "user_id"],
+      ["item_events", "user_id"],
+      ["starter_picks", "user_id"],
+      ["friendships", "friend_id"],
+      ["circle", "friend_id"],
+      ["thanks", "from_user"],
+    ]) {
+      expect(await count(`SELECT count(*) AS n FROM ${table} WHERE ${col} = ?`, [me.id]), table).toBe(0);
+    }
+    expect(await social.listFriends(pal.id)).toEqual([]);
+    const palsCopy = (await trove.listItems(pal.id, { includePrivate: true })).find((i) => i.title === "Mine")!;
+    expect(palsCopy.recBy).toEqual({ id: null, name: "Del" });
+  });
+});

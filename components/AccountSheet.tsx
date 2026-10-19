@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
@@ -74,9 +75,60 @@ function AccountBody({ profile, contact, countLabel, privateCount, onProfile }: 
       <Button variant="secondary" className="mt-7 w-full" loading={leaving === "here"} disabled={leaving !== null} onClick={() => signOut(false)}>
         Sign out
       </Button>
-      <Button variant="ghost" className="mt-1 mb-2 w-full text-[15px]" loading={leaving === "everywhere"} disabled={leaving !== null} onClick={() => signOut(true)}>
+      <Button variant="ghost" className="mt-1 w-full text-[15px]" loading={leaving === "everywhere"} disabled={leaving !== null} onClick={() => signOut(true)}>
         Sign out on all devices
       </Button>
+      <DeleteAccount />
+    </div>
+  );
+}
+
+/** Deleting your account, behind one clear confirmation. */
+function DeleteAccount() {
+  const router = useRouter();
+  const [asking, setAsking] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await api("/api/me", { method: "DELETE" });
+      // Signed out now: home shows the sign-in screen, and signing in again starts a brand-new account.
+      router.replace("/");
+      router.refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+      setDeleting(false);
+    }
+  };
+
+  if (!asking) {
+    return (
+      <button onClick={() => setAsking(true)} className="mt-4 mb-4 block w-full py-2 text-center text-[14px] font-medium text-accent active:opacity-60">
+        Delete account
+      </button>
+    );
+  }
+  return (
+    <div
+      ref={(el) => el?.scrollIntoView({ behavior: "smooth", block: "nearest" })}
+      className="mt-4 mb-4 rounded-2xl border border-accent/40 p-4"
+      role="alertdialog"
+      aria-label="Delete your account?"
+    >
+      <p className="text-[16px] font-medium">Delete your account?</p>
+      <p className="mt-1 text-[14px] leading-snug text-muted">
+        Everything goes: your lists, places, share links, friends and notes. It can’t be undone. Things friends saved from
+        you stay on their lists.
+      </p>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Button variant="secondary" onClick={() => setAsking(false)} disabled={deleting}>
+          Keep it
+        </Button>
+        <Button variant="accent" onClick={remove} loading={deleting}>
+          Delete
+        </Button>
+      </div>
     </div>
   );
 }

@@ -1,4 +1,5 @@
-import { AuthError, requireUser } from "@/lib/auth";
+import { deleteAccount } from "@/lib/account";
+import { AuthError, requireUser, signOut } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
 import { updateProfile } from "@/lib/social";
 
@@ -18,4 +19,12 @@ export const PATCH = route(async (req: Request) => {
     shareActivity: body.shareActivity,
   });
   return Response.json(saved);
+});
+
+/** Deletes your account and everything in it, and signs you out. */
+export const DELETE = route(async () => {
+  const user = await requireUser();
+  await deleteAccount(user);
+  await signOut();
+  return Response.json({ ok: true });
 });
