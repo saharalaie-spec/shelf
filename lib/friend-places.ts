@@ -1,13 +1,13 @@
 import "server-only";
 import { db } from "./db";
-import { getDestination, listDestinations } from "./destinations";
+import { listDestinations } from "./destinations";
 import { profileRef } from "./social";
 import { listItems } from "./trove";
-import type { Destination, Item } from "./types";
+import type { Area, Destination, Item } from "./types";
 
 /**
- * Friends who know the place you're looking at: their own place of the same name, or one inside it (your "Spain"
- * holds their "Valencia"). Only what they share, and nothing you've saved already.
+ * Friends who know the place you're looking at: their own place of the same name, or one inside it ("Spain" holds
+ * their "Valencia"). Only what they share, and nothing you've saved already.
  */
 
 export type FriendPlace = {
@@ -20,7 +20,7 @@ export type FriendPlace = {
 
 const fold = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 
-function sameArea(mine: Destination, theirs: Destination) {
+function sameArea(mine: Area, theirs: Destination) {
   if (fold(mine.name) === fold(theirs.name) && (!mine.country || !theirs.country || fold(mine.country) === fold(theirs.country))) {
     return true;
   }
@@ -32,9 +32,7 @@ function sameArea(mine: Destination, theirs: Destination) {
   return false;
 }
 
-export async function friendsIn(userId: string, destinationId: string): Promise<FriendPlace[]> {
-  const mine = await getDestination(userId, destinationId);
-  if (!mine) return [];
+export async function friendsIn(userId: string, mine: Area): Promise<FriendPlace[]> {
   const client = await db();
   const [friends, own] = await Promise.all([
     client.execute({

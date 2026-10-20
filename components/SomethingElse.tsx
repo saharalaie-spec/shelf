@@ -4,21 +4,21 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
-import { VOCAB } from "@/lib/kinds";
+import { screenFormat, VOCAB } from "@/lib/kinds";
 import { moodsFor, type Mood } from "@/lib/moods";
 import type { FriendPlace } from "@/lib/friend-places";
 import type { Suggestion } from "@/lib/suggest";
 import type { TodayPick } from "@/lib/today";
-import type { Hit, Kind } from "@/lib/types";
+import type { Area, AreaHit, Hit, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
-import { CitySearch } from "./QuickSearch";
+import { AreaSearch } from "./QuickSearch";
 import { SpotTile } from "./Spot";
 import { Icon } from "./ui";
 
 /** Something to pick from anywhere: your lists, a friend, or a suggestion (which carries its own reason). */
 export type Choice = TodayPick & { note?: string };
-/** Picking something that isn't on your lists yet: what to save, and who it's from. */
-export type ChoiceSave = { hit: Hit; friendId: string | null; destinationId: string | null };
+/** Picking something that isn't on your lists yet: what to save, who it's from, and for a spot, where. */
+export type ChoiceSave = { hit: Hit; friendId: string | null; destinationId: string | null; area?: Area | null };
 
 const TITLE: Record<Kind, string> = {
   podcast: "Something to listen to",
@@ -44,8 +44,6 @@ type Props = {
   kind: Kind;
   /** This collection's candidates: your saved ones, then friends'. */
   list: TodayPick[];
-  /** Places: yours, the one to start on first. Spots are always in a city, so you pick which. */
-  places?: Place[];
   /** Work keys just started or saved from here, left out of friends' spots and ideas. */
   taken?: Set<string>;
   suggest: boolean;
@@ -54,46 +52,67 @@ type Props = {
   onChoose: (c: Choice, save?: ChoiceSave) => void;
 };
 
-type Place = { id: string; name: string };
 const NONE = new Set<string>();
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 /** Choose something: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
-export function SomethingElse({ kind, list, places = [], taken = NONE, suggest, reasonOf, onChoose }: Props) {
+export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onChoose }: Props) {
   const v = VOCAB[kind];
   const isPlace = kind === "place";
   const [mood, setMood] = useState<Mood>("any");
-  // Places: which city, and any added here.
-  const [cities, setCities] = useState(places);
-  // Nothing is picked for you: spots wait until you say where.
-  const [cityId, setCityId] = useState<string | null>(null);
-  const city = cities.find((c) => c.id === cityId) ?? null;
-  const there = useFriendsIn(isPlace ? cityId : null)
+  // Movies & TV: either, or just one.
+  const [format, setFormat] = useState<"any" | "movie" | "tv">("any");
+  const fits = (p: TodayPick) =>
+    kind !== "screen" || format === "any" || (screenFormat({ key: p.workKey, categories: p.categories, author: p.author }) ?? format) === format;
+  // Places: nothing is picked for you, and looking a city up saves nothing. Spots wait until you say where.
+  const [city, setCity] = useState<AreaHit | null>(null);
+  const there = useFriendsIn(isPlace ? city : null)
     .map((f) => ({ ...f, spots: f.spots.filter((i) => !taken.has(i.key)) }))
     .filter((f) => f.spots.length > 0);
-  if (isPlace && !cities.length) return <NoPlacesYet onCity={(c) => (setCities([c]), setCityId(c.id))} />;
 
-  const mine = list.filter((p) => p.tier !== "friend" && (!isPlace || p.destinationId === cityId)).slice(0, 6);
-  const friends = list.filter((p) => p.tier === "friend").slice(0, 5);
+  const mine = list
+    .filter((p) => p.tier !== "friend" && fits(p) && (!isPlace || (city !== null && fold(p.destination ?? "") === fold(city.name))))
+    .slice(0, 6);
+  const friends = list.filter((p) => p.tier === "friend" && fits(p)).slice(0, 5);
   const chips = <MoodChips kind={kind} mood={mood} onMood={setMood} />;
 
   return (
     <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE[kind]}</h2>
+      {kind === "screen" && (
+        <div className="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Movie or TV show">
+          {(["any", "movie", "tv"] as const).map((f) => (
+            <button
+              key={f}
+              role="radio"
+              aria-checked={format === f}
+              onClick={() => setFormat(f)}
+              className={`h-9 rounded-full text-[14px] font-medium transition-colors ${format === f ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
+            >
+              {{ any: "Either", movie: "Movie", tv: "TV show" }[f]}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Places: the occasion, then the city; everything below is for that city. */}
       {isPlace && (
         <>
           <p className="mt-4 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">What for?</p>
           {chips}
           <p className="mt-3 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">Where?</p>
-          <CityChips
-            cities={cities}
-            current={cityId}
-            onPick={setCityId}
-            onAdd={(c) => {
-              setCities((cs) => (cs.some((x) => x.id === c.id) ? cs : [c, ...cs]));
-              setCityId(c.id);
-            }}
-          />
+          {city ? (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="flex h-8 items-center gap-1 rounded-full bg-[#3d5a3c] px-3.5 text-[13px] font-medium text-white">
+                <Icon name="pin" size={13} />
+                {[city.name, city.country].filter(Boolean).join(", ")}
+              </span>
+              <button onClick={() => setCity(null)} className="h-8 px-1 text-[13px] font-medium text-ink-2 underline underline-offset-2">
+                Change
+              </button>
+            </div>
+          ) : (
+            <AreaSearch onArea={setCity} />
+          )}
         </>
       )}
       {mine.length > 0 && (
@@ -125,21 +144,22 @@ export function SomethingElse({ kind, list, places = [], taken = NONE, suggest, 
       {isPlace && city && there.length > 0 && (
         <FriendsThere there={there} city={city} onChoose={onChoose} reasonOf={reasonOf} />
       )}
-      {isPlace && !cityId && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Pick a city, and spots for it show up here.</p>}
-      {suggest && (!isPlace || cityId) && (
+      {isPlace && !city && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Pick a city, and spots for it show up here.</p>}
+      {suggest && (!isPlace || city) && (
         <Ideas
-          key={cityId ?? kind}
+          key={`${city?.key ?? kind}|${format}`}
           kind={kind}
           mood={mood}
+          format={kind === "screen" && format !== "any" ? format : null}
           chips={isPlace ? null : chips}
-          destinationId={cityId}
+          area={city}
           title={isPlace && city ? `Picked for you in ${city.name}` : "Picked for you"}
           onChoose={onChoose}
           shown={[...mine, ...friends].map((p) => p.title).concat(there.flatMap((f) => f.spots.map((i) => i.title)))}
           taken={taken}
         />
       )}
-      {!mine.length && !friends.length && !suggest && (!isPlace || cityId) && (
+      {!mine.length && !friends.length && !suggest && (!isPlace || city) && (
         <p className="mt-4 mb-6 text-[15px] text-muted">Nothing saved here yet. Add a few and they’ll show up here.</p>
       )}
     </div>
@@ -147,19 +167,19 @@ export function SomethingElse({ kind, list, places = [], taken = NONE, suggest, 
 }
 
 /** Friends who know the place on screen, and what they share there. */
-function useFriendsIn(cityId: string | null) {
-  const [found, setFound] = useState<{ cityId: string; friends: FriendPlace[] } | null>(null);
+function useFriendsIn(city: AreaHit | null) {
+  const [found, setFound] = useState<{ key: string; friends: FriendPlace[] } | null>(null);
   useEffect(() => {
-    if (!cityId) return;
+    if (!city) return;
     let live = true;
-    api<{ friends: FriendPlace[] }>(`/api/friends/places?dest=${cityId}`)
-      .then((r) => live && setFound({ cityId, friends: r.friends }))
-      .catch(() => live && setFound({ cityId, friends: [] }));
+    api<{ friends: FriendPlace[] }>("/api/friends/places", { body: { area: city } })
+      .then((r) => live && setFound({ key: city.key, friends: r.friends }))
+      .catch(() => live && setFound({ key: city.key, friends: [] }));
     return () => {
       live = false;
     };
-  }, [cityId]);
-  return found && found.cityId === cityId ? found.friends : [];
+  }, [city]);
+  return found && city && found.key === city.key ? found.friends : [];
 }
 
 const names = (ns: string[]) => (ns.length <= 2 ? ns.join(" and ") : `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`);
@@ -172,7 +192,7 @@ function FriendsThere({
   reasonOf,
 }: {
   there: FriendPlace[];
-  city: Place;
+  city: AreaHit;
   onChoose: Props["onChoose"];
   reasonOf: Props["reasonOf"];
 }) {
@@ -216,8 +236,8 @@ function FriendsThere({
             coverUrl: item.coverUrl,
             categories: item.categories,
             ...(item.place ? { place: item.place } : {}),
-            destination: null,
-            destinationId: city.id,
+            destination: city.name,
+            destinationId: null,
             tier: "friend",
             reason: { type: "friend", from: f.friend.name, status: item.status },
             friendId: f.friend.id,
@@ -233,7 +253,8 @@ function FriendsThere({
                 onChoose(c, {
                   hit: { key: item.key, title: item.title, author: item.author, year: item.year, coverUrl: item.coverUrl, categories: item.categories, ...(item.place ? { place: item.place } : {}) },
                   friendId: f.friend.id,
-                  destinationId: city.id,
+                  destinationId: null,
+                  area: city,
                 })
               }
             />
@@ -241,62 +262,6 @@ function FriendsThere({
         })}
       </ul>
     </section>
-  );
-}
-
-/** Places start with a city: until there's one, ask which. */
-function NoPlacesYet({ onCity }: { onCity: (c: Place) => void }) {
-  return (
-    <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
-      <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE.place}</h2>
-      <p className="mt-2 text-[15px] leading-snug text-muted">
-        Spots are always somewhere. Pick the city you’re in (or headed to), and ideas for it will show up here.
-      </p>
-      <CitySearch onCity={onCity} prompt="Which city?" />
-      <Link href="/places" className="mt-6 mb-6 block text-center text-[14px] font-medium text-ink-2 underline underline-offset-2">
-        Or open Places
-      </Link>
-    </div>
-  );
-}
-
-/** Your places as chips, newest first, and another city from the map. */
-function CityChips({ cities, current, onPick, onAdd }: { cities: Place[]; current: string | null; onPick: (id: string) => void; onAdd: (c: Place) => void }) {
-  const [adding, setAdding] = useState(false);
-  return (
-    <>
-      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-1">
-        {cities.map((c) => (
-          <button
-            key={c.id}
-            onClick={() => onPick(c.id)}
-            aria-pressed={c.id === current}
-            className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
-              c.id === current ? "bg-[#3d5a3c] text-white" : "bg-surface-2 text-ink-2"
-            }`}
-          >
-            <Icon name="pin" size={13} />
-            {c.name}
-          </button>
-        ))}
-        <button
-          onClick={() => setAdding((a) => !a)}
-          aria-pressed={adding}
-          className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-dashed border-line px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 active:scale-95"
-        >
-          <Icon name="plus" size={13} /> Another city
-        </button>
-      </div>
-      {adding && (
-        <CitySearch
-          prompt="Which city?"
-          onCity={(c) => {
-            setAdding(false);
-            onAdd(c);
-          }}
-        />
-      )}
-    </>
   );
 }
 
@@ -324,7 +289,8 @@ function Ideas({
   kind,
   mood,
   chips,
-  destinationId,
+  area,
+  format,
   title,
   onChoose,
   shown,
@@ -332,7 +298,8 @@ function Ideas({
 }: Pick<Props, "kind" | "onChoose"> & {
   mood: Mood;
   chips: React.ReactNode;
-  destinationId: string | null;
+  area: AreaHit | null;
+  format: "movie" | "tv" | null;
   title: string;
   shown: string[];
   taken: Set<string>;
@@ -347,14 +314,14 @@ function Ideas({
   useEffect(() => {
     let live = true;
     api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", {
-      body: { kind, mood, fresh: round > 0, destinationId },
+      body: { kind, mood, fresh: round > 0, area, format },
     })
       .then((r) => live && setResult({ key: want, ...r }))
       .catch((err) => live && setResult({ key: want, picks: [], destinationId: null, error: (err as Error).message }));
     return () => {
       live = false;
     };
-  }, [kind, mood, round, destinationId, want]);
+  }, [kind, mood, round, area, format, want]);
 
   return (
     <Group
@@ -401,7 +368,7 @@ function Ideas({
               coverUrl: s.hit.coverUrl,
               categories: s.hit.categories,
               ...(s.hit.place ? { place: s.hit.place } : {}),
-              destination: null,
+              destination: area?.name ?? null,
               destinationId: result.destinationId,
               tier: "want",
               // Shown with its own reason (the note); "saved" is only a fallback label.
@@ -415,7 +382,7 @@ function Ideas({
                 kind={kind}
                 item={c}
                 line={s.why}
-                onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId: result.destinationId })}
+                onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId: result.destinationId, area })}
               />
             );
           })}

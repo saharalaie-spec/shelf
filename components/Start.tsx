@@ -26,9 +26,11 @@ type Props = {
   /** What's on your lists already. */
   mine: Mine[];
   features: { deck: boolean };
+  /** Your invite link's token, for the last step. */
+  inviteToken: string;
 };
 
-type Step = "friend" | `loved:${Kind}` | "deck";
+type Step = "friend" | `loved:${Kind}` | "deck" | "invite";
 const lovedKind = (s: Step) => (s.startsWith("loved:") ? (s.slice(6) as Kind) : null);
 
 /** Something saved here, by work key. `id` starts "tmp:" until the server answers. */
@@ -47,12 +49,14 @@ const WANT = (kind: Kind) => (kind === "place" ? "Want to go" : "Want it");
  * Getting started without logging everything: two things you loved per collection (each one skippable), a friend's
  * trove (first, when you came in on their invite), then a quick deck.
  */
-export function Start({ name, from, invited, mine, features }: Props) {
+export function Start({ name, from, invited, mine, features, inviteToken }: Props) {
   const router = useRouter();
   const loved = KINDS.map((k) => `loved:${k}` as const);
   const steps: Step[] = [
     ...(invited ? (["friend", ...loved] as const) : ([...loved, "friend"] as const)),
     ...(features.deck ? (["deck"] as const) : []),
+    // Last, once there's something on your lists to share: bring your people.
+    "invite",
   ];
   const [step, setStep] = useState<Step>(steps[0]);
   const [picks, setPicks] = useState<Partial<Record<Kind, Hit[]>>>({});
@@ -173,6 +177,7 @@ export function Start({ name, from, invited, mine, features }: Props) {
             />
           )}
           {step === "deck" && <Deck have={have} save={save} />}
+          {step === "invite" && <InviteStep name={name} token={inviteToken} />}
         </motion.main>
       </AnimatePresence>
 
@@ -550,6 +555,75 @@ function Deck({ have, save }: { have: Have; save: Save }) {
           </>
         )}
       </div>
+    </>
+  );
+}
+
+/** The last step: send your invite link to the people you swap recommendations with. */
+function InviteStep({ name: initialName, token }: { name: string | null; token: string }) {
+  const [name, setName] = useState(initialName ?? "");
+  const [sent, setSent] = useState<"shared" | "copied" | null>(null);
+  const link = () => `${window.location.origin}/f/${token}`;
+  // Friends see your name on the invite: keep it if it's new.
+  const keepName = () => {
+    const n = name.trim();
+    if (n && n !== initialName) api("/api/me", { method: "PATCH", body: { name: n } }).catch(() => {});
+    return n || null;
+  };
+  const share = async () => {
+    const who = keepName();
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Be my friend on Trove",
+          text: `${who ? `${who} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
+          url: link(),
+        });
+        setSent("shared");
+        return;
+      } catch (err) {
+        if ((err as DOMException).name === "AbortError") return;
+      }
+    }
+    copy();
+  };
+  const copy = async () => {
+    keepName();
+    await navigator.clipboard.writeText(link()).catch(() => {});
+    setSent("copied");
+    toast("Invite link copied");
+  };
+
+  return (
+    <>
+      <Title
+        title="Trove is better with friends"
+        sub="Send your link to the people you swap recommendations with. When they join, you’ll see each other’s picks, and they can start from yours."
+      />
+      {!initialName && (
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Your first name (friends see it)"
+          aria-label="Your first name"
+          autoComplete="given-name"
+          maxLength={40}
+          className="mt-6 h-12 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] outline-none focus:border-ink"
+        />
+      )}
+      <div className={`${initialName ? "mt-6" : "mt-3"} grid grid-cols-[1fr_auto] gap-2`}>
+        <Button onClick={share} icon={<Icon name="share" size={18} />}>
+          Send invite link
+        </Button>
+        <Button variant="secondary" onClick={copy} icon={<Icon name={sent === "copied" ? "check" : "copy"} size={17} />}>
+          {sent === "copied" ? "Copied" : "Copy"}
+        </Button>
+      </div>
+      <p className="mt-4 flex gap-2 text-[14px] leading-snug text-muted">
+        <Icon name="lock" size={15} className="mt-0.5 shrink-0" />
+        Only friends see your trove. Anything you mark private stays yours.
+      </p>
+      {sent === "shared" && <p className="mt-3 text-[15px] font-medium text-ink-2">Sent. Invite another, or tap Done.</p>}
     </>
   );
 }

@@ -142,3 +142,18 @@ function validBBox(b: unknown): b is BBox {
     b[1] <= b[3]
   );
 }
+
+/** An area as sent by a browser (a city picked from the map, not necessarily one of yours), checked. */
+export function cleanArea(raw: unknown): Area | null {
+  const a = raw as Partial<Area> | null;
+  if (!a || typeof a.name !== "string" || !a.name.trim()) return null;
+  const num = (n: unknown) => (typeof n === "number" && Number.isFinite(n) ? n : null);
+  const bbox = Array.isArray(a.bbox) && a.bbox.length === 4 && a.bbox.every((n) => typeof n === "number") ? (a.bbox as BBox) : null;
+  return {
+    name: a.name.trim().slice(0, 120),
+    country: typeof a.country === "string" ? a.country.slice(0, 80) : null,
+    lat: num(a.lat),
+    lon: num(a.lon),
+    bbox,
+  };
+}

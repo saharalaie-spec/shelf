@@ -21,14 +21,19 @@ export function CitySearch({ onCity, prompt = "First, which city?" }: { onCity: 
       setSaving(false);
     }
   };
+  return <AreaSearch onArea={pick} prompt={prompt} disabled={saving} />;
+}
+
+/** A city, region or country from the map, just picked: nothing is saved. */
+export function AreaSearch({ onArea, prompt, disabled }: { onArea: (a: AreaHit) => void; prompt?: string; disabled?: boolean }) {
   return (
-    <div className="mt-5">
-      <p className="mb-2 px-1 text-[15px] font-medium">{prompt}</p>
+    <div className={prompt ? "mt-5" : "mt-1"}>
+      {prompt && <p className="mb-2 px-1 text-[15px] font-medium">{prompt}</p>}
       <Search
         url={(q) => `/api/search?kind=area&q=${encodeURIComponent(q)}`}
         placeholder="Search cities"
         label="Which city?"
-        disabled={saving}
+        disabled={disabled}
         render={(a: AreaHit) => (
           <>
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#3d5a3c] text-white">
@@ -40,7 +45,7 @@ export function CitySearch({ onCity, prompt = "First, which city?" }: { onCity: 
             </span>
           </>
         )}
-        onPick={pick}
+        onPick={onArea}
       />
     </div>
   );

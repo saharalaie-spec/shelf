@@ -1,10 +1,12 @@
-import { requireUser } from "@/lib/auth";
-import { route } from "@/lib/api";
+import { AuthError, requireUser } from "@/lib/auth";
+import { readJson, route } from "@/lib/api";
+import { cleanArea } from "@/lib/destinations";
 import { friendsIn } from "@/lib/friend-places";
 
-/** `?dest=<your place>`: friends who know it, and the spots they share there. */
-export const GET = route(async (req: Request) => {
+/** Friends who know a place (any city from the map), and the spots they share there. */
+export const POST = route(async (req: Request) => {
   const user = await requireUser();
-  const dest = new URL(req.url).searchParams.get("dest") ?? "";
-  return Response.json({ friends: await friendsIn(user.id, dest) });
+  const area = cleanArea((await readJson<{ area: unknown }>(req)).area);
+  if (!area) throw new AuthError("Which place?");
+  return Response.json({ friends: await friendsIn(user.id, area) });
 });

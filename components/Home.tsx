@@ -25,14 +25,12 @@ type Props = {
   today: TodayCandidates;
   /** Friends who loved something you recommended, not yet put away. */
   thanks: Thanks[];
-  /** Your places (cities, regions, countries), newest first. */
-  places: { id: string; name: string }[];
   /** "Something else" ideas are on. */
   suggest: boolean;
 };
 
 /** Where you land after signing in: one card per collection. */
-export function Home({ user, pendingRequests, summaries, today, thanks, places, suggest }: Props) {
+export function Home({ user, pendingRequests, summaries, today, thanks, suggest }: Props) {
   const router = useRouter();
   const [capturing, setCapturing] = useState(false);
   const [profile, setProfile] = useState<Profile>({
@@ -90,7 +88,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, places, 
         </span>
       </button>
 
-      <MoodCard candidates={today} suggest={suggest} places={places} />
+      <MoodCard candidates={today} suggest={suggest} />
 
       <ul className="grid gap-3 px-5 sm:grid-cols-2">
         {KINDS.map((kind, i) => (

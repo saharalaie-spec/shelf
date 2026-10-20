@@ -49,7 +49,7 @@ function reasonText(p: Choice) {
   }
 }
 
-export function MoodCard({ candidates, suggest, places }: { candidates: TodayCandidates; suggest: boolean; places: { id: string; name: string }[] }) {
+export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates; suggest: boolean }) {
   const hydrated = useHydrated();
   const [open, setOpen] = useState<Kind | null>(null);
   const [last, setLast] = useState<Kind>("book");
@@ -59,9 +59,6 @@ export function MoodCard({ candidates, suggest, places }: { candidates: TodayCan
   // The hour is the viewer's, so the order settles once it's on their device.
   const kinds = order(hydrated ? new Date().getHours() : 12);
   const kind = open ?? last;
-  // Start on the place where your latest Want to go spot is, else your newest place.
-  const first = candidates.place[0]?.destinationId;
-  const startPlaces = [...places].sort((a, b) => Number(b.id === first) - Number(a.id === first));
 
   const show = (k: Kind) => {
     setChosen(null);
@@ -103,7 +100,6 @@ export function MoodCard({ candidates, suggest, places }: { candidates: TodayCan
             key={kind}
             kind={kind}
             list={candidates[kind].filter((p) => !taken.has(p.workKey))}
-            places={startPlaces}
             taken={taken}
             suggest={suggest}
             reasonOf={reasonText}
@@ -146,7 +142,12 @@ function Chosen({
           body: {
             kind,
             items: [{ ...save.hit, status, ...(save.friendId ? { recBy: { id: save.friendId } } : {}) }],
-            ...(kind === "place" && save.destinationId ? { destinationId: save.destinationId } : {}),
+            // A spot goes into your place of that name, made for you if you don't have one yet.
+            ...(kind === "place" && save.destinationId
+              ? { destinationId: save.destinationId }
+              : kind === "place" && save.area
+                ? { destination: save.area }
+                : {}),
           },
         });
         if (added[0]) setItemId(added[0].id);
