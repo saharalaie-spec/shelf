@@ -7,7 +7,7 @@ import type { AreaHit } from "@/lib/types";
 import { Icon } from "./ui";
 
 /** Places start with a city: pick one from the map, and it's saved as one of your places. */
-export function CitySearch({ onCity }: { onCity: (d: { id: string; name: string }) => void }) {
+export function CitySearch({ onCity, prompt = "First, which city?" }: { onCity: (d: { id: string; name: string }) => void; prompt?: string }) {
   const [saving, setSaving] = useState(false);
   const pick = async (a: AreaHit) => {
     setSaving(true);
@@ -23,7 +23,7 @@ export function CitySearch({ onCity }: { onCity: (d: { id: string; name: string 
   };
   return (
     <div className="mt-5">
-      <p className="mb-2 px-1 text-[15px] font-medium">First, which city?</p>
+      <p className="mb-2 px-1 text-[15px] font-medium">{prompt}</p>
       <Search
         url={(q) => `/api/search?kind=area&q=${encodeURIComponent(q)}`}
         placeholder="Search cities"
