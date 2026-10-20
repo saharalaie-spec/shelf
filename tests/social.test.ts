@@ -387,7 +387,7 @@ describe("item history", () => {
 });
 
 describe("today", () => {
-  it("offers what you're in the middle of, then trusted picks, then what's waited longest, then a friend's", async () => {
+  it("offers trusted picks, then what's waited longest, then friends', never what you're in the middle of", async () => {
     const today = await import("@/lib/today");
     const me = await signUp({ phone: "+14155550611" }, "Ivy");
     const jo = await signUp({ phone: "+14155550612" }, "Jo");
@@ -402,11 +402,11 @@ describe("today", () => {
     await trove.addItems(jo.id, "podcast", [book("fx:pod:t-jo", "Jo's podcast", { status: "reading" })]);
 
     const c = await today.todayCandidates(me.id);
-    expect(c.screen[0]).toMatchObject({ title: "In the middle", tier: "keep" });
+    expect(c.screen).toEqual([]);
     expect(c.book.map((p) => p.title)).toEqual(["Jo's pick", "Old save"]);
     expect(c.book[0].reason).toEqual({ type: "trusted", from: "Jo", finished: 1 });
     expect(c.book[1].reason).toMatchObject({ type: "waiting" });
-    // Nothing of your own to listen to: what a friend is on.
+    // What a friend is on, that isn't on your lists.
     expect(c.podcast[0]).toMatchObject({ title: "Jo's podcast", tier: "friend", friendId: jo.id, itemId: null });
     expect(c.place).toEqual([]);
   });

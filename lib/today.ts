@@ -4,16 +4,12 @@ import { listItems } from "./trove";
 import type { Item, Kind, PlaceInfo, Status } from "./types";
 
 /**
- * The Today card's raw material: for each collection, a short list of things worth doing today, best first,
- * each with the reason it's there. Picking one per collection (by the day, skipping "not today") happens on
- * the device, since "today" and "morning" are the viewer's.
- *
- * Nothing here is an algorithm: what you're in the middle of, then picks from people whose picks you finish,
- * then whatever's waited longest, then something a friend just finished when your own list is empty.
+ * What "What are you in the mood for?" offers, per collection, best first, each with the reason it's there: picks
+ * from people whose picks you finish, then whatever's waited longest, then what friends are on or just finished.
+ * Nothing you're already in the middle of: you know what you're reading.
  */
 
 export type TodayReason =
-  | { type: "keep"; since: number }
   | { type: "trusted"; from: string; finished: number }
   | { type: "from"; from: string; savedAt: number }
   | { type: "waiting"; savedAt: number }
@@ -34,7 +30,7 @@ export type TodayPick = {
   /** Spots: the destination's name and id. */
   destination: string | null;
   destinationId?: string | null;
-  tier: "keep" | "want" | "friend";
+  tier: "want" | "friend";
   reason: TodayReason;
   /** Saving a friend's pick remembers them. */
   friendId: string | null;
@@ -43,8 +39,7 @@ export type TodayPick = {
 export type TodayCandidates = Record<Kind, TodayPick[]>;
 
 const PER_KIND = 12;
-/** Places are chosen by distance on the device, so it gets more of them. */
-const PLACES = 200;
+const PLACES = 40;
 
 const fromItem = (i: Item, tier: TodayPick["tier"], reason: TodayReason, destination: string | null = null): TodayPick => ({
   key: `${i.kind}:${i.key}`,
@@ -83,10 +78,6 @@ export async function todayCandidates(
 
   for (const kind of ["book", "podcast", "screen"] as const) {
     const ofKind = items.filter((i) => i.kind === kind);
-    const keep = ofKind
-      .filter((i) => i.status === "reading")
-      .sort((a, b) => b.statusAt - a.statusAt)
-      .map((i) => fromItem(i, "keep", { type: "keep", since: i.statusAt }));
     const wants = ofKind
       .filter((i) => i.status === "want")
       .map((i) => {
@@ -107,7 +98,7 @@ export async function todayCandidates(
               : { type: "waiting", savedAt: i.addedAt },
         ),
       );
-    // When your own list runs dry: what friends are on or just finished.
+    // What friends are on or just finished, that isn't on your lists.
     const friends = [...table.reading, ...table.listening, ...table.watching, ...table.finished]
       .filter((t) => t.kind === kind && !t.mine && !mineKeys.has(t.workKey))
       .map(
@@ -127,10 +118,10 @@ export async function todayCandidates(
           friendId: t.friends[0]?.id ?? null,
         }),
       );
-    out[kind] = [...keep, ...wants, ...friends].slice(0, PER_KIND);
+    out[kind] = [...wants.slice(0, PER_KIND), ...friends.slice(0, PER_KIND)];
   }
 
-  // Spots you want to go to; the device picks one near you, or from your latest place.
+  // Spots you want to go to, newest first (your latest trip leads).
   out.place = items
     .filter((i) => i.kind === "place" && i.status === "want")
     .sort((a, b) => b.addedAt - a.addedAt)
