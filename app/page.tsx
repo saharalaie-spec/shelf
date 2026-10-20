@@ -40,7 +40,7 @@ export default async function HomePage() {
       summaries={summaries}
       today={today}
       thanks={thanks}
-      hasPlaces={destinations.length > 0}
+      places={destinations.map((d) => ({ id: d.id, name: d.name }))}
       suggest={suggestEnabled()}
     />
   );

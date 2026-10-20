@@ -10,6 +10,7 @@ import type { Suggestion } from "@/lib/suggest";
 import type { TodayPick } from "@/lib/today";
 import type { Hit, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
+import { CitySearch } from "./QuickSearch";
 import { SpotTile } from "./Spot";
 import { Icon } from "./ui";
 
@@ -42,28 +43,53 @@ type Props = {
   kind: Kind;
   /** This collection's candidates: your saved ones, then friends'. */
   list: TodayPick[];
-  /** Places: suggest spots for this place. */
-  destinationId: string | null;
-  /** Places: you've added at least one. Places start with a city, so without one there's nothing to go on. */
-  hasPlaces?: boolean;
+  /** Places: yours, the one to start on first. Spots are always in a city, so you pick which. */
+  places?: Place[];
   suggest: boolean;
   /** Says why something from your lists or a friend is there. */
   reasonOf: (p: Choice) => string;
   onChoose: (c: Choice, save?: ChoiceSave) => void;
 };
 
+type Place = { id: string; name: string };
+
 /** Choose something: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
-export function SomethingElse({ kind, list, destinationId, hasPlaces = true, suggest, reasonOf, onChoose }: Props) {
+export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onChoose }: Props) {
   const v = VOCAB[kind];
-  if (kind === "place" && !hasPlaces) return <NoPlacesYet />;
-  const mine = list.filter((p) => p.tier !== "friend").slice(0, 6);
+  const isPlace = kind === "place";
+  const [mood, setMood] = useState<Mood>("any");
+  // Places: which city, and any added here.
+  const [cities, setCities] = useState(places);
+  const [cityId, setCityId] = useState<string | null>(places[0]?.id ?? null);
+  const city = cities.find((c) => c.id === cityId) ?? null;
+  if (isPlace && !cities.length) return <NoPlacesYet onCity={(c) => (setCities([c]), setCityId(c.id))} />;
+
+  const mine = list.filter((p) => p.tier !== "friend" && (!isPlace || p.destinationId === cityId)).slice(0, 6);
   const friends = list.filter((p) => p.tier === "friend").slice(0, 5);
+  const chips = <MoodChips kind={kind} mood={mood} onMood={setMood} />;
 
   return (
     <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE[kind]}</h2>
+      {/* Places: the occasion, then the city; everything below is for that city. */}
+      {isPlace && (
+        <>
+          <p className="mt-4 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">What for?</p>
+          {chips}
+          <p className="mt-3 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">Where?</p>
+          <CityChips
+            cities={cities}
+            current={cityId}
+            onPick={setCityId}
+            onAdd={(c) => {
+              setCities((cs) => (cs.some((x) => x.id === c.id) ? cs : [c, ...cs]));
+              setCityId(c.id);
+            }}
+          />
+        </>
+      )}
       {mine.length > 0 && (
-        <Group title={`From your ${kind === "place" ? "Want to go" : v.sections.want}`}>
+        <Group title={isPlace ? `Your Want to go in ${city?.name ?? "this place"}` : `From your ${v.sections.want}`}>
           {mine.map((p) => (
             <Row key={p.key} kind={kind} item={p} line={reasonOf(p)} onPick={() => onChoose(p)} />
           ))}
@@ -90,8 +116,12 @@ export function SomethingElse({ kind, list, destinationId, hasPlaces = true, sug
       )}
       {suggest && (
         <Ideas
+          key={cityId ?? kind}
           kind={kind}
-          destinationId={destinationId}
+          mood={mood}
+          chips={isPlace ? null : chips}
+          destinationId={cityId}
+          title={isPlace && city ? `Picked for you in ${city.name}` : "Picked for you"}
           onChoose={onChoose}
           shown={[...mine, ...friends].map((p) => p.title)}
         />
@@ -103,21 +133,77 @@ export function SomethingElse({ kind, list, destinationId, hasPlaces = true, sug
   );
 }
 
-/** Places start with a city: until there's one, say so and offer to add it. */
-function NoPlacesYet() {
+/** Places start with a city: until there's one, ask which. */
+function NoPlacesYet({ onCity }: { onCity: (c: Place) => void }) {
   return (
-    <div className="px-5 pb-safe">
+    <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE.place}</h2>
       <p className="mt-2 text-[15px] leading-snug text-muted">
-        Places start with a city. Add one you’re visiting (or love), and the spots you want to go to, friends’ picks and
-        ideas for it will show up here.
+        Spots are always somewhere. Pick the city you’re in (or headed to), and ideas for it will show up here.
       </p>
-      <Link
-        href="/places"
-        className="mt-5 mb-6 flex h-12 items-center justify-center gap-2 rounded-full bg-ink text-[16px] font-medium text-paper active:scale-[0.97]"
-      >
-        <Icon name="pin" size={18} /> Add a place
+      <CitySearch onCity={onCity} prompt="Which city?" />
+      <Link href="/places" className="mt-6 mb-6 block text-center text-[14px] font-medium text-ink-2 underline underline-offset-2">
+        Or open Places
       </Link>
+    </div>
+  );
+}
+
+/** Your places as chips, newest first, and another city from the map. */
+function CityChips({ cities, current, onPick, onAdd }: { cities: Place[]; current: string | null; onPick: (id: string) => void; onAdd: (c: Place) => void }) {
+  const [adding, setAdding] = useState(false);
+  return (
+    <>
+      <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-1">
+        {cities.map((c) => (
+          <button
+            key={c.id}
+            onClick={() => onPick(c.id)}
+            aria-pressed={c.id === current}
+            className={`flex h-8 shrink-0 items-center gap-1 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
+              c.id === current ? "bg-[#3d5a3c] text-white" : "bg-surface-2 text-ink-2"
+            }`}
+          >
+            <Icon name="pin" size={13} />
+            {c.name}
+          </button>
+        ))}
+        <button
+          onClick={() => setAdding((a) => !a)}
+          aria-pressed={adding}
+          className="flex h-8 shrink-0 items-center gap-1 rounded-full border border-dashed border-line px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 active:scale-95"
+        >
+          <Icon name="plus" size={13} /> Another city
+        </button>
+      </div>
+      {adding && (
+        <CitySearch
+          prompt="Which city?"
+          onCity={(c) => {
+            setAdding(false);
+            onAdd(c);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
+function MoodChips({ kind, mood, onMood }: { kind: Kind; mood: Mood; onMood: (m: Mood) => void }) {
+  return (
+    <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-1">
+      {moodsFor(kind).map((m) => (
+        <button
+          key={m}
+          onClick={() => onMood(m)}
+          aria-pressed={mood === m}
+          className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
+            mood === m ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+          }`}
+        >
+          {MOOD_LABEL[m]}
+        </button>
+      ))}
     </div>
   );
 }
@@ -125,13 +211,15 @@ function NoPlacesYet() {
 /** New ideas from your taste map across all four collections, in the mood you pick. Loaded only when asked. */
 function Ideas({
   kind,
+  mood,
+  chips,
   destinationId,
+  title,
   onChoose,
   shown,
-}: Pick<Props, "kind" | "destinationId" | "onChoose"> & { shown: string[] }) {
+}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; chips: React.ReactNode; destinationId: string | null; title: string; shown: string[] }) {
   // Ideas never repeat what's already listed above them.
   const already = new Set(shown.map(normalize));
-  const [mood, setMood] = useState<Mood>("any");
   const [round, setRound] = useState(0);
   const want = `${kind}|${mood}|${round}`;
   const [result, setResult] = useState<{ key: string; picks: Suggestion[]; destinationId: string | null; error?: string } | null>(null);
@@ -151,27 +239,17 @@ function Ideas({
 
   return (
     <Group
-      title="Picked for you"
+      title={title}
       aside={
-        <span className="flex items-center gap-1 text-[12px] text-muted">
-          <Icon name="sparkle" size={13} /> from your taste & friends
-        </span>
+        // Places name the city in the title instead.
+        kind !== "place" && (
+          <span className="flex items-center gap-1 text-[12px] text-muted">
+            <Icon name="sparkle" size={13} /> from your taste & friends
+          </span>
+        )
       }
     >
-      <div className="no-scrollbar -mx-5 mb-2 flex gap-2 overflow-x-auto px-5 pt-1">
-        {moodsFor(kind).map((m) => (
-          <button
-            key={m}
-            onClick={() => setMood(m)}
-            aria-pressed={mood === m}
-            className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
-              mood === m ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
-            }`}
-          >
-            {MOOD_LABEL[m]}
-          </button>
-        ))}
-      </div>
+      {chips && <div className="mb-2">{chips}</div>}
       {loading ? (
         <div className="space-y-1" aria-label="Thinking about your taste">
           {[0, 1, 2].map((i) => (
@@ -188,7 +266,7 @@ function Ideas({
         <p className="px-1 py-2 text-[14px] text-muted">{result.error}</p>
       ) : !result?.picks.length ? (
         <p className="px-1 py-2 text-[14px] text-muted">
-          {kind === "place" ? "Add a place first, and ideas for it will show up here." : "No new ideas right now. Try another mood."}
+          {kind === "place" ? "No new ideas for here right now. Try another occasion." : "No new ideas right now. Try another mood."}
         </p>
       ) : (
         <>

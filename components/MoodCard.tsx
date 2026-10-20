@@ -49,7 +49,7 @@ function reasonText(p: Choice) {
   }
 }
 
-export function MoodCard({ candidates, suggest, hasPlaces }: { candidates: TodayCandidates; suggest: boolean; hasPlaces: boolean }) {
+export function MoodCard({ candidates, suggest, places }: { candidates: TodayCandidates; suggest: boolean; places: { id: string; name: string }[] }) {
   const hydrated = useHydrated();
   const [open, setOpen] = useState<Kind | null>(null);
   const [last, setLast] = useState<Kind>("book");
@@ -57,6 +57,9 @@ export function MoodCard({ candidates, suggest, hasPlaces }: { candidates: Today
   // The hour is the viewer's, so the order settles once it's on their device.
   const kinds = order(hydrated ? new Date().getHours() : 12);
   const kind = open ?? last;
+  // Start on the place where your latest Want to go spot is, else your newest place.
+  const first = candidates.place[0]?.destinationId;
+  const startPlaces = [...places].sort((a, b) => Number(b.id === first) - Number(a.id === first));
 
   const show = (k: Kind) => {
     setChosen(null);
@@ -90,8 +93,7 @@ export function MoodCard({ candidates, suggest, hasPlaces }: { candidates: Today
             key={kind}
             kind={kind}
             list={candidates[kind]}
-            destinationId={candidates.place[0]?.destinationId ?? null}
-            hasPlaces={hasPlaces}
+            places={startPlaces}
             suggest={suggest}
             reasonOf={reasonText}
             onChoose={(c, save) => setChosen({ c, save })}
