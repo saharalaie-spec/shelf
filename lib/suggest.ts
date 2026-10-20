@@ -1,6 +1,7 @@
 import "server-only";
 import { normalize, typedHit } from "@/components/add/typed";
 import { aiEnabled, askJson } from "./ai";
+import type { Mood } from "./moods";
 import { AuthError } from "./auth";
 import { matchCandidates, searchCatalog } from "./catalog";
 import { db } from "./db";
@@ -15,16 +16,17 @@ import type { Area, Hit, Kind } from "./types";
  * the catalogs (so they come with covers and links) and kept for the day, so reopening costs nothing.
  */
 
-export const MOODS = ["any", "lighter", "deeper", "short", "surprise"] as const;
-export type Mood = (typeof MOODS)[number];
-export const isMood = (m: unknown): m is Mood => MOODS.includes(m as Mood);
-
 const MOOD_TEXT: Record<Mood, string> = {
   any: "no particular mood",
   lighter: "something lighter, warm or funny",
   deeper: "something absorbing and thought-provoking",
-  short: "something short: a quick read, a short episode or film, a quick stop",
+  short: "something short: a quick read, a short episode or film",
   surprise: "surprise them: something outside their usual, still clearly connected to their taste",
+  date: "a date night: intimate, atmospheric, good for two",
+  friends: "drinks or a lively night out with friends",
+  family: "an easy meal with family: relaxed, good for a group, kids welcome",
+  celebrate: "a birthday or anniversary: somewhere special, worth dressing up for",
+  solo: "time on their own: a café to read in, a walk, a museum, an unhurried spot",
 };
 
 export type Suggestion = { hit: Hit; why: string };

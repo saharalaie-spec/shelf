@@ -36,3 +36,15 @@ describe("places wording", () => {
     expect(VOCAB.book.statuses).toEqual(["read", "reading", "want"]);
   });
 });
+
+describe("moods and occasions", () => {
+  it("places go by the occasion, everything else by mood", async () => {
+    const { isMood, moodsFor } = await import("@/lib/moods");
+    expect(moodsFor("place")).toContain("date");
+    expect(moodsFor("book")).not.toContain("date");
+    expect(isMood("celebrate", "place")).toBe(true);
+    expect(isMood("celebrate", "podcast")).toBe(false);
+    expect(isMood("lighter", "place")).toBe(false);
+    expect(isMood("any", "screen")).toBe(true);
+  });
+});
