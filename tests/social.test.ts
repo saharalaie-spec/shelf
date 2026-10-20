@@ -741,3 +741,20 @@ describe("friends who know a place", () => {
     expect(await friendsIn(zed.id, myParis)).toEqual([]);
   });
 });
+
+describe("feedback", () => {
+  it("keeps what people say as text, newest first, and forgets who said it when they delete their account", async () => {
+    const { saveFeedback, listFeedback } = await import("@/lib/feedback");
+    const { deleteAccount } = await import("@/lib/account");
+    const me = await signUp({ phone: "+14155550971" }, "Fay");
+    await expect(saveFeedback(me, "   ", "/")).rejects.toThrow(/Say or type/);
+    await saveFeedback(me, "  The Watch tab should remember Movie.  ", "/");
+    await saveFeedback(me, "Love the city search", "/places");
+    const [latest, first] = (await listFeedback()).filter((f) => f.contact === "+14155550971");
+    expect([latest.text, latest.page, first.text]).toEqual(["Love the city search", "/places", "The Watch tab should remember Movie."]);
+    expect(latest.name).toBe("Fay");
+    await deleteAccount(me);
+    const after = (await listFeedback()).filter((f) => f.text === "Love the city search")[0];
+    expect([after.name, after.contact]).toEqual([null, null]);
+  });
+});
