@@ -14,8 +14,8 @@ import { SpotTile } from "./Spot";
 import { Button, Icon, KIND_ICON, useHydrated } from "./ui";
 
 /**
- * "What are you in the mood for?": four doors into choosing something, for when you're deciding. Nothing here keeps
- * score of what you're already in the middle of, and nothing changes by itself from day to day.
+ * "Can't decide what's next?": four doors into choosing something, for when you're stuck. Nothing here keeps score
+ * of what you're already in the middle of, and nothing changes by itself from day to day.
  */
 
 const TILE: Record<Kind, string> = { podcast: "Listen", book: "Read", screen: "Watch", place: "Go out" };
@@ -49,13 +49,13 @@ function reasonText(p: Choice) {
   }
 }
 
-export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates; suggest: boolean }) {
+export function MoodCard({ candidates, suggest, hasPlaces }: { candidates: TodayCandidates; suggest: boolean; hasPlaces: boolean }) {
   const hydrated = useHydrated();
   const [open, setOpen] = useState<Kind | null>(null);
   const [last, setLast] = useState<Kind>("book");
   const [chosen, setChosen] = useState<{ c: Choice; save?: ChoiceSave } | null>(null);
   // The hour is the viewer's, so the order settles once it's on their device.
-  const kinds = order(hydrated ? new Date().getHours() : 12).filter((k) => k !== "place" || candidates.place.length > 0);
+  const kinds = order(hydrated ? new Date().getHours() : 12);
   const kind = open ?? last;
 
   const show = (k: Kind) => {
@@ -66,8 +66,9 @@ export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates;
 
   return (
     <section className="mx-5 mb-5 rounded-[28px] bg-surface p-4 shadow-book">
-      <h2 className="px-1 font-serif text-[22px] leading-tight font-medium tracking-tight">What are you in the mood for?</h2>
-      <div className={`mt-3 grid gap-2 ${kinds.length === 4 ? "grid-cols-4" : "grid-cols-3"}`}>
+      <h2 className="px-1 font-serif text-[22px] leading-tight font-medium tracking-tight">Can’t decide what’s next?</h2>
+      <p className="mt-0.5 px-1 text-[14px] leading-snug text-muted">Tap one for a few ideas from your lists, your friends and your taste.</p>
+      <div className="mt-3 grid grid-cols-4 gap-2">
         {kinds.map((k) => (
           <button
             key={k}
@@ -90,6 +91,7 @@ export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates;
             kind={kind}
             list={candidates[kind]}
             destinationId={candidates.place[0]?.destinationId ?? null}
+            hasPlaces={hasPlaces}
             suggest={suggest}
             reasonOf={reasonText}
             onChoose={(c, save) => setChosen({ c, save })}

@@ -4,7 +4,7 @@ import { aiEnabled, askJson } from "./ai";
 import { AuthError } from "./auth";
 import { matchCandidates, searchCatalog } from "./catalog";
 import { db } from "./db";
-import { getDestination } from "./destinations";
+import { getDestination, listDestinations } from "./destinations";
 import { VOCAB } from "./kinds";
 import { tasteMap, type Taste } from "./taste";
 import type { Area, Hit, Kind } from "./types";
@@ -133,11 +133,13 @@ export async function suggest(
   const day = today();
 
   const taste = await tasteMap(userId);
-  // Places are suggested for one of your places: the one asked about, else your latest.
+  // Places are suggested for one of your places.
   let area: Area | null = null;
   let scope = "";
   if (kind === "place") {
-    const d = await getDestination(userId, destinationId ?? taste.latestDestinationId ?? "");
+    // The place asked about, else the one with your latest spot, else the place you added most recently.
+    const fallback = taste.latestDestinationId ?? (await listDestinations(userId, { includePrivate: true, includeEmpty: true }))[0]?.id;
+    const d = await getDestination(userId, destinationId ?? fallback ?? "");
     if (!d) return { picks: [], destinationId: null };
     area = d;
     scope = d.id;

@@ -501,6 +501,10 @@ describe("something else: taste map and suggestions", () => {
 
     // No place yet: nothing to suggest spots for.
     expect(await suggest(me.id, "place", "any", {}, ask)).toEqual({ picks: [], destinationId: null });
+    // A place with no spots yet: ideas are for it.
+    const { findOrCreateDestination } = await import("@/lib/destinations");
+    const lisbon = await findOrCreateDestination(me.id, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });
+    expect((await suggest(me.id, "place", "any", {}, ask)).destinationId).toBe(lisbon.id);
 
     const client = await db();
     const day = new Date().toISOString().slice(0, 10);
