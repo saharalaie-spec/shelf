@@ -46,6 +46,8 @@ type Props = {
   list: TodayPick[];
   /** Places: yours, the one to start on first. Spots are always in a city, so you pick which. */
   places?: Place[];
+  /** Work keys just started or saved from here, left out of friends' spots and ideas. */
+  taken?: Set<string>;
   suggest: boolean;
   /** Says why something from your lists or a friend is there. */
   reasonOf: (p: Choice) => string;
@@ -53,17 +55,21 @@ type Props = {
 };
 
 type Place = { id: string; name: string };
+const NONE = new Set<string>();
 
 /** Choose something: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
-export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onChoose }: Props) {
+export function SomethingElse({ kind, list, places = [], taken = NONE, suggest, reasonOf, onChoose }: Props) {
   const v = VOCAB[kind];
   const isPlace = kind === "place";
   const [mood, setMood] = useState<Mood>("any");
   // Places: which city, and any added here.
   const [cities, setCities] = useState(places);
-  const [cityId, setCityId] = useState<string | null>(places[0]?.id ?? null);
+  // Nothing is picked for you: spots wait until you say where.
+  const [cityId, setCityId] = useState<string | null>(null);
   const city = cities.find((c) => c.id === cityId) ?? null;
-  const there = useFriendsIn(isPlace ? cityId : null);
+  const there = useFriendsIn(isPlace ? cityId : null)
+    .map((f) => ({ ...f, spots: f.spots.filter((i) => !taken.has(i.key)) }))
+    .filter((f) => f.spots.length > 0);
   if (isPlace && !cities.length) return <NoPlacesYet onCity={(c) => (setCities([c]), setCityId(c.id))} />;
 
   const mine = list.filter((p) => p.tier !== "friend" && (!isPlace || p.destinationId === cityId)).slice(0, 6);
@@ -119,7 +125,8 @@ export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onCh
       {isPlace && city && there.length > 0 && (
         <FriendsThere there={there} city={city} onChoose={onChoose} reasonOf={reasonOf} />
       )}
-      {suggest && (
+      {isPlace && !cityId && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Pick a city, and spots for it show up here.</p>}
+      {suggest && (!isPlace || cityId) && (
         <Ideas
           key={cityId ?? kind}
           kind={kind}
@@ -129,9 +136,10 @@ export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onCh
           title={isPlace && city ? `Picked for you in ${city.name}` : "Picked for you"}
           onChoose={onChoose}
           shown={[...mine, ...friends].map((p) => p.title).concat(there.flatMap((f) => f.spots.map((i) => i.title)))}
+          taken={taken}
         />
       )}
-      {!mine.length && !friends.length && !suggest && (
+      {!mine.length && !friends.length && !suggest && (!isPlace || cityId) && (
         <p className="mt-4 mb-6 text-[15px] text-muted">Nothing saved here yet. Add a few and they’ll show up here.</p>
       )}
     </div>
@@ -320,7 +328,15 @@ function Ideas({
   title,
   onChoose,
   shown,
-}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; chips: React.ReactNode; destinationId: string | null; title: string; shown: string[] }) {
+  taken,
+}: Pick<Props, "kind" | "onChoose"> & {
+  mood: Mood;
+  chips: React.ReactNode;
+  destinationId: string | null;
+  title: string;
+  shown: string[];
+  taken: Set<string>;
+}) {
   // Ideas never repeat what's already listed above them.
   const already = new Set(shown.map(normalize));
   const [round, setRound] = useState(0);
@@ -373,7 +389,7 @@ function Ideas({
         </p>
       ) : (
         <>
-          {result.picks.filter((s) => !already.has(normalize(s.hit.title))).map((s) => {
+          {result.picks.filter((s) => !already.has(normalize(s.hit.title)) && !taken.has(s.hit.key)).map((s) => {
             const c: Choice = {
               key: `idea:${s.hit.key}`,
               itemId: null,
