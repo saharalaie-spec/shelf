@@ -11,14 +11,16 @@ import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { Icon } from "./ui";
 
-/** A pick for today from anywhere: your lists, a friend, or a suggestion (which carries its own reason). */
+/** Something to pick from anywhere: your lists, a friend, or a suggestion (which carries its own reason). */
 export type Choice = TodayPick & { note?: string };
+/** Picking something that isn't on your lists yet: what to save, and who it's from. */
+export type ChoiceSave = { hit: Hit; friendId: string | null; destinationId: string | null };
 
 const TITLE: Record<Kind, string> = {
-  podcast: "Something else to listen to",
-  book: "Something else to read",
-  screen: "Something else to watch",
-  place: "Somewhere else to go",
+  podcast: "Something to listen to",
+  book: "Something to read",
+  screen: "Something to watch",
+  place: "Somewhere to go",
 };
 
 const MOOD_LABEL: Record<Mood, string> = {
@@ -31,30 +33,27 @@ const MOOD_LABEL: Record<Mood, string> = {
 
 type Props = {
   kind: Kind;
-  /** This collection's Today candidates. */
+  /** This collection's candidates: your saved ones, then friends'. */
   list: TodayPick[];
-  /** What's on Today now, so it isn't offered again. */
-  currentKey: string | null;
-  currentTitle?: string | null;
   /** Places: suggest spots for this place. */
   destinationId: string | null;
   suggest: boolean;
   /** Says why something from your lists or a friend is there. */
   reasonOf: (p: Choice) => string;
-  onChoose: (c: Choice, save?: { hit: Hit; friendId: string | null; destinationId: string | null }) => void;
+  onChoose: (c: Choice, save?: ChoiceSave) => void;
 };
 
-/** Pick something else for today: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
-export function SomethingElse({ kind, list, currentKey, currentTitle, destinationId, suggest, reasonOf, onChoose }: Props) {
+/** Choose something: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
+export function SomethingElse({ kind, list, destinationId, suggest, reasonOf, onChoose }: Props) {
   const v = VOCAB[kind];
-  const mine = list.filter((p) => p.tier !== "friend" && p.key !== currentKey).slice(0, 5);
-  const friends = list.filter((p) => p.tier === "friend" && p.key !== currentKey).slice(0, 5);
+  const mine = list.filter((p) => p.tier !== "friend").slice(0, 6);
+  const friends = list.filter((p) => p.tier === "friend").slice(0, 5);
 
   return (
     <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE[kind]}</h2>
       {mine.length > 0 && (
-        <Group title={kind === "place" ? `From your ${v.sections.want}` : "From your lists"}>
+        <Group title={`From your ${kind === "place" ? "Want to go" : v.sections.want}`}>
           {mine.map((p) => (
             <Row key={p.key} kind={kind} item={p} line={reasonOf(p)} onPick={() => onChoose(p)} />
           ))}
@@ -84,11 +83,11 @@ export function SomethingElse({ kind, list, currentKey, currentTitle, destinatio
           kind={kind}
           destinationId={destinationId}
           onChoose={onChoose}
-          shown={[...mine, ...friends].map((p) => p.title).concat(currentTitle ?? [])}
+          shown={[...mine, ...friends].map((p) => p.title)}
         />
       )}
       {!mine.length && !friends.length && !suggest && (
-        <p className="mt-4 mb-6 text-[15px] text-muted">Nothing else saved here yet. Add a few and they’ll show up.</p>
+        <p className="mt-4 mb-6 text-[15px] text-muted">Nothing saved here yet. Add a few and they’ll show up here.</p>
       )}
     </div>
   );
@@ -228,7 +227,7 @@ function Row({ kind, item, line, onPick }: { kind: Kind; item: Choice; line: str
           <span className="block truncate text-[15px] font-medium">{item.title}</span>
           <span className="block truncate text-[13px] text-muted">{line}</span>
         </span>
-        <span className="shrink-0 rounded-full bg-surface-2 px-3 py-1.5 text-[13px] font-medium">For today</span>
+        <Icon name="chevron" size={16} className="shrink-0 text-muted" />
       </button>
     </li>
   );

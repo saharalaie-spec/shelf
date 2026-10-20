@@ -14,7 +14,7 @@ import { AccountSheet, type Profile } from "./AccountSheet";
 import { CaptureSheet } from "./CaptureSheet";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
-import { TodayCard } from "./TodayCard";
+import { MoodCard } from "./MoodCard";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Logo } from "./ui";
 
@@ -88,7 +88,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         </span>
       </button>
 
-      <TodayCard candidates={today} suggest={suggest} />
+      <MoodCard candidates={today} suggest={suggest} />
 
       <ul className="grid gap-3 px-5 sm:grid-cols-2">
         {KINDS.map((kind, i) => (
