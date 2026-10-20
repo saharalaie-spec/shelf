@@ -5,7 +5,8 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
 import { VOCAB } from "@/lib/kinds";
-import type { Mood, Suggestion } from "@/lib/suggest";
+import { moodsFor, type Mood } from "@/lib/moods";
+import type { Suggestion } from "@/lib/suggest";
 import type { TodayPick } from "@/lib/today";
 import type { Hit, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
@@ -30,6 +31,11 @@ const MOOD_LABEL: Record<Mood, string> = {
   deeper: "Deeper",
   short: "Short",
   surprise: "Surprise me",
+  date: "Date night",
+  friends: "Drinks with friends",
+  family: "Family dinner",
+  celebrate: "Celebrating",
+  solo: "Just me",
 };
 
 type Props = {
@@ -153,7 +159,7 @@ function Ideas({
       }
     >
       <div className="no-scrollbar -mx-5 mb-2 flex gap-2 overflow-x-auto px-5 pt-1">
-        {(Object.keys(MOOD_LABEL) as Mood[]).map((m) => (
+        {moodsFor(kind).map((m) => (
           <button
             key={m}
             onClick={() => setMood(m)}
