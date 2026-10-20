@@ -40,6 +40,7 @@ export default async function HomePage() {
       summaries={summaries}
       today={today}
       thanks={thanks}
+      hasPlaces={destinations.length > 0}
       suggest={suggestEnabled()}
     />
   );

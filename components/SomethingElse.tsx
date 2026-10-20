@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
@@ -37,6 +38,8 @@ type Props = {
   list: TodayPick[];
   /** Places: suggest spots for this place. */
   destinationId: string | null;
+  /** Places: you've added at least one. Places start with a city, so without one there's nothing to go on. */
+  hasPlaces?: boolean;
   suggest: boolean;
   /** Says why something from your lists or a friend is there. */
   reasonOf: (p: Choice) => string;
@@ -44,8 +47,9 @@ type Props = {
 };
 
 /** Choose something: from your lists, from friends, or new ideas from your taste. Nothing is pushed. */
-export function SomethingElse({ kind, list, destinationId, suggest, reasonOf, onChoose }: Props) {
+export function SomethingElse({ kind, list, destinationId, hasPlaces = true, suggest, reasonOf, onChoose }: Props) {
   const v = VOCAB[kind];
+  if (kind === "place" && !hasPlaces) return <NoPlacesYet />;
   const mine = list.filter((p) => p.tier !== "friend").slice(0, 6);
   const friends = list.filter((p) => p.tier === "friend").slice(0, 5);
 
@@ -89,6 +93,25 @@ export function SomethingElse({ kind, list, destinationId, suggest, reasonOf, on
       {!mine.length && !friends.length && !suggest && (
         <p className="mt-4 mb-6 text-[15px] text-muted">Nothing saved here yet. Add a few and they’ll show up here.</p>
       )}
+    </div>
+  );
+}
+
+/** Places start with a city: until there's one, say so and offer to add it. */
+function NoPlacesYet() {
+  return (
+    <div className="px-5 pb-safe">
+      <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE.place}</h2>
+      <p className="mt-2 text-[15px] leading-snug text-muted">
+        Places start with a city. Add one you’re visiting (or love), and the spots you want to go to, friends’ picks and
+        ideas for it will show up here.
+      </p>
+      <Link
+        href="/places"
+        className="mt-5 mb-6 flex h-12 items-center justify-center gap-2 rounded-full bg-ink text-[16px] font-medium text-paper active:scale-[0.97]"
+      >
+        <Icon name="pin" size={18} /> Add a place
+      </Link>
     </div>
   );
 }
