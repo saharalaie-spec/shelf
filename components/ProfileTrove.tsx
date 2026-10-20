@@ -35,11 +35,13 @@ type Props = {
   /** The viewer's own items (work key → section), so one they have shows where it lives. */
   mine: Record<string, Status>;
   channels: Channels;
+  /** Open on one of their places (`?place=`), e.g. from "Bo's Paris". */
+  focusPlace?: string | null;
 };
 
 const firstSection = (counts: Record<Status, number>) => STATUSES.find((s) => counts[s] > 0) ?? "read";
 
-export function ProfileTrove({ person, items, destinations, relation, mine: initialMine, channels }: Props) {
+export function ProfileTrove({ person, items, destinations, relation, mine: initialMine, channels, focusPlace = null }: Props) {
   const counts = useMemo(() => {
     const c = Object.fromEntries(KINDS.map((k) => [k, { read: 0, reading: 0, want: 0 }])) as Record<Kind, Record<Status, number>>;
     for (const b of items) c[b.kind][b.status]++;
@@ -47,10 +49,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   }, [items]);
   const total = (k: Kind) => counts[k].read + counts[k].reading + counts[k].want;
   // Open on the first collection they've put something in.
-  const [kind, setKind] = useState<Kind>(() => KINDS.find((k) => total(k) > 0) ?? "book");
+  const [focus, setFocus] = useState(() => destinations.find((d) => d.id === focusPlace) ?? null);
+  const [kind, setKind] = useState<Kind>(() => (focus ? "place" : (KINDS.find((k) => total(k) > 0) ?? "book")));
   const [section, setSection] = useState<Status>(() => firstSection(counts[kind]));
   const v = VOCAB[kind];
-  const books = items.filter((b) => b.kind === kind);
+  const books = items.filter((b) => b.kind === kind && (!focus || kind !== "place" || b.destinationId === focus.id));
   const showKind = (k: Kind) => {
     setKind(k);
     setSection(firstSection(counts[k]));
@@ -157,6 +160,16 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         )}
       </div>
 
+      {focus && kind === "place" && (
+        <div className="mx-5 mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-serif text-[24px] font-medium tracking-tight">
+            {person.name ? `${person.name}’s` : "Their"} {focus.name}
+          </h2>
+          <button onClick={() => setFocus(null)} className="shrink-0 text-[14px] font-medium text-ink-2 underline underline-offset-2">
+            All their places
+          </button>
+        </div>
+      )}
       {books.length === 0 ? (
         <p className="px-5 text-[16px] text-muted">No {v.many} here yet.</p>
       ) : inSection.length === 0 ? (
@@ -172,7 +185,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             className="px-5"
           >
             {isPlace ? (
-              <PlacesList items={inSection} destinations={destinations} groupBy="destination" onOpen={(b) => (setOpen(b), setLastOpen(b))} />
+              <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
                 {inSection.map((b) => (

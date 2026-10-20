@@ -54,6 +54,8 @@ export function MoodCard({ candidates, suggest, places }: { candidates: TodayCan
   const [open, setOpen] = useState<Kind | null>(null);
   const [last, setLast] = useState<Kind>("book");
   const [chosen, setChosen] = useState<{ c: Choice; save?: ChoiceSave } | null>(null);
+  // Started or saved from here: off the list now.
+  const [taken, setTaken] = useState<Set<string>>(() => new Set());
   // The hour is the viewer's, so the order settles once it's on their device.
   const kinds = order(hydrated ? new Date().getHours() : 12);
   const kind = open ?? last;
@@ -86,26 +88,45 @@ export function MoodCard({ candidates, suggest, places }: { candidates: TodayCan
       </div>
 
       <Sheet open={open !== null} onOpenChange={(o) => !o && setOpen(null)} title={TILE[kind]} hideTitle>
-        {chosen ? (
-          <Chosen key={chosen.c.key} choice={chosen.c} save={chosen.save} onBack={() => setChosen(null)} />
-        ) : (
+        {chosen && (
+          <Chosen
+            key={chosen.c.key}
+            choice={chosen.c}
+            save={chosen.save}
+            onBack={() => setChosen(null)}
+            onDone={(key) => setTaken((t) => new Set(t).add(key))}
+          />
+        )}
+        {/* Kept while one is open, so going back finds the city, occasion and ideas as you left them. */}
+        <div hidden={Boolean(chosen)}>
           <SomethingElse
             key={kind}
             kind={kind}
-            list={candidates[kind]}
+            list={candidates[kind].filter((p) => !taken.has(p.workKey))}
             places={startPlaces}
+            taken={taken}
             suggest={suggest}
             reasonOf={reasonText}
             onChoose={(c, save) => setChosen({ c, save })}
           />
-        )}
+        </div>
       </Sheet>
     </section>
   );
 }
 
 /** What you chose: start it (or save it for later), and where to play it or how to get there. */
-function Chosen({ choice, save, onBack }: { choice: Choice; save?: ChoiceSave; onBack: () => void }) {
+function Chosen({
+  choice,
+  save,
+  onBack,
+  onDone,
+}: {
+  choice: Choice;
+  save?: ChoiceSave;
+  onBack: () => void;
+  onDone: (workKey: string) => void;
+}) {
   const router = useRouter();
   const [itemId, setItemId] = useState(choice.itemId);
   const [done, setDone] = useState<"started" | "saved" | null>(null);
@@ -131,6 +152,7 @@ function Chosen({ choice, save, onBack }: { choice: Choice; save?: ChoiceSave; o
         if (added[0]) setItemId(added[0].id);
       }
       setDone(to);
+      onDone(choice.workKey);
       toast(
         to === "saved"
           ? `Saved “${choice.title}” to ${kind === "place" ? "Want to go" : VOCAB[kind].sections.want}`
