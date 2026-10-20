@@ -9,12 +9,13 @@ import { isKind, type Kind } from "@/lib/types";
 export const POST = route(async (req: Request) => {
   const user = await requireUser();
   if (!suggestEnabled()) throw new AuthError("Suggestions aren’t set up here yet.", 404);
-  const body = await readJson<{ kind: Kind; mood: string; fresh: boolean; destinationId: string | null; area: unknown }>(req);
+  const body = await readJson<{ kind: Kind; mood: string; fresh: boolean; destinationId: string | null; area: unknown; format: unknown }>(req);
   if (!isKind(body.kind)) throw new AuthError("Unknown collection.");
   const result = await suggest(user.id, body.kind, isMood(body.mood, body.kind) ? body.mood : "any", {
     fresh: body.fresh === true,
     destinationId: typeof body.destinationId === "string" ? body.destinationId : null,
     place: cleanArea(body.area),
+    format: body.format === "movie" || body.format === "tv" ? body.format : null,
   });
   return Response.json(result);
 });

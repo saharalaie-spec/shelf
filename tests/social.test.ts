@@ -501,7 +501,12 @@ describe("something else: taste map and suggestions", () => {
 
     // No place yet: nothing to suggest spots for.
     expect(await suggest(me.id, "place", "any", {}, ask)).toEqual({ picks: [], destinationId: null });
-    // Any city from the map, not one of theirs.
+    // Movies only: asked for as such, and kept apart from either.
+    const formats: unknown[] = [];
+    await suggest(me.id, "screen", "short", { format: "movie" }, async (input) => (formats.push(input.format), [{ title: "A film", creator: "", year: 0, why: "x" }]));
+    await suggest(me.id, "screen", "short", {}, async (input) => (formats.push(input.format), [{ title: "A show", creator: "", year: 0, why: "x" }]));
+    expect(formats).toEqual(["movie", null]);
+        // Any city from the map, not one of theirs.
     const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, ask);
     expect(anywhere.destinationId).toBeNull();
     expect(anywhere.picks.length).toBeGreaterThan(0);

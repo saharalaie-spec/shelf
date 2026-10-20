@@ -196,3 +196,14 @@ export function spotTally(items: readonly { status: Status }[]) {
   const want = items.length - been;
   return [been && `${been.toLocaleString()} been`, want && `${want.toLocaleString()} want to go`].filter(Boolean).join(" · ");
 }
+
+/** Movies & TV: which one a title is, when we can tell (catalog category, then source, then how it's labelled). */
+export function screenFormat(h: { key: string; categories: string[]; author: string | null }): "movie" | "tv" | null {
+  if (h.categories.includes("TV")) return "tv";
+  if (h.categories.includes("Movies")) return "movie";
+  if (/^(tmdb:tv:|tvmaze:)/.test(h.key)) return "tv";
+  if (/^(tmdb:movie:|itunes:movie:)/.test(h.key)) return "movie";
+  if (h.author?.startsWith("TV ·")) return "tv";
+  if (h.author?.startsWith("Movie ·")) return "movie";
+  return null;
+}

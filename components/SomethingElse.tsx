@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
-import { VOCAB } from "@/lib/kinds";
+import { screenFormat, VOCAB } from "@/lib/kinds";
 import { moodsFor, type Mood } from "@/lib/moods";
 import type { FriendPlace } from "@/lib/friend-places";
 import type { Suggestion } from "@/lib/suggest";
@@ -60,6 +60,10 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
   const v = VOCAB[kind];
   const isPlace = kind === "place";
   const [mood, setMood] = useState<Mood>("any");
+  // Movies & TV: either, or just one.
+  const [format, setFormat] = useState<"any" | "movie" | "tv">("any");
+  const fits = (p: TodayPick) =>
+    kind !== "screen" || format === "any" || (screenFormat({ key: p.workKey, categories: p.categories, author: p.author }) ?? format) === format;
   // Places: nothing is picked for you, and looking a city up saves nothing. Spots wait until you say where.
   const [city, setCity] = useState<AreaHit | null>(null);
   const there = useFriendsIn(isPlace ? city : null)
@@ -67,14 +71,29 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
     .filter((f) => f.spots.length > 0);
 
   const mine = list
-    .filter((p) => p.tier !== "friend" && (!isPlace || (city !== null && fold(p.destination ?? "") === fold(city.name))))
+    .filter((p) => p.tier !== "friend" && fits(p) && (!isPlace || (city !== null && fold(p.destination ?? "") === fold(city.name))))
     .slice(0, 6);
-  const friends = list.filter((p) => p.tier === "friend").slice(0, 5);
+  const friends = list.filter((p) => p.tier === "friend" && fits(p)).slice(0, 5);
   const chips = <MoodChips kind={kind} mood={mood} onMood={setMood} />;
 
   return (
     <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE[kind]}</h2>
+      {kind === "screen" && (
+        <div className="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Movie or TV show">
+          {(["any", "movie", "tv"] as const).map((f) => (
+            <button
+              key={f}
+              role="radio"
+              aria-checked={format === f}
+              onClick={() => setFormat(f)}
+              className={`h-9 rounded-full text-[14px] font-medium transition-colors ${format === f ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
+            >
+              {{ any: "Either", movie: "Movie", tv: "TV show" }[f]}
+            </button>
+          ))}
+        </div>
+      )}
       {/* Places: the occasion, then the city; everything below is for that city. */}
       {isPlace && (
         <>
@@ -128,9 +147,10 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
       {isPlace && !city && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Pick a city, and spots for it show up here.</p>}
       {suggest && (!isPlace || city) && (
         <Ideas
-          key={city?.key ?? kind}
+          key={`${city?.key ?? kind}|${format}`}
           kind={kind}
           mood={mood}
+          format={kind === "screen" && format !== "any" ? format : null}
           chips={isPlace ? null : chips}
           area={city}
           title={isPlace && city ? `Picked for you in ${city.name}` : "Picked for you"}
@@ -270,6 +290,7 @@ function Ideas({
   mood,
   chips,
   area,
+  format,
   title,
   onChoose,
   shown,
@@ -278,6 +299,7 @@ function Ideas({
   mood: Mood;
   chips: React.ReactNode;
   area: AreaHit | null;
+  format: "movie" | "tv" | null;
   title: string;
   shown: string[];
   taken: Set<string>;
@@ -292,14 +314,14 @@ function Ideas({
   useEffect(() => {
     let live = true;
     api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", {
-      body: { kind, mood, fresh: round > 0, area },
+      body: { kind, mood, fresh: round > 0, area, format },
     })
       .then((r) => live && setResult({ key: want, ...r }))
       .catch((err) => live && setResult({ key: want, picks: [], destinationId: null, error: (err as Error).message }));
     return () => {
       live = false;
     };
-  }, [kind, mood, round, area, want]);
+  }, [kind, mood, round, area, format, want]);
 
   return (
     <Group

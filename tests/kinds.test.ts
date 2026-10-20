@@ -48,3 +48,14 @@ describe("moods and occasions", () => {
     expect(isMood("any", "screen")).toBe(true);
   });
 });
+
+describe("movie or TV show", () => {
+  it("tells them apart from the catalog, the source, or the label", async () => {
+    const { screenFormat } = await import("@/lib/kinds");
+    expect(screenFormat({ key: "fx:screen:x", categories: ["TV", "Drama"], author: null })).toBe("tv");
+    expect(screenFormat({ key: "tmdb:movie:1", categories: [], author: null })).toBe("movie");
+    expect(screenFormat({ key: "tvmaze:5", categories: [], author: null })).toBe("tv");
+    expect(screenFormat({ key: "sample:screen:pastlives", categories: ["Drama"], author: "Movie · Celine Song" })).toBe("movie");
+    expect(screenFormat({ key: "typed:screen:x|", categories: [], author: null })).toBeNull();
+  });
+});
