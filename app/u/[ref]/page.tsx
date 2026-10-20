@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[ref]">): Promi
   return { title, description, robots, openGraph: { title, description, siteName: "Trove" } };
 }
 
-export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
+export default async function ProfilePage({ params, searchParams }: PageProps<"/u/[ref]">) {
   if (!databaseUrl()) return <SetupNeeded />;
   const { viewer, person, access } = await load((await params).ref);
 
@@ -71,6 +71,7 @@ export default async function ProfilePage({ params }: PageProps<"/u/[ref]">) {
       relation={relation}
       mine={mine}
       channels={signInChannels()}
+      focusPlace={typeof (await searchParams).place === "string" ? String((await searchParams).place) : null}
     />
   );
 }

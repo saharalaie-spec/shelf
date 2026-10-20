@@ -692,3 +692,43 @@ describe("deleting an account", () => {
     expect(palsCopy.recBy).toEqual({ id: null, name: "Del" });
   });
 });
+
+describe("friends who know a place", () => {
+  it("finds friends' places of the same name or inside yours, with what they share and you don't have", async () => {
+    const { friendsIn } = await import("@/lib/friend-places");
+    const { findOrCreateDestination } = await import("@/lib/destinations");
+    const me = await signUp({ phone: "+14155550961" }, "Mia");
+    const bo = await signUp({ phone: "+14155550962" }, "Bo");
+    const cy = await signUp({ phone: "+14155550963" }, "Cy");
+    const zed = await signUp({ phone: "+14155550964" }, "Zed");
+    await social.acceptInvite(bo, await social.inviteToken(me.id));
+    await social.acceptInvite(cy, await social.inviteToken(me.id));
+    const spot = (key: string, title: string, extra: Partial<import("@/lib/trove").NewItem> = {}) =>
+      book(key, title, { categories: ["Food & Drink"], ...extra });
+
+    const myParis = await findOrCreateDestination(me.id, { name: "Paris", country: "France", lat: 48.85, lon: 2.35, bbox: [2.22, 48.81, 2.47, 48.9] });
+    const mySpain = await findOrCreateDestination(me.id, { name: "Spain", country: null, lat: 40, lon: -4, bbox: [-18.2, 27.6, 4.3, 43.8] });
+    await trove.addItems(me.id, "place", [spot("fx:spot:mine", "Already mine")], { destinationId: myParis.id });
+
+    const boParis = await findOrCreateDestination(bo.id, { name: "París", country: "France", lat: null, lon: null, bbox: null });
+    await trove.addItems(bo.id, "place", [
+      spot("fx:spot:a", "Le Baratin", { status: "read", note: "Book ahead." }),
+      spot("fx:spot:b", "Want-only spot", { status: "want" }),
+      spot("fx:spot:mine", "Already mine", { status: "read" }),
+      spot("fx:spot:secret", "Secret", { status: "read", private: true }),
+    ], { destinationId: boParis.id });
+    const cyValencia = await findOrCreateDestination(cy.id, { name: "Valencia", country: "Spain", lat: 39.47, lon: -0.38, bbox: null });
+    await trove.addItems(cy.id, "place", [spot("fx:spot:c", "Casa Montaña", { status: "read" })], { destinationId: cyValencia.id });
+    // Not a friend.
+    const zedParis = await findOrCreateDestination(zed.id, { name: "Paris", country: "France", lat: null, lon: null, bbox: null });
+    await trove.addItems(zed.id, "place", [spot("fx:spot:z", "Zed's", { status: "read" })], { destinationId: zedParis.id });
+
+    const paris = await friendsIn(me.id, myParis.id);
+    expect(paris.map((f) => [f.friend.name, f.place.name, f.been, f.spots.map((s) => s.title)])).toEqual([
+      ["Bo", "París", 1, ["Le Baratin", "Want-only spot"]],
+    ]);
+    const spain = await friendsIn(me.id, mySpain.id);
+    expect(spain.map((f) => [f.friend.name, f.place.name])).toEqual([["Cy", "Valencia"]]);
+    expect(await friendsIn(bo.id, myParis.id)).toEqual([]);
+  });
+});

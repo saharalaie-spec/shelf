@@ -6,6 +6,7 @@ import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
 import { VOCAB } from "@/lib/kinds";
 import { moodsFor, type Mood } from "@/lib/moods";
+import type { FriendPlace } from "@/lib/friend-places";
 import type { Suggestion } from "@/lib/suggest";
 import type { TodayPick } from "@/lib/today";
 import type { Hit, Kind } from "@/lib/types";
@@ -62,6 +63,7 @@ export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onCh
   const [cities, setCities] = useState(places);
   const [cityId, setCityId] = useState<string | null>(places[0]?.id ?? null);
   const city = cities.find((c) => c.id === cityId) ?? null;
+  const there = useFriendsIn(isPlace ? cityId : null);
   if (isPlace && !cities.length) return <NoPlacesYet onCity={(c) => (setCities([c]), setCityId(c.id))} />;
 
   const mine = list.filter((p) => p.tier !== "friend" && (!isPlace || p.destinationId === cityId)).slice(0, 6);
@@ -114,6 +116,9 @@ export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onCh
           ))}
         </Group>
       )}
+      {isPlace && city && there.length > 0 && (
+        <FriendsThere there={there} city={city} onChoose={onChoose} reasonOf={reasonOf} />
+      )}
       {suggest && (
         <Ideas
           key={cityId ?? kind}
@@ -123,13 +128,111 @@ export function SomethingElse({ kind, list, places = [], suggest, reasonOf, onCh
           destinationId={cityId}
           title={isPlace && city ? `Picked for you in ${city.name}` : "Picked for you"}
           onChoose={onChoose}
-          shown={[...mine, ...friends].map((p) => p.title)}
+          shown={[...mine, ...friends].map((p) => p.title).concat(there.flatMap((f) => f.spots.map((i) => i.title)))}
         />
       )}
       {!mine.length && !friends.length && !suggest && (
         <p className="mt-4 mb-6 text-[15px] text-muted">Nothing saved here yet. Add a few and they’ll show up here.</p>
       )}
     </div>
+  );
+}
+
+/** Friends who know the place on screen, and what they share there. */
+function useFriendsIn(cityId: string | null) {
+  const [found, setFound] = useState<{ cityId: string; friends: FriendPlace[] } | null>(null);
+  useEffect(() => {
+    if (!cityId) return;
+    let live = true;
+    api<{ friends: FriendPlace[] }>(`/api/friends/places?dest=${cityId}`)
+      .then((r) => live && setFound({ cityId, friends: r.friends }))
+      .catch(() => live && setFound({ cityId, friends: [] }));
+    return () => {
+      live = false;
+    };
+  }, [cityId]);
+  return found && found.cityId === cityId ? found.friends : [];
+}
+
+const names = (ns: string[]) => (ns.length <= 2 ? ns.join(" and ") : `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}`);
+
+/** "Bo and Juno have been to Paris": their places to open, and a few of their spots to pick from. */
+function FriendsThere({
+  there,
+  city,
+  onChoose,
+  reasonOf,
+}: {
+  there: FriendPlace[];
+  city: Place;
+  onChoose: Props["onChoose"];
+  reasonOf: Props["reasonOf"];
+}) {
+  const people = [...new Map(there.map((f) => [f.friend.id, f.friend.name])).values()];
+  const allBeen = there.every((f) => f.been > 0);
+  const spots = there
+    .flatMap((f) => f.spots.map((item) => ({ f, item })))
+    .sort((a, b) => Number(b.item.status === "read") - Number(a.item.status === "read") || Number(Boolean(b.item.note)) - Number(Boolean(a.item.note)))
+    .slice(0, 5);
+
+  return (
+    <section className="mt-5 rounded-2xl bg-paper p-4">
+      <p className="text-[16px] leading-snug">
+        <b className="font-medium">
+          {names(people)} {allBeen ? `${people.length === 1 ? "has" : "have"} been to ${city.name}.` : `${people.length === 1 ? "knows" : "know"} ${city.name}.`}
+        </b>{" "}
+        <span className="text-muted">See what they loved there.</span>
+      </p>
+      <div className="no-scrollbar -mx-4 mt-3 flex gap-2 overflow-x-auto px-4">
+        {there.map((f) => (
+          <Link
+            key={`${f.friend.id}:${f.place.id}`}
+            href={`/u/${f.friend.ref}?place=${f.place.id}`}
+            className="flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-surface px-3.5 text-[14px] font-medium whitespace-nowrap shadow-book active:scale-95"
+          >
+            {f.friend.name}’s {f.place.name}
+            <span className="text-muted tabular-nums">{f.spots.length}</span>
+          </Link>
+        ))}
+      </div>
+      <ul className="-mx-1 mt-2">
+        {spots.map(({ f, item }) => {
+          const c: Choice = {
+            key: `friendspot:${item.id}`,
+            itemId: null,
+            kind: "place",
+            workKey: item.key,
+            title: item.title,
+            author: item.author,
+            year: item.year,
+            coverUrl: item.coverUrl,
+            categories: item.categories,
+            ...(item.place ? { place: item.place } : {}),
+            destination: null,
+            destinationId: city.id,
+            tier: "friend",
+            reason: { type: "friend", from: f.friend.name, status: item.status },
+            friendId: f.friend.id,
+            ...(item.note ? { note: `${f.friend.name}: “${item.note}”` } : {}),
+          };
+          return (
+            <Row
+              key={c.key}
+              kind="place"
+              item={c}
+              line={reasonOf(c)}
+              onPick={() =>
+                onChoose(c, {
+                  hit: { key: item.key, title: item.title, author: item.author, year: item.year, coverUrl: item.coverUrl, categories: item.categories, ...(item.place ? { place: item.place } : {}) },
+                  friendId: f.friend.id,
+                  destinationId: city.id,
+                })
+              }
+            />
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 
