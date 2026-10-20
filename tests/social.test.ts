@@ -501,6 +501,10 @@ describe("something else: taste map and suggestions", () => {
 
     // No place yet: nothing to suggest spots for.
     expect(await suggest(me.id, "place", "any", {}, ask)).toEqual({ picks: [], destinationId: null });
+    // Any city from the map, not one of theirs.
+    const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, ask);
+    expect(anywhere.destinationId).toBeNull();
+    expect(anywhere.picks.length).toBeGreaterThan(0);
     // A place with no spots yet: ideas are for it.
     const { findOrCreateDestination } = await import("@/lib/destinations");
     const lisbon = await findOrCreateDestination(me.id, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });
@@ -723,12 +727,12 @@ describe("friends who know a place", () => {
     const zedParis = await findOrCreateDestination(zed.id, { name: "Paris", country: "France", lat: null, lon: null, bbox: null });
     await trove.addItems(zed.id, "place", [spot("fx:spot:z", "Zed's", { status: "read" })], { destinationId: zedParis.id });
 
-    const paris = await friendsIn(me.id, myParis.id);
+    const paris = await friendsIn(me.id, myParis);
     expect(paris.map((f) => [f.friend.name, f.place.name, f.been, f.spots.map((s) => s.title)])).toEqual([
       ["Bo", "París", 1, ["Le Baratin", "Want-only spot"]],
     ]);
-    const spain = await friendsIn(me.id, mySpain.id);
+    const spain = await friendsIn(me.id, mySpain);
     expect(spain.map((f) => [f.friend.name, f.place.name])).toEqual([["Cy", "Valencia"]]);
-    expect(await friendsIn(bo.id, myParis.id)).toEqual([]);
+    expect(await friendsIn(zed.id, myParis)).toEqual([]);
   });
 });

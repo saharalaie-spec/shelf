@@ -128,7 +128,11 @@ export async function suggest(
   userId: string,
   kind: Kind,
   mood: Mood,
-  { fresh = false, destinationId = null }: { fresh?: boolean; destinationId?: string | null } = {},
+  {
+    fresh = false,
+    destinationId = null,
+    place = null,
+  }: { fresh?: boolean; destinationId?: string | null; place?: Area | null } = {},
   ask: Ask = aiEnabled() ? askClaude : askOffline,
 ): Promise<{ picks: Suggestion[]; destinationId: string | null }> {
   const client = await db();
@@ -138,7 +142,11 @@ export async function suggest(
   // Places are suggested for one of your places.
   let area: Area | null = null;
   let scope = "";
-  if (kind === "place") {
+  if (kind === "place" && place) {
+    // Any city picked from the map, yours or not.
+    area = place;
+    scope = `area:${place.name.toLowerCase()}|${(place.country ?? "").toLowerCase()}`;
+  } else if (kind === "place") {
     // The place asked about, else the one with your latest spot, else the place you added most recently.
     const fallback = taste.latestDestinationId ?? (await listDestinations(userId, { includePrivate: true, includeEmpty: true }))[0]?.id;
     const d = await getDestination(userId, destinationId ?? fallback ?? "");
@@ -150,7 +158,7 @@ export async function suggest(
   const earlier = await askedToday(userId, day);
   if (!fresh) {
     const hit = earlier.find((r) => r.kind === kind && r.mood === mood && r.scope === scope);
-    if (hit) return { picks: JSON.parse(String(hit.items)), destinationId: scope || null };
+    if (hit) return { picks: JSON.parse(String(hit.items)), destinationId: place ? null : scope || null };
   }
   if (earlier.length >= DAILY_LIMIT) throw new AuthError(ENOUGH, 429);
 
@@ -180,7 +188,7 @@ export async function suggest(
     sql: "INSERT INTO suggestions (user_id, kind, mood, scope, day, items, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
     args: [userId, kind, mood, scope, day, JSON.stringify(picks), Date.now()],
   });
-  return { picks, destinationId: scope || null };
+  return { picks, destinationId: place ? null : scope || null };
 }
 
 /**
