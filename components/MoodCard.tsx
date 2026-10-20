@@ -14,7 +14,7 @@ import { SpotTile } from "./Spot";
 import { Button, Icon, KIND_ICON, useHydrated } from "./ui";
 
 /**
- * "Can't decide what's next?": four doors into choosing something, for when you're stuck. Nothing here keeps score
+ * "Stuck on what's next?": four doors into choosing something. Nothing here keeps score
  * of what you're already in the middle of, and nothing changes by itself from day to day.
  */
 
@@ -66,7 +66,7 @@ export function MoodCard({ candidates, suggest, hasPlaces }: { candidates: Today
 
   return (
     <section className="mx-5 mb-5 rounded-[28px] bg-surface p-4 shadow-book">
-      <h2 className="px-1 font-serif text-[22px] leading-tight font-medium tracking-tight">Can’t decide what’s next?</h2>
+      <h2 className="px-1 font-serif text-[22px] leading-tight font-medium tracking-tight">Stuck on what’s next?</h2>
       <p className="mt-0.5 px-1 text-[14px] leading-snug text-muted">Tap one for a few ideas from your lists, your friends and your taste.</p>
       <div className="mt-3 grid grid-cols-4 gap-2">
         {kinds.map((k) => (
