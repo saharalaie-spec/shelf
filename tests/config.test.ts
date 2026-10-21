@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { databaseUrl, devCodeDelivery, signInChannels } from "@/lib/config";
+import { databaseUrl, devCodeDelivery, isOwner, signInChannels } from "@/lib/config";
 
 afterEach(() => vi.unstubAllEnvs());
 
@@ -58,5 +58,16 @@ describe("databaseUrl", () => {
     expect(databaseUrl()).toBeNull();
     vi.stubEnv("TURSO_DATABASE_URL", "libsql://trove-me.turso.io");
     expect(databaseUrl()).toBe("libsql://trove-me.turso.io");
+  });
+});
+
+describe("isOwner", () => {
+  it("matches OWNERS phone numbers and emails however they're written, and nobody when it's unset", () => {
+    vi.stubEnv("OWNERS", "");
+    expect(isOwner({ phone: "+14155550132", email: null })).toBe(false);
+    vi.stubEnv("OWNERS", "14155550132, Me@Example.com");
+    expect(isOwner({ phone: "+14155550132", email: null })).toBe(true);
+    expect(isOwner({ phone: null, email: "me@example.com" })).toBe(true);
+    expect(isOwner({ phone: "+14155550199", email: null })).toBe(false);
   });
 });

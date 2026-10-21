@@ -1,38 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f6f1e8;
-  --surface: #fffdf9;
-  --surface-2: #efe8dc;
-  --ink: #1d1a16;
-  --ink-2: #4a453e;
-  --muted: #7a7368;
-  --line: #e4dccd;
-  --accent: #b5532c;
-  --accent-ink: #fffaf3;
-  --good: #2f7a4b;
-  --shadow: 28 22 14;
+  /* Trove's two colors: Olive (the signature) and Clay (its warm counterpoint). Everything else is chalk, stone
+     and charcoal, so those two carry the brand. */
+  --olive: #4c5342;
+  --paper: #f3f1ec;
+  --surface: #fcfbf8;
+  --surface-2: #e9e6df;
+  --ink: #23261f;
+  --ink-2: #4a4d44;
+  --muted: #7c7d74;
+  --line: #dcd8cf;
+  --accent: #a5654a;
+  --accent-ink: #fcfbf8;
+  --good: #5e6a51;
+  --shadow: 30 32 26;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --paper: #13110f;
-    --surface: #1c1a17;
-    --surface-2: #26231f;
-    --ink: #f3eee6;
-    --ink-2: #cfc8bd;
-    --muted: #958d81;
-    --line: #2f2b26;
-    --accent: #e27d52;
-    --accent-ink: #1a0f09;
-    --good: #5cbf83;
+    --olive: #5d6652;
+    --paper: #121311;
+    --surface: #1b1c19;
+    --surface-2: #252621;
+    --ink: #ecebe5;
+    --ink-2: #c7c5bc;
+    --muted: #8e8d84;
+    --line: #2d2e29;
+    --accent: #c88a6e;
+    --accent-ink: #1a120d;
+    --good: #9aa889;
     --shadow: 0 0 0;
     color-scheme: dark;
   }
 }
 
 @theme inline {
+  --color-olive: var(--olive);
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);

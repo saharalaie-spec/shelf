@@ -283,6 +283,22 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX thanks_to ON thanks (to_user, seen_at, created_at)`,
     ],
   },
+  {
+    id: "2026-10-20-feedback",
+    statements: [
+      // What people tell whoever runs Trove: dictated or typed, with who and where, for reading as text.
+      `CREATE TABLE feedback (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
+        name TEXT,
+        contact TEXT,
+        text TEXT NOT NULL,
+        page TEXT,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX feedback_by_time ON feedback (created_at)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

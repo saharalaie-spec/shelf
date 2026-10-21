@@ -17,6 +17,8 @@ export async function deleteAccount(user: { id: string; phone: string | null; em
   await client.batch(
     [
       mine("DELETE FROM thanks WHERE from_user = ?1 OR to_user = ?1"),
+      // Feedback stays (it's about the app), but no longer says who sent it.
+      mine("UPDATE feedback SET user_id = NULL, name = NULL, contact = NULL WHERE user_id = ?"),
       mine("DELETE FROM starter_picks WHERE user_id = ?"),
       // Friends keep what they saved from you; it just stops linking to an account that's gone.
       mine("UPDATE books SET rec_user_id = NULL WHERE rec_user_id = ?"),

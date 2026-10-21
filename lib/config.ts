@@ -28,9 +28,9 @@ export const devCodesEnabled = () => !isProduction() || devCodesSetting() !== ""
 
 const warned = new Set<string>();
 
-/** ALLOW_DEV_CODES entries, normalized like sign-in identifiers. "14155550123" reads as "+14155550123". */
-function allowList() {
-  return devCodesSetting()
+/** A comma-separated list of phone numbers and emails, normalized like sign-in identifiers. "14155550123" reads as "+14155550123". */
+function identifierList(setting: string, name: string) {
+  return setting
     .split(",")
     .map((entry) => entry.trim())
     .filter(Boolean)
@@ -40,12 +40,20 @@ function allowList() {
       if (!parsed && !warned.has(entry)) {
         warned.add(entry);
         console.warn(
-          `ALLOW_DEV_CODES entry "${entry}" isn’t a phone number or email. Write phone numbers as +<country code><number>, e.g. +14155550123.`,
+          `${name} entry "${entry}" isn’t a phone number or email. Write phone numbers as +<country code><number>, e.g. +14155550123.`,
         );
       }
       return parsed ? [parsed.value] : [];
     });
 }
+
+const allowList = () => identifierList(devCodesSetting(), "ALLOW_DEV_CODES");
+
+/** Whoever runs this Trove (OWNERS: their phone numbers or emails): they read the feedback. */
+export const isOwner = (user: { phone: string | null; email: string | null }) => {
+  const owners = identifierList(process.env.OWNERS ?? "", "OWNERS");
+  return [user.phone, user.email].some((v) => v && owners.includes(v));
+};
 
 /**
  * How a sign-in code reaches someone when no texting/email provider is set up:

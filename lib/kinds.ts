@@ -66,7 +66,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     catalog: "the book catalog",
     creatorFallback: "Unknown author",
     nowVerb: "Reading",
-    tint: "#9c4a2a",
+    tint: "#9e6148",
     empty: ["Your books", "Type the books you remember, paste a list, scan barcodes or import from Goodreads."],
     sectionEmpty: {
       read: ["Nothing finished yet", "Books you’ve read land here. Tap Finished on a book you’re reading, or add some."],
@@ -93,7 +93,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     catalog: "the podcast directory",
     creatorFallback: "Podcast",
     nowVerb: "Listening to",
-    tint: "#5a3a62",
+    tint: "#6e5646",
     empty: ["Your podcasts", "Type the shows you love, paste a list, screenshot your podcast app or import your subscriptions."],
     sectionEmpty: {
       read: ["No favorites yet", "Shows you’ve listened to land here. Add the ones you’d recommend."],
@@ -120,7 +120,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     catalog: "the movie & TV catalog",
     creatorFallback: "Movie or show",
     nowVerb: "Watching",
-    tint: "#24485a",
+    tint: "#2f3329",
     empty: ["Your movies & TV", "Type what you’ve watched, paste a list, screenshot a streaming app or import from Letterboxd, IMDb or Netflix."],
     sectionEmpty: {
       read: ["Nothing watched yet", "Movies and shows you’ve seen land here. Add your favorites."],
@@ -148,7 +148,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     catalog: "the map",
     creatorFallback: "Spot",
     nowVerb: "Going to",
-    tint: "#3d5a3c",
+    tint: "#5e6a51",
     empty: ["Your places", "Add a city or country, then the spots there you loved or want to try."],
     sectionEmpty: {
       read: ["Nowhere yet", "Add the restaurants, museums and beaches you loved."],

@@ -171,7 +171,7 @@ export function DestinationPicker({
 
 function PinBadge({ globe }: { globe?: boolean }) {
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#3d5a3c] text-white">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-olive text-white">
       <Icon name={globe ? "globe2" : "pin"} size={19} />
     </span>
   );

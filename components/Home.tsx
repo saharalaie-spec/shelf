@@ -12,6 +12,7 @@ import type { Summary } from "@/lib/trove";
 import { KINDS, STATUSES, type Kind } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { CaptureSheet } from "./CaptureSheet";
+import { FeedbackSheet } from "./FeedbackSheet";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { MoodCard } from "./MoodCard";
@@ -33,6 +34,7 @@ type Props = {
 export function Home({ user, pendingRequests, summaries, today, thanks, suggest }: Props) {
   const router = useRouter();
   const [capturing, setCapturing] = useState(false);
+  const [feedback, setFeedback] = useState(false);
   const [profile, setProfile] = useState<Profile>({
     id: user.id,
     name: user.name,
@@ -107,6 +109,18 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         <Icon name="people" size={15} className="mt-px shrink-0" />
         Everything you add is visible to your friends. Make anything private from its page.
       </p>
+      <button
+        onClick={() => setFeedback(true)}
+        className="mx-5 mt-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-2xl border border-dashed border-line p-3 pl-4 text-left active:bg-surface-2"
+      >
+        <Icon name="mic" size={18} className="shrink-0 text-ink-2" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-[15px] font-medium">Something off, missing or lovely?</span>
+          <span className="block text-[13px] text-muted">Tell us. Talk or type, it takes a second.</span>
+        </span>
+        <Icon name="chevron" size={16} className="shrink-0 text-muted" />
+      </button>
+      <FeedbackSheet open={feedback} onOpenChange={setFeedback} />
       <AccountSheet
         open={account}
         onOpenChange={setAccount}
@@ -183,7 +197,7 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
   return (
     <Link
       href={`/${v.slug}`}
-      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-[#f6efe2] shadow-book transition-transform duration-200 active:scale-[0.98] sm:h-64"
+      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-[#f5f2ec] shadow-book ring-1 ring-white/10 ring-inset transition-transform duration-200 active:scale-[0.98] sm:h-64"
       style={{ background: `linear-gradient(150deg, ${v.tint}, color-mix(in oklab, ${v.tint} 70%, black))` }}
     >
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">

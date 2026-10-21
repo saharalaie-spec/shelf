@@ -150,7 +150,7 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
             onClick={() => go("where")}
             className="flex h-10 min-w-0 items-center gap-2 rounded-full bg-surface-2 pr-3 pl-1.5 text-[15px] font-medium active:scale-95"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#3d5a3c] text-white">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-olive text-white">
               <Icon name="pin" size={15} />
             </span>
             <span className="truncate">{dest.name}</span>

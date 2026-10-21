@@ -102,7 +102,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
           <p className="mt-3 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">Where?</p>
           {city ? (
             <div className="flex items-center gap-2 pt-1">
-              <span className="flex h-8 items-center gap-1 rounded-full bg-[#3d5a3c] px-3.5 text-[13px] font-medium text-white">
+              <span className="flex h-8 items-center gap-1 rounded-full bg-olive px-3.5 text-[13px] font-medium text-white">
                 <Icon name="pin" size={13} />
                 {[city.name, city.country].filter(Boolean).join(", ")}
               </span>

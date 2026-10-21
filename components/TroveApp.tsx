@@ -749,7 +749,7 @@ function EmptyState({ v, onAdd }: { v: Vocab; onAdd: () => void }) {
   return (
     <main className="flex flex-col items-center px-8 pt-[14vh] text-center">
       <div className="flex items-end gap-1.5" aria-hidden>
-        {["#34466b", "#b5532c", "#2f4b3a", "#9a6c22"].map((c, i) => (
+        {["#4c5342", "#a5654a", "#2f3329", "#6e5646"].map((c, i) => (
           <motion.div
             key={c}
             initial={{ y: 30, opacity: 0 }}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
+import { FeedbackSheet } from "./FeedbackSheet";
 import { Sheet } from "./Sheet";
 import { Button, Icon, Switch, useHydrated } from "./ui";
 
@@ -22,16 +23,34 @@ type Props = {
 };
 
 export function AccountSheet({ open, onOpenChange, ...rest }: Props) {
+  const [feedback, setFeedback] = useState(false);
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title="You">
-      <AccountBody {...rest} />
-    </Sheet>
+    <>
+      <Sheet open={open} onOpenChange={onOpenChange} title="You">
+        <AccountBody
+          {...rest}
+          onFeedback={() => {
+            onOpenChange(false);
+            // One sheet at a time: open it once this one has slid away.
+            setTimeout(() => setFeedback(true), 320);
+          }}
+        />
+      </Sheet>
+      <FeedbackSheet open={feedback} onOpenChange={setFeedback} />
+    </>
   );
 }
 
 const HANDLE_RE = /^[a-z0-9][a-z0-9_.]{1,18}[a-z0-9]$/;
 
-function AccountBody({ profile, contact, countLabel, privateCount, onProfile }: Omit<Props, "open" | "onOpenChange">) {
+function AccountBody({
+  profile,
+  contact,
+  countLabel,
+  privateCount,
+  onProfile,
+  onFeedback,
+}: Omit<Props, "open" | "onOpenChange"> & { onFeedback: () => void }) {
   const [draft, setDraft] = useState(profile.name ?? "");
   const [leaving, setLeaving] = useState<"here" | "everywhere" | null>(null);
   const { name } = profile;
@@ -72,7 +91,10 @@ function AccountBody({ profile, contact, countLabel, privateCount, onProfile }: 
       <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Who sees your trove</p>
       <ProfileSettings profile={profile} privateCount={privateCount} onProfile={onProfile} />
 
-      <Button variant="secondary" className="mt-7 w-full" loading={leaving === "here"} disabled={leaving !== null} onClick={() => signOut(false)}>
+      <Button variant="secondary" className="mt-7 w-full" onClick={onFeedback} icon={<Icon name="mic" size={18} />}>
+        Send feedback
+      </Button>
+      <Button variant="secondary" className="mt-2 w-full" loading={leaving === "here"} disabled={leaving !== null} onClick={() => signOut(false)}>
         Sign out
       </Button>
       <Button variant="ghost" className="mt-1 w-full text-[15px]" loading={leaving === "everywhere"} disabled={leaving !== null} onClick={() => signOut(true)}>

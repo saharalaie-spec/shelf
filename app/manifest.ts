@@ -7,8 +7,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description: "Every book you've read, in one place.",
     start_url: "/",
     display: "standalone",
-    background_color: "#f6f1e8",
-    theme_color: "#f6f1e8",
+    background_color: "#f3f1ec",
+    theme_color: "#f3f1ec",
     icons: [{ src: "/apple-icon", sizes: "180x180", type: "image/png" }],
   };
 }

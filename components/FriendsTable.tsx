@@ -106,7 +106,7 @@ export function FriendsTableView({ table, onFindFriends, onSampleAdded }: Props)
                   }}
                   className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left active:bg-surface-2"
                 >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-[#3d5a3c] text-white">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-olive text-white">
                     <Icon name="pin" size={22} />
                   </span>
                   <span className="min-w-0 flex-1">
