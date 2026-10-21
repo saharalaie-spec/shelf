@@ -5,12 +5,12 @@
      ground everything sits on). */
   --stone: #a89c88;
   --stone-2: #d3ccc0;
-  /* The collections: stones a breath off white, close enough to read as one family. */
-  --tint-book: #ebe6de;
-  --tint-podcast: #ede5e0;
-  --tint-screen: #e5e7e9;
-  --tint-place: #e6e8e1;
-  --tint-navy: #e3e7ee;
+  /* The collections: neutral stones a breath off white, apart only in warmth and depth. */
+  --tint-book: #eae7e2;
+  --tint-podcast: #e3e0da;
+  --tint-screen: #e6e5e2;
+  --tint-place: #dedbd5;
+  --tint-deep: #d8d5cf;
   --paper: #f2f0eb;
   --surface: #fbfaf7;
   --surface-2: #e8e4dc;
@@ -30,11 +30,11 @@
   :root {
     --stone: #8a7f6e;
     --stone-2: #5c564c;
-    --tint-book: #2b2925;
-    --tint-podcast: #2c2725;
-    --tint-screen: #25282c;
-    --tint-place: #272a26;
-    --tint-navy: #232a37;
+    --tint-book: #2a2927;
+    --tint-podcast: #2d2b28;
+    --tint-screen: #282827;
+    --tint-place: #302e2b;
+    --tint-deep: #34322f;
     --paper: #111316;
     --surface: #191c21;
     --surface-2: #23272d;
