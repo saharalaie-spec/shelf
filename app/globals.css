@@ -5,11 +5,11 @@
      ground everything sits on). */
   --stone: #a89c88;
   --stone-2: #d3ccc0;
-  /* The collections: stones a breath off white (sand, greige, slate, lichen), close enough to read as one family. */
+  /* The collections: stones a breath off white (sand, sage, slate, travertine), close enough to read as one family. */
   --tint-book: #ebe6de;
-  --tint-podcast: #e5e3df;
+  --tint-podcast: #dde3d6;
   --tint-screen: #e5e7e9;
-  --tint-place: #e6e8e1;
+  --tint-place: #e8e1d5;
   --tint-deep: #e3e7ee;
   --paper: #f2f0eb;
   --surface: #fbfaf7;
@@ -31,9 +31,9 @@
     --stone: #8a7f6e;
     --stone-2: #5c564c;
     --tint-book: #2b2925;
-    --tint-podcast: #2a2928;
+    --tint-podcast: #252b24;
     --tint-screen: #25282c;
-    --tint-place: #272a26;
+    --tint-place: #2d2a24;
     --tint-deep: #232a37;
     --paper: #111316;
     --surface: #191c21;
