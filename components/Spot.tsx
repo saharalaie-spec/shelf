@@ -5,7 +5,7 @@ import { Icon, type IconName } from "./ui";
 
 /** How each kind of spot looks: an icon on a color, standing in for a cover. */
 const STYLE: Record<string, { icon: IconName; color: string }> = {
-  // The collection earth tones: the icon tells them apart.
+  // Pale stones, with a breath of Trove's navy for the night: the icon tells them apart.
   "Food & Drink": { icon: "food", color: "var(--tint-podcast)" },
   Cafés: { icon: "coffee", color: "var(--tint-book)" },
   "Bars & Nightlife": { icon: "glass", color: "var(--tint-deep)" },
