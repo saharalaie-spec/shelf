@@ -197,7 +197,7 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
   return (
     <Link
       href={`/${v.slug}`}
-      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-[#f6efe2] shadow-book transition-transform duration-200 active:scale-[0.98] sm:h-64"
+      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-[#f5f2ec] shadow-book ring-1 ring-white/10 ring-inset transition-transform duration-200 active:scale-[0.98] sm:h-64"
       style={{ background: `linear-gradient(150deg, ${v.tint}, color-mix(in oklab, ${v.tint} 70%, black))` }}
     >
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">

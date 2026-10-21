@@ -75,7 +75,7 @@ export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates;
           <button
             key={k}
             onClick={() => show(k)}
-            className="flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[14px] font-medium text-white transition-transform active:scale-95"
+            className="flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[14px] font-medium text-white ring-1 ring-white/10 ring-inset transition-transform active:scale-95"
             style={{ background: VOCAB[k].tint }}
           >
             <Icon name={KIND_ICON[k]} size={22} />
