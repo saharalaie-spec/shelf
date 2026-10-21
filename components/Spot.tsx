@@ -5,18 +5,18 @@ import { Icon, type IconName } from "./ui";
 
 /** How each kind of spot looks: an icon on a color, standing in for a cover. */
 const STYLE: Record<string, { icon: IconName; color: string }> = {
-  // Stones, with Trove's navy for the night: the icon tells them apart.
-  "Food & Drink": { icon: "food", color: "#806a5e" },
-  Cafés: { icon: "coffee", color: "#77695b" },
-  "Bars & Nightlife": { icon: "glass", color: "#1e2b47" },
-  "Museums & Culture": { icon: "museum", color: "#5b6066" },
-  Sights: { icon: "camera", color: "#6e7264" },
-  "Beaches & Nature": { icon: "leaf", color: "#727a6c" },
-  Shopping: { icon: "bag", color: "#857868" },
-  Stays: { icon: "bed", color: "#6b6863" },
-  Activities: { icon: "sparkle", color: "#3a4660" },
+  // Pale stones, with a breath of Trove's navy for the night: the icon tells them apart.
+  "Food & Drink": { icon: "food", color: "var(--tint-podcast)" },
+  Cafés: { icon: "coffee", color: "var(--tint-book)" },
+  "Bars & Nightlife": { icon: "glass", color: "var(--tint-navy)" },
+  "Museums & Culture": { icon: "museum", color: "var(--tint-screen)" },
+  Sights: { icon: "camera", color: "var(--tint-place)" },
+  "Beaches & Nature": { icon: "leaf", color: "var(--tint-place)" },
+  Shopping: { icon: "bag", color: "var(--tint-book)" },
+  Stays: { icon: "bed", color: "var(--tint-screen)" },
+  Activities: { icon: "sparkle", color: "var(--tint-navy)" },
 };
-const FALLBACK = { icon: "pin" as IconName, color: "#5b6066" };
+const FALLBACK = { icon: "pin" as IconName, color: "var(--tint-screen)" };
 
 export const spotStyle = (categories: string[]) => STYLE[categories.find((c) => STYLE[c]) ?? ""] ?? FALLBACK;
 
@@ -34,7 +34,7 @@ export function SpotTile({
   return (
     <span
       aria-hidden
-      className={`flex shrink-0 items-center justify-center rounded-[28%] text-white shadow-book ${className}`}
+      className={`flex shrink-0 items-center justify-center rounded-[28%] text-ink-2 shadow-book ring-1 ring-line/70 ring-inset ${className}`}
       style={{ width: size, height: size, background: color }}
     >
       <Icon name={icon} size={Math.round(size * 0.46)} />

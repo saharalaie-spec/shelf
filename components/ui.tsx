@@ -13,7 +13,7 @@ export function Logo({ size = 28 }: { size?: number }) {
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
       <rect x="4" y="7" width="6" height="21" rx="1.5" fill="var(--link)" />
       <rect x="11.5" y="4" width="6" height="24" rx="1.5" fill="var(--stone)" />
-      <rect x="19.5" y="8" width="6" height="20" rx="1.5" fill="var(--ink-2)" transform="rotate(12 22.5 18)" />
+      <rect x="19.5" y="8" width="6" height="20" rx="1.5" fill="var(--stone-2)" transform="rotate(12 22.5 18)" />
     </svg>
   );
 }
@@ -34,7 +34,7 @@ type ButtonProps = ComponentProps<"button"> & {
 };
 
 const variants = {
-  primary: "bg-ink text-paper disabled:bg-ink/25 disabled:text-paper/80",
+  primary: "bg-accent text-accent-ink disabled:bg-ink/25 disabled:text-accent-ink/80",
   accent: "bg-accent text-accent-ink disabled:opacity-40",
   secondary: "bg-surface-2 text-ink disabled:opacity-50",
   ghost: "text-ink-2 hover:bg-surface-2 disabled:opacity-40",

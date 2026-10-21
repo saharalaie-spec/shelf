@@ -274,7 +274,7 @@ function MoodChips({ kind, mood, onMood }: { kind: Kind; mood: Mood; onMood: (m:
           onClick={() => onMood(m)}
           aria-pressed={mood === m}
           className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
-            mood === m ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+            mood === m ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
           }`}
         >
           {MOOD_LABEL[m]}

@@ -458,7 +458,7 @@ function PicksSheet({ open, onOpenChange, picks, onSaved }: { open: boolean; onO
                             {i.author && <span className="block truncate text-[13px] text-muted">{i.author}</span>}
                           </span>
                           <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${on ? "bg-ink text-paper" : "border border-line text-transparent"}`}
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${on ? "bg-accent text-accent-ink" : "border border-line text-transparent"}`}
                           >
                             <Icon name="check" size={15} />
                           </span>

@@ -147,7 +147,7 @@ export function Start({ name, from, invited, mine, features, inviteToken }: Prop
         <div className="flex items-center gap-3">
           <span className="flex gap-1.5" aria-label={`Step ${at + 1} of ${steps.length}`}>
             {steps.map((s, i) => (
-              <span key={s} className={`h-1.5 rounded-full transition-all ${i === at ? "w-5 bg-ink" : i < at ? "w-1.5 bg-ink" : "w-1.5 bg-line"}`} />
+              <span key={s} className={`h-1.5 rounded-full transition-all ${i === at ? "w-5 bg-accent" : i < at ? "w-1.5 bg-accent" : "w-1.5 bg-line"}`} />
             ))}
           </span>
           <button onClick={finish} disabled={finishing} className="h-9 rounded-full px-2 text-[15px] font-medium text-ink-2 active:opacity-60">
@@ -345,7 +345,7 @@ function Toggle({ on, onClick, label, children }: { on: boolean; onClick: () => 
       aria-pressed={on}
       aria-label={label}
       className={`flex h-8 items-center gap-1 rounded-full px-3 text-[13px] font-medium whitespace-nowrap transition-colors active:scale-95 ${
-        on ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+        on ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
       }`}
     >
       {children}
@@ -388,7 +388,7 @@ function LovedKind({
     <>
       <div className="pt-2">
         {welcome && <p className="mb-4 text-[15px] font-medium text-ink-2">{welcome}</p>}
-        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-full text-white" style={{ background: v.tint }}>
+        <span className="mb-3 flex h-9 w-9 items-center justify-center rounded-full text-ink-2" style={{ background: v.tint }}>
           <Icon name={KIND_ICON[kind]} size={18} />
         </span>
         <h1 className="font-serif text-[32px] leading-[1.05] font-medium tracking-tight text-balance">{ASK[kind].title}</h1>
@@ -527,7 +527,7 @@ function Deck({ have, save }: { have: Have; save: Save }) {
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
                 className="flex w-full max-w-[300px] cursor-grab touch-pan-y flex-col items-center rounded-[28px] bg-surface p-4 pb-5 text-center shadow-float active:cursor-grabbing"
               >
-                <span className="mb-3 rounded-full px-2.5 py-1 text-[12px] font-medium text-white" style={{ background: VOCAB[card.kind].tint }}>
+                <span className="mb-3 rounded-full px-2.5 py-1 text-[12px] font-medium text-ink" style={{ background: VOCAB[card.kind].tint }}>
                   {VOCAB[card.kind].one.replace(/^./, (c) => c.toUpperCase())}
                 </span>
                 <Cover

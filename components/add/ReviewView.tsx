@@ -96,7 +96,7 @@ export function ReviewView({ items, trove, onAdded }: Props) {
               Finding your {v.many}… {done} of {items.length}
             </p>
             <div className="mt-2 h-1 overflow-hidden rounded-full bg-surface-2">
-              <motion.div className="h-full rounded-full bg-ink" animate={{ width: `${(done / items.length) * 100}%` }} transition={{ ease: "easeOut" }} />
+              <motion.div className="h-full rounded-full bg-accent" animate={{ width: `${(done / items.length) * 100}%` }} transition={{ ease: "easeOut" }} />
             </div>
           </div>
         ) : (
@@ -129,7 +129,7 @@ export function ReviewView({ items, trove, onAdded }: Props) {
                 >
                   <span
                     className={`flex h-6 w-6 items-center justify-center rounded-full border-[1.5px] transition-colors ${
-                      inTrove ? "border-good bg-good text-white" : isTicked(i) ? "border-ink bg-ink text-paper" : "border-line"
+                      inTrove ? "border-good bg-good text-white" : isTicked(i) ? "border-accent bg-accent text-accent-ink" : "border-line"
                     }`}
                   >
                     {(isTicked(i) || inTrove) && <Icon name="check" size={14} />}

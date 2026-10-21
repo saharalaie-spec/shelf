@@ -352,7 +352,7 @@ function PlaceDetail({
               ) : (
                 <button
                   onClick={() => onSave(s, "want")}
-                  className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-ink px-3 text-[13px] font-medium text-paper active:scale-95"
+                  className="flex h-9 shrink-0 items-center gap-1 rounded-full bg-accent px-3 text-[13px] font-medium text-accent-ink active:scale-95"
                 >
                   <Icon name="plus" size={14} /> Want to go
                 </button>

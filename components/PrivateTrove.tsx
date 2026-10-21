@@ -19,7 +19,7 @@ export function PrivateTrove() {
         <p className="mt-2 max-w-xs text-[16px] text-muted">
           Only friends can see it. If you know them, ask for their Trove invite link.
         </p>
-        <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-ink px-6 text-[16px] font-medium text-paper active:scale-[0.97]">
+        <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-accent px-6 text-[16px] font-medium text-accent-ink active:scale-[0.97]">
           Go to your trove
         </Link>
       </main>

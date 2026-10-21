@@ -117,9 +117,7 @@ export function FeedbackSheet({ open, onOpenChange }: { open: boolean; onOpenCha
             onClick={listening ? stop : talk}
             aria-pressed={listening}
             aria-label={listening ? "Stop listening" : "Talk"}
-            className={`mx-auto mt-5 flex h-20 w-20 items-center justify-center rounded-full transition-transform active:scale-95 ${
-              listening ? "animate-pulse bg-accent text-accent-ink" : "bg-ink text-paper"
-            }`}
+            className={`mx-auto mt-5 flex h-20 w-20 items-center justify-center rounded-full bg-accent text-accent-ink transition-transform active:scale-95 ${listening ? "animate-pulse" : ""}`}
           >
             <Icon name={listening ? "x" : "mic"} size={30} />
           </button>

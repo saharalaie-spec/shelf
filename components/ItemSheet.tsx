@@ -166,7 +166,7 @@ export function ItemSheet({
                   key={c}
                   onClick={() => toggle(c)}
                   className={`flex h-9 items-center gap-1.5 rounded-full px-3.5 text-[14px] font-medium transition-[background-color,color,transform] active:scale-95 ${
-                    on ? "bg-ink text-paper" : "border border-line text-ink-2"
+                    on ? "bg-accent text-accent-ink" : "border border-line text-ink-2"
                   }`}
                 >
                   {on && <Icon name="check" size={14} />}

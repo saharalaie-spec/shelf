@@ -4,6 +4,13 @@
   /* Trove's two colors: Navy (the signature: buttons, links, the logo) and Stone (the collections, and the
      ground everything sits on). */
   --stone: #a89c88;
+  --stone-2: #d3ccc0;
+  /* The collections: stones a breath off white, close enough to read as one family. */
+  --tint-book: #ebe6de;
+  --tint-podcast: #ede5e0;
+  --tint-screen: #e5e7e9;
+  --tint-place: #e6e8e1;
+  --tint-navy: #e3e7ee;
   --paper: #f2f0eb;
   --surface: #fbfaf7;
   --surface-2: #e8e4dc;
@@ -22,6 +29,12 @@
 @media (prefers-color-scheme: dark) {
   :root {
     --stone: #8a7f6e;
+    --stone-2: #5c564c;
+    --tint-book: #2b2925;
+    --tint-podcast: #2c2725;
+    --tint-screen: #25282c;
+    --tint-place: #272a26;
+    --tint-navy: #232a37;
     --paper: #111316;
     --surface: #191c21;
     --surface-2: #23272d;
@@ -40,6 +53,7 @@
 
 @theme inline {
   --color-stone: var(--stone);
+  --color-stone-2: var(--stone-2);
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);

@@ -251,7 +251,7 @@ export function DestinationHeader({
       <div className="mt-4 flex gap-2">
         <button
           onClick={onAdd}
-          className="flex h-10 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] font-medium text-paper active:scale-95"
+          className="flex h-10 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-medium text-accent-ink active:scale-95"
         >
           <Icon name="plus" size={16} /> Add spots here
         </button>

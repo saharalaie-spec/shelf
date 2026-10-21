@@ -152,7 +152,7 @@ export function ScanView({ trove }: { trove: TroveActions }) {
           aria-label="ISBN"
           className="h-full min-w-0 flex-1 bg-transparent text-[16px] outline-none placeholder:text-muted"
         />
-        <button type="submit" aria-label="Look up ISBN" className="flex h-8 w-8 items-center justify-center rounded-full bg-ink text-paper active:scale-95">
+        <button type="submit" aria-label="Look up ISBN" className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-accent-ink active:scale-95">
           <Icon name="arrow" size={16} />
         </button>
       </form>

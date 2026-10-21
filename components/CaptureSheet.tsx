@@ -302,7 +302,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       onClick={onClick}
       aria-pressed={on}
       className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[14px] font-medium transition-colors active:scale-95 ${
-        on ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+        on ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
       }`}
     >
       {children}
@@ -312,7 +312,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 function KindTag({ kind }: { kind: Kind }) {
   return (
-    <span className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-white" style={{ background: VOCAB[kind].tint }}>
+    <span className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-ink" style={{ background: VOCAB[kind].tint }}>
       <Icon name={KIND_ICON[kind]} size={13} />
       {VOCAB[kind].label === "Movies & TV" ? "Watch" : VOCAB[kind].label.replace(/s$/, "")}
     </span>
