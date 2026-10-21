@@ -36,7 +36,7 @@ export function AreaSearch({ onArea, prompt, disabled }: { onArea: (a: AreaHit) 
         disabled={disabled}
         render={(a: AreaHit) => (
           <>
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-olive text-white">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink">
               <Icon name="pin" size={17} />
             </span>
             <span className="min-w-0 flex-1">

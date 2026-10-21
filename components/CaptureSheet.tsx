@@ -178,7 +178,7 @@ function WhatPick({ onPick, onPlace }: { onPick: (p: Picked) => void; onPlace: (
         </div>
       )}
       <button onClick={onPlace} className="mt-4 flex h-12 w-full items-center gap-3 rounded-2xl border border-dashed border-line px-4 text-left active:bg-surface-2">
-        <Icon name="pin" size={18} className="text-olive" />
+        <Icon name="pin" size={18} className="text-link" />
         <span className="flex-1 text-[15px] font-medium">It’s a place</span>
         <Icon name="chevron" size={17} className="text-muted" />
       </button>
@@ -302,7 +302,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
       onClick={onClick}
       aria-pressed={on}
       className={`flex h-9 items-center gap-1 rounded-full px-3.5 text-[14px] font-medium transition-colors active:scale-95 ${
-        on ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+        on ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
       }`}
     >
       {children}
@@ -312,7 +312,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
 
 function KindTag({ kind }: { kind: Kind }) {
   return (
-    <span className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-white" style={{ background: VOCAB[kind].tint }}>
+    <span className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-ink" style={{ background: VOCAB[kind].tint }}>
       <Icon name={KIND_ICON[kind]} size={13} />
       {VOCAB[kind].label === "Movies & TV" ? "Watch" : VOCAB[kind].label.replace(/s$/, "")}
     </span>

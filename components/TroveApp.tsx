@@ -708,7 +708,7 @@ function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOp
       </button>
       <button
         onClick={onFinish}
-        className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-ink px-4 text-[14px] font-medium text-paper transition-transform active:scale-95"
+        className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-medium text-accent-ink transition-transform active:scale-95"
       >
         <Icon name="check" size={16} />
         {v.finish}
@@ -735,7 +735,7 @@ function Chip({ active, label, count, onClick }: { active: boolean; label: strin
     <button
       onClick={onClick}
       className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-[background-color,color,transform] duration-200 active:scale-95 ${
-        active ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
       }`}
     >
       {label}
@@ -749,7 +749,7 @@ function EmptyState({ v, onAdd }: { v: Vocab; onAdd: () => void }) {
   return (
     <main className="flex flex-col items-center px-8 pt-[14vh] text-center">
       <div className="flex items-end gap-1.5" aria-hidden>
-        {["#4c5342", "#a5654a", "#2f3329", "#6e5646"].map((c, i) => (
+        {["var(--accent)", "var(--stone)", "var(--stone-2)", "var(--tint-book)"].map((c, i) => (
           <motion.div
             key={c}
             initial={{ y: 30, opacity: 0 }}

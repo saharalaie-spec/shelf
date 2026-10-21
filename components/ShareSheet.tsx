@@ -207,7 +207,7 @@ function ScopeChip({ active, label, count, onClick }: { active: boolean; label: 
     <button
       onClick={onClick}
       className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-colors active:scale-95 ${
-        active ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
       }`}
     >
       {label}

@@ -146,7 +146,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
               aria-label={`${VOCAB[k].label}, ${total(k)}`}
               onClick={() => showKind(k)}
               className={`flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[12px] font-medium transition-colors active:scale-95 ${
-                k === kind ? "text-white" : "bg-surface-2 text-ink-2"
+                k === kind ? "text-ink ring-1 ring-line ring-inset" : "bg-surface-2 text-ink-2"
               }`}
               style={k === kind ? { background: VOCAB[k].tint } : undefined}
             >
@@ -223,7 +223,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             initial={{ y: 120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.6, type: "spring", stiffness: 260, damping: 26 }}
-            className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-ink p-4 pl-5 text-paper shadow-float"
+            className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-accent p-4 pl-5 text-accent-ink shadow-float"
           >
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-medium">Make your own trove</p>
@@ -412,7 +412,7 @@ function RelationButton({
               </p>
               <Button
                 variant="secondary"
-                className="mt-5 w-full text-accent"
+                className="mt-5 w-full text-link"
                 loading={busy}
                 onClick={() =>
                   act({ kind: "stranger" }, async () => {
@@ -447,7 +447,7 @@ function BookActions({
   if (relation.kind === "self") return null;
   if (relation.kind === "signed-out") {
     return (
-      <Link href="/" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-ink text-[16px] font-medium text-paper active:scale-[0.97]">
+      <Link href="/" className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-accent text-[16px] font-medium text-accent-ink active:scale-[0.97]">
         <Icon name="plus" size={18} /> Start your own trove
       </Link>
     );

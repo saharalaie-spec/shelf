@@ -171,7 +171,7 @@ export function DestinationPicker({
 
 function PinBadge({ globe }: { globe?: boolean }) {
   return (
-    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-olive text-white">
+    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink">
       <Icon name={globe ? "globe2" : "pin"} size={19} />
     </span>
   );
@@ -280,7 +280,7 @@ function DestinationBody({
         <button
           type="button"
           onClick={() => (count ? setConfirming(true) : remove())}
-          className="mt-2 mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium text-accent active:bg-surface-2"
+          className="mt-2 mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-full text-[15px] font-medium text-link active:bg-surface-2"
         >
           <Icon name="trash" size={18} /> Delete {destination.name}
         </button>

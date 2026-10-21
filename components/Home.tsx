@@ -79,13 +79,13 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
 
       <button
         onClick={() => setCapturing(true)}
-        className="mx-5 mb-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-3xl bg-ink p-4 pl-5 text-left text-paper shadow-book active:scale-[0.99]"
+        className="mx-5 mb-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-3xl bg-accent p-4 pl-5 text-left text-accent-ink shadow-book active:scale-[0.99]"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[17px] font-medium">Someone recommended something?</span>
-          <span className="block text-[14px] text-paper/65">Save it and who said it, in seconds.</span>
+          <span className="block text-[14px] text-accent-ink/65">Save it and who said it, in seconds.</span>
         </span>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper text-ink">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-ink text-accent">
           <Icon name="plus" size={22} />
         </span>
       </button>
@@ -197,15 +197,15 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
   return (
     <Link
       href={`/${v.slug}`}
-      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-[#f5f2ec] shadow-book ring-1 ring-white/10 ring-inset transition-transform duration-200 active:scale-[0.98] sm:h-64"
-      style={{ background: `linear-gradient(150deg, ${v.tint}, color-mix(in oklab, ${v.tint} 70%, black))` }}
+      className="relative flex h-48 overflow-hidden rounded-[28px] p-5 text-ink shadow-book ring-1 ring-line/70 ring-inset transition-transform duration-200 active:scale-[0.98] sm:h-64"
+      style={{ background: `linear-gradient(150deg, ${v.tint}, color-mix(in oklab, ${v.tint} 93%, var(--ink)))` }}
     >
       <div className="relative z-10 flex min-w-0 flex-1 flex-col">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-surface/70 text-ink-2">
           <Icon name={KIND_ICON[kind]} size={20} />
         </span>
         <h2 className="mt-auto font-serif text-[30px] leading-none font-medium tracking-tight">{v.label}</h2>
-        <p className="mt-2 truncate text-[14px] text-white/75">
+        <p className="mt-2 truncate text-[14px] text-ink-2">
           {empty
             ? {
                 book: "Add the books you’ve read",
@@ -216,7 +216,7 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
             : summaryLine}
         </p>
         {now && (
-          <p className="mt-0.5 truncate text-[14px] text-white/95">
+          <p className="mt-0.5 truncate text-[14px] text-ink">
             {v.nowVerb} {now}
           </p>
         )}

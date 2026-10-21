@@ -75,7 +75,7 @@ export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates;
           <button
             key={k}
             onClick={() => show(k)}
-            className="flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[14px] font-medium text-white ring-1 ring-white/10 ring-inset transition-transform active:scale-95"
+            className="flex h-[76px] flex-col items-center justify-center gap-1.5 rounded-2xl text-[14px] font-medium text-ink ring-1 ring-line/70 ring-inset transition-transform active:scale-95"
             style={{ background: VOCAB[k].tint }}
           >
             <Icon name={KIND_ICON[k]} size={22} />
@@ -186,7 +186,7 @@ function Chosen({
       <div className="mt-5 mb-3 grid gap-2">
         {/* Places: getting there comes first; marking it Been is for after. */}
         {kind === "place" && links[0] && (
-          <a href={links[0].href} target="_blank" rel="noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-full bg-ink text-[16px] font-medium text-paper active:scale-[0.97]">
+          <a href={links[0].href} target="_blank" rel="noreferrer" className="flex h-12 items-center justify-center gap-2 rounded-full bg-accent text-[16px] font-medium text-accent-ink active:scale-[0.97]">
             <Icon name="map" size={18} /> Directions
           </a>
         )}

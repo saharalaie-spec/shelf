@@ -102,7 +102,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
           <p className="mt-3 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">Where?</p>
           {city ? (
             <div className="flex items-center gap-2 pt-1">
-              <span className="flex h-8 items-center gap-1 rounded-full bg-olive px-3.5 text-[13px] font-medium text-white">
+              <span className="flex h-8 items-center gap-1 rounded-full bg-accent px-3.5 text-[13px] font-medium text-accent-ink">
                 <Icon name="pin" size={13} />
                 {[city.name, city.country].filter(Boolean).join(", ")}
               </span>
@@ -274,7 +274,7 @@ function MoodChips({ kind, mood, onMood }: { kind: Kind; mood: Mood; onMood: (m:
           onClick={() => onMood(m)}
           aria-pressed={mood === m}
           className={`h-8 shrink-0 rounded-full px-3.5 text-[13px] font-medium whitespace-nowrap active:scale-95 ${
-            mood === m ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+            mood === m ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
           }`}
         >
           {MOOD_LABEL[m]}

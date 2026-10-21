@@ -16,7 +16,7 @@ const SOURCES: Record<Kind, { accept: string; hint: string; steps: [label: strin
         "Goodreads",
         <>
           My Books → Import and export → <i>Export Library</i>.{" "}
-          <a className="text-accent underline-offset-2 hover:underline" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">
+          <a className="text-link underline-offset-2 hover:underline" href="https://www.goodreads.com/review/import" target="_blank" rel="noreferrer">
             Open it
           </a>
         </>,
@@ -139,7 +139,7 @@ export function ImportView({ kind, onReview }: { kind: Kind; onReview: (items: C
         <input type="file" accept={source.accept} className="sr-only" onChange={(e) => onFile(e.target.files?.[0])} />
       </label>
 
-      {error && <p className="mt-3 text-center text-[14px] text-accent">{error}</p>}
+      {error && <p className="mt-3 text-center text-[14px] text-link">{error}</p>}
     </div>
   );
 }

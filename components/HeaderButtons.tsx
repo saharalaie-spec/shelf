@@ -35,7 +35,7 @@ export function AvatarButton({ name, contact, onClick }: { name: string | null; 
     <button
       onClick={onClick}
       aria-label="Account"
-      className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-ink font-serif text-[16px] text-paper transition-transform active:scale-95"
+      className="ml-1 flex h-10 w-10 items-center justify-center rounded-full bg-accent font-serif text-[16px] text-accent-ink transition-transform active:scale-95"
     >
       {(name ?? contact).replace(/^\+/, "").charAt(0).toUpperCase() || "?"}
     </button>

@@ -74,7 +74,7 @@ export function SharedTrove({ title, kind, ownerName, status, category, items: b
               key={c ?? "all"}
               onClick={() => setFilter(c)}
               className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-colors active:scale-95 ${
-                filter === c ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+                filter === c ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
               }`}
             >
               {c ?? "All"}
@@ -134,7 +134,7 @@ export function SharedTrove({ title, kind, ownerName, status, category, items: b
             initial={{ y: 120, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.6, type: "spring", stiffness: 260, damping: 26 }}
-            className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-ink p-4 pl-5 text-paper shadow-float"
+            className="pointer-events-auto mx-auto flex max-w-xl items-center gap-4 rounded-3xl bg-accent p-4 pl-5 text-accent-ink shadow-float"
           >
             <div className="min-w-0 flex-1">
               <p className="text-[16px] font-medium">Make your own trove</p>

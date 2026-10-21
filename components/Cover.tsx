@@ -4,7 +4,9 @@ import { useState } from "react";
 import type { Hit } from "@/lib/types";
 import { Icon } from "./ui";
 
-const PALETTE = ["#4c5342", "#9e6148", "#2f3329", "#6e5646", "#5e6a51", "#8a7255", "#4f5450", "#85503c", "#6b6a62", "#3e4237"];
+const STONES = ["book", "podcast", "screen", "place", "navy"].map((t) => `var(--tint-${t})`);
+// Pale stones, each also a step deeper, so neighbouring covers differ without leaving the family.
+const PALETTE = [...STONES, ...STONES.map((c) => `color-mix(in oklab, ${c} 90%, var(--ink))`)];
 
 function hash(s: string) {
   let h = 0;
@@ -65,12 +67,12 @@ export function Cover({ book, shape = "portrait", className = "", rounded = "rou
 function TypeCover({ book, square }: { book: Props["book"]; square: boolean }) {
   const bg = PALETTE[hash(book.title + (book.author ?? "")) % PALETTE.length];
   return (
-    <div className="absolute inset-0 flex flex-col justify-between p-[9cqw] text-[#f6efe2]" style={{ background: bg }}>
-      <div className="h-px w-[30%] bg-[#f6efe2]/40" />
+    <div className="absolute inset-0 flex flex-col justify-between p-[9cqw] text-ink ring-1 ring-line/70 ring-inset" style={{ background: bg }}>
+      <div className="h-px w-[30%] bg-ink/25" />
       <div className={`font-serif leading-[1.08] font-medium [overflow-wrap:anywhere] ${square ? "text-[12cqw] line-clamp-3" : "text-[13cqw] line-clamp-5"}`}>
         {book.title}
       </div>
-      <div className="text-[7.5cqw] tracking-wide uppercase opacity-75 line-clamp-2">{book.author ?? ""}</div>
+      <div className="text-[7.5cqw] tracking-wide uppercase text-ink-2 line-clamp-2">{book.author ?? ""}</div>
     </div>
   );
 }

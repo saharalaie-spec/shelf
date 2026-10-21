@@ -7,7 +7,7 @@ export default function NotFound() {
       <Logo size={40} />
       <h1 className="mt-6 font-serif text-[30px] font-medium tracking-tight">This trove isn’t here</h1>
       <p className="mt-2 text-[16px] text-muted">The link may be mistyped, or it was removed.</p>
-      <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-ink px-6 text-[16px] font-medium text-paper">
+      <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-accent px-6 text-[16px] font-medium text-accent-ink">
         Make your own trove
       </Link>
     </main>

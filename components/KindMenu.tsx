@@ -42,7 +42,7 @@ export function KindMenu({ kind }: { kind: Kind }) {
                   onClick={() => setOpen(false)}
                   className={`flex h-12 items-center gap-3 rounded-xl px-3 text-[16px] font-medium ${k === kind ? "bg-surface-2" : "active:bg-surface-2"}`}
                 >
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full text-white" style={{ background: VOCAB[k].tint }}>
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full text-ink-2" style={{ background: VOCAB[k].tint }}>
                     <Icon name={KIND_ICON[k]} size={17} />
                   </span>
                   <span className="flex-1">{VOCAB[k].label}</span>

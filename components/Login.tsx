@@ -264,7 +264,7 @@ function EnterStep({
         )}
       </div>
 
-      <div className="mt-2 min-h-6 text-[14px] text-accent" aria-live="polite">
+      <div className="mt-2 min-h-6 text-[14px] text-link" aria-live="polite">
         {error}
       </div>
 
@@ -451,7 +451,7 @@ function CodeStep({
         </div>
       </div>
 
-      <div className="mt-3 min-h-6 text-[14px] text-accent" aria-live="polite">
+      <div className="mt-3 min-h-6 text-[14px] text-link" aria-live="polite">
         {done ? <span className="text-good">You&rsquo;re in. Opening your trove…</span> : error}
       </div>
 

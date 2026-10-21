@@ -31,7 +31,7 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
       <main className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-6 text-center">
         <h1 className="font-serif text-[30px] leading-tight font-medium tracking-tight">This invite link doesn’t work</h1>
         <p className="mt-2 text-[16px] text-muted">Ask your friend to send it again.</p>
-        <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-ink px-6 text-[16px] font-medium text-paper">
+        <Link href="/" className="mt-8 inline-flex h-12 items-center rounded-full bg-accent px-6 text-[16px] font-medium text-accent-ink">
           Go to Trove
         </Link>
       </main>

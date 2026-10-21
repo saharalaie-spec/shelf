@@ -114,14 +114,14 @@ export function VoiceView({ kind, onReview }: { kind: Kind; onReview: (items: Ca
               <motion.span className="absolute inset-0 rounded-full bg-accent/20" animate={{ scale: [1, 1.25], opacity: [0.8, 0] }} transition={{ repeat: Infinity, duration: 1.4, delay: 0.5, ease: "easeOut" }} />
             </>
           )}
-          <span className={`relative flex h-24 w-24 items-center justify-center rounded-full shadow-float transition-colors ${listening ? "bg-accent text-accent-ink" : "bg-ink text-paper"}`}>
+          <span className={`relative flex h-24 w-24 items-center justify-center rounded-full shadow-float transition-colors bg-accent text-accent-ink ${listening ? "animate-pulse" : ""}`}>
             {listening ? <span className="h-7 w-7 rounded-md bg-current" /> : <Icon name="mic" size={36} />}
           </span>
         </button>
         <p className="mt-5 text-center text-[16px] text-muted">
           {listening ? "Listening… say a title, pause, say the next." : lines.length ? "Tap to keep going." : `Tap and start naming ${v.many}.`}
         </p>
-        {error && <p className="mt-2 text-center text-[14px] text-accent">{error}</p>}
+        {error && <p className="mt-2 text-center text-[14px] text-link">{error}</p>}
       </div>
 
       <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto" data-vaul-no-drag="">
