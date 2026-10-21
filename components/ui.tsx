@@ -8,13 +8,41 @@ export function useHydrated() {
   return useSyncExternalStore(noop, () => true, () => false);
 }
 
+/** Trove's "o": a ring with a navy keyhole, because a trove is a chest you get to open. */
+function KeyholeO({ ring = 15 }: { ring?: number }) {
+  return (
+    <>
+      <circle cx="50" cy="50" r={50 - ring / 2} fill="none" stroke="currentColor" strokeWidth={ring} />
+      <circle cx="50" cy="42" r="11.5" fill="var(--link)" />
+      <path d="M43.5 46 L56.5 46 L60.5 71 L39.5 71 Z" fill="var(--link)" />
+    </>
+  );
+}
+
+/** The mark on its own: the keyhole "o". */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      <rect x="4" y="7" width="6" height="21" rx="1.5" fill="var(--link)" />
-      <rect x="11.5" y="4" width="6" height="24" rx="1.5" fill="var(--stone)" />
-      <rect x="19.5" y="8" width="6" height="20" rx="1.5" fill="var(--stone-2)" transform="rotate(12 22.5 18)" />
+    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden className="text-ink">
+      <KeyholeO ring={13} />
     </svg>
+  );
+}
+
+/** "trove", with the keyhole for its "o". `size` is the font size in px. */
+export function Wordmark({ size = 20 }: { size?: number }) {
+  return (
+    <span
+      role="img"
+      aria-label="Trove"
+      className="inline-flex items-baseline font-serif leading-none font-semibold tracking-[-0.035em] text-ink"
+      style={{ fontSize: size }}
+    >
+      <span aria-hidden>tr</span>
+      <svg viewBox="0 0 100 100" aria-hidden className="mx-[0.02em] h-[0.53em] w-[0.53em] shrink-0">
+        <KeyholeO />
+      </svg>
+      <span aria-hidden>ve</span>
+    </span>
   );
 }
 

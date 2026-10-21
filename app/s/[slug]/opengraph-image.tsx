@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { KeyholeO } from "@/app/icon";
 import { troveCount, troveTitle } from "@/lib/kinds";
 import { getSharedTrove } from "@/lib/trove";
 
@@ -38,13 +39,13 @@ export default async function Image({ params }: { params: Promise<{ slug: string
     (
       <div style={{ width: "100%", height: "100%", display: "flex", background: "#f2f0eb", padding: 72, color: "#1c1f26" }}>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 500, flexShrink: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 30, fontWeight: 600 }}>
-            <div style={{ display: "flex", gap: 4, alignItems: "flex-end" }}>
-              <div style={{ width: 10, height: 34, background: "#1e2b47", borderRadius: 2 }} />
-              <div style={{ width: 10, height: 40, background: "#a89c88", borderRadius: 2 }} />
-              <div style={{ width: 10, height: 32, background: "#d3ccc0", borderRadius: 2 }} />
+          <div style={{ display: "flex", alignItems: "flex-end", fontSize: 40, lineHeight: 1, fontWeight: 600, letterSpacing: -1.2 }}>
+            tr
+            {/* The image renderer can't sit an svg on the text baseline, so lift it there by hand. */}
+            <div style={{ display: "flex", margin: "0 1px 8px" }}>
+              <KeyholeO size={23} />
             </div>
-            Trove
+            ve
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>

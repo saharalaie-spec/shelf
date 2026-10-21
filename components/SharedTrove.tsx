@@ -10,7 +10,7 @@ import { Cover } from "./Cover";
 import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { Sheet } from "./Sheet";
-import { Logo } from "./ui";
+import { Wordmark } from "./ui";
 
 type Props = {
   title: string;
@@ -45,8 +45,7 @@ export function SharedTrove({ title, kind, ownerName, status, category, items: b
     <div className="mx-auto min-h-dvh w-full max-w-3xl pb-40">
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </Link>
         {viewerSignedIn && (
           <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">

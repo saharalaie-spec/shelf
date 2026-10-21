@@ -12,7 +12,7 @@ import {
   parseIdentifier,
   type Identifier,
 } from "@/lib/identifier";
-import { Button, Icon, Logo, useHydrated } from "./ui";
+import { Button, Icon, Wordmark, useHydrated } from "./ui";
 
 type Mode = "phone" | "email";
 // The key predates the name Trove; keeping it keeps the remembered number or email.
@@ -42,8 +42,7 @@ export function Login({ channels, heading, subheading, compact }: { channels: Ch
     <main className={`mx-auto flex w-full max-w-md flex-col px-6 pb-safe ${compact ? "pt-4" : "min-h-dvh pt-[max(3rem,12vh)]"}`}>
       {!compact && (
         <div className="mb-10 flex items-center gap-2.5">
-          <Logo />
-          <span className="font-serif text-[22px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={28} />
         </div>
       )}
       <AnimatePresence mode="wait" initial={false}>

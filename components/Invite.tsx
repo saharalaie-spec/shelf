@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
-import { Avatar, Button, Icon, Logo } from "./ui";
+import { Avatar, Button, Icon, Wordmark } from "./ui";
 
 type Props = {
   token: string;
@@ -48,8 +48,7 @@ export function Invite({ token, inviter, viewerName, own, newcomer }: Props) {
     <div className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-6 pb-safe">
       <header className="flex h-16 items-center pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </Link>
       </header>
       <motion.main
