@@ -5,16 +5,16 @@ import { Icon, type IconName } from "./ui";
 
 /** How each kind of spot looks: an icon on a color, standing in for a cover. */
 const STYLE: Record<string, { icon: IconName; color: string }> = {
-  // Pale stones, with a breath of Trove's navy for the night: the icon tells them apart.
+  // Neutral stones: the icon tells them apart.
   "Food & Drink": { icon: "food", color: "var(--tint-podcast)" },
   Cafés: { icon: "coffee", color: "var(--tint-book)" },
-  "Bars & Nightlife": { icon: "glass", color: "var(--tint-navy)" },
+  "Bars & Nightlife": { icon: "glass", color: "var(--tint-deep)" },
   "Museums & Culture": { icon: "museum", color: "var(--tint-screen)" },
   Sights: { icon: "camera", color: "var(--tint-place)" },
   "Beaches & Nature": { icon: "leaf", color: "var(--tint-place)" },
   Shopping: { icon: "bag", color: "var(--tint-book)" },
   Stays: { icon: "bed", color: "var(--tint-screen)" },
-  Activities: { icon: "sparkle", color: "var(--tint-navy)" },
+  Activities: { icon: "sparkle", color: "var(--tint-deep)" },
 };
 const FALLBACK = { icon: "pin" as IconName, color: "var(--tint-screen)" };
 

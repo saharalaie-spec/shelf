@@ -4,8 +4,8 @@ import { useState } from "react";
 import type { Hit } from "@/lib/types";
 import { Icon } from "./ui";
 
-const STONES = ["book", "podcast", "screen", "place", "navy"].map((t) => `var(--tint-${t})`);
-// Pale stones, each also a step deeper, so neighbouring covers differ without leaving the family.
+const STONES = ["book", "podcast", "screen", "place", "deep"].map((t) => `var(--tint-${t})`);
+// Neutral stones, each also a step deeper, so neighbouring covers differ without leaving the family.
 const PALETTE = [...STONES, ...STONES.map((c) => `color-mix(in oklab, ${c} 90%, var(--ink))`)];
 
 function hash(s: string) {
