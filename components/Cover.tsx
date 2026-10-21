@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { Hit } from "@/lib/types";
 import { Icon } from "./ui";
 
-const PALETTE = ["#4c5342", "#9e6148", "#2f3329", "#6e5646", "#5e6a51", "#8a7255", "#4f5450", "#85503c", "#6b6a62", "#3e4237"];
+const PALETTE = ["#1e2b47", "#857868", "#5b6066", "#806a5e", "#6e7264", "#2c3b5c", "#77695b", "#4b4d50", "#8a7c6a", "#3a4660"];
 
 function hash(s: string) {
   let h = 0;

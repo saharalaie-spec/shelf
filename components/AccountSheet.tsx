@@ -126,7 +126,7 @@ function DeleteAccount() {
 
   if (!asking) {
     return (
-      <button onClick={() => setAsking(true)} className="mt-4 mb-4 block w-full py-2 text-center text-[14px] font-medium text-accent active:opacity-60">
+      <button onClick={() => setAsking(true)} className="mt-4 mb-4 block w-full py-2 text-center text-[14px] font-medium text-link active:opacity-60">
         Delete account
       </button>
     );
@@ -281,7 +281,7 @@ function ProfileSettings({
             </button>
           </div>
           {error ? (
-            <p className="mt-1.5 text-[13px] text-accent">{error}</p>
+            <p className="mt-1.5 text-[13px] text-link">{error}</p>
           ) : (
             <p className="mt-1.5 text-[13px] text-muted">Your profile isn’t listed or searchable; people need the link.</p>
           )}

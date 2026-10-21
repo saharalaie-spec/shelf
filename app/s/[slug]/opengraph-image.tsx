@@ -6,7 +6,7 @@ export const alt = "A shared list on Trove";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PALETTE = ["#4c5342", "#9e6148", "#2f3329", "#6e5646", "#5e6a51", "#8a7255"];
+const PALETTE = ["#1e2b47", "#857868", "#5b6066", "#806a5e", "#6e7264", "#2c3b5c"];
 
 /** Inline covers as data URLs; a cover that's slow or missing just becomes a typeset one. */
 async function inline(url: string | null) {
@@ -36,19 +36,19 @@ export default async function Image({ params }: { params: Promise<{ slug: string
 
   return new ImageResponse(
     (
-      <div style={{ width: "100%", height: "100%", display: "flex", background: "#f3f1ec", padding: 72, color: "#23261f" }}>
+      <div style={{ width: "100%", height: "100%", display: "flex", background: "#f2f0eb", padding: 72, color: "#1c1f26" }}>
         <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", width: 500, flexShrink: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 30, fontWeight: 600 }}>
             <div style={{ display: "flex", gap: 4, alignItems: "flex-end" }}>
-              <div style={{ width: 10, height: 34, background: "#4c5342", borderRadius: 2 }} />
-              <div style={{ width: 10, height: 40, background: "#a5654a", borderRadius: 2 }} />
-              <div style={{ width: 10, height: 32, background: "#4a4d44", borderRadius: 2 }} />
+              <div style={{ width: 10, height: 34, background: "#1e2b47", borderRadius: 2 }} />
+              <div style={{ width: 10, height: 40, background: "#a89c88", borderRadius: 2 }} />
+              <div style={{ width: 10, height: 32, background: "#474a51", borderRadius: 2 }} />
             </div>
             Trove
           </div>
           <div style={{ display: "flex", flexDirection: "column" }}>
             <div style={{ fontSize: 64, lineHeight: 1.05, fontWeight: 600, letterSpacing: -1.5 }}>{title}</div>
-            <div style={{ fontSize: 32, color: "#7c7d74", marginTop: 20 }}>
+            <div style={{ fontSize: 32, color: "#7b7a74", marginTop: 20 }}>
               {troveCount(shared?.items.length ?? 0, shared?.status ?? "read", shared?.kind ?? "book")}
             </div>
           </div>

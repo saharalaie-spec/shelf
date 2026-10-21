@@ -106,7 +106,7 @@ export function FriendsTableView({ table, onFindFriends, onSampleAdded }: Props)
                   }}
                   className="flex w-full items-center gap-3 rounded-2xl px-2 py-2 text-left active:bg-surface-2"
                 >
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-olive text-white">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-[14px] bg-accent text-accent-ink">
                     <Icon name="pin" size={22} />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -114,7 +114,7 @@ export function FriendsTableView({ table, onFindFriends, onSampleAdded }: Props)
                     <span className="block truncate text-[13px] text-muted">
                       {p.spots.length} {p.spots.length === 1 ? "spot" : "spots"} · {names(p.friends)}
                     </span>
-                    {p.yours && <span className="block truncate text-[13px] font-medium text-accent">One of your places</span>}
+                    {p.yours && <span className="block truncate text-[13px] font-medium text-link">One of your places</span>}
                   </span>
                   <Faces friends={p.friends} />
                 </button>
@@ -192,8 +192,8 @@ function Expandable({ title, count, children }: { title: string; count: number; 
 
 /** Why this row involves you, when it does. */
 function Relevance({ item, mine }: { item: TableItem; mine: Status | null }) {
-  if (item.yourPick) return <span className="block truncate text-[13px] font-medium text-accent">Your pick</span>;
-  if (mine) return <span className="block truncate text-[13px] font-medium text-accent">In your {VOCAB[item.kind].sections[mine]}</span>;
+  if (item.yourPick) return <span className="block truncate text-[13px] font-medium text-link">Your pick</span>;
+  if (mine) return <span className="block truncate text-[13px] font-medium text-link">In your {VOCAB[item.kind].sections[mine]}</span>;
   return null;
 }
 
@@ -227,7 +227,7 @@ function ItemDetail({ item, mine, onSave }: { item: TableItem; mine: Status | nu
           <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{item.title}</h2>
           {item.author && <p className="mt-1 text-[16px] text-ink-2">{item.author}</p>}
           {item.year && item.year > 0 ? <p className="mt-0.5 text-[14px] text-muted">{item.year}</p> : null}
-          {item.yourPick && <p className="mt-2 text-[14px] font-medium text-accent">Your recommendation</p>}
+          {item.yourPick && <p className="mt-2 text-[14px] font-medium text-link">Your recommendation</p>}
         </div>
       </div>
 
@@ -298,7 +298,7 @@ function FriendList({ item }: { item: TableItem }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">
                 {f.name ?? "A friend"}
-                {f.circle && <span className="ml-1 text-accent">★</span>}
+                {f.circle && <span className="ml-1 text-link">★</span>}
               </span>
               <span className="block truncate text-[13px] text-muted">
                 {f.status === "read" ? DONE[item.kind] : DOING[item.kind]}

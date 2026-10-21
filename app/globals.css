@@ -1,43 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  /* Trove's two colors: Olive (the signature) and Clay (its warm counterpoint). Everything else is chalk, stone
-     and charcoal, so those two carry the brand. */
-  --olive: #4c5342;
-  --paper: #f3f1ec;
-  --surface: #fcfbf8;
-  --surface-2: #e9e6df;
-  --ink: #23261f;
-  --ink-2: #4a4d44;
-  --muted: #7c7d74;
-  --line: #dcd8cf;
-  --accent: #a5654a;
-  --accent-ink: #fcfbf8;
-  --good: #5e6a51;
-  --shadow: 30 32 26;
+  /* Trove's two colors: Navy (the signature: buttons, links, the logo) and Stone (the collections, and the
+     ground everything sits on). */
+  --stone: #a89c88;
+  --paper: #f2f0eb;
+  --surface: #fbfaf7;
+  --surface-2: #e8e4dc;
+  --ink: #1c1f26;
+  --ink-2: #474a51;
+  --muted: #7b7a74;
+  --line: #dbd7ce;
+  --accent: #1e2b47;
+  --link: #1e2b47;
+  --accent-ink: #fbfaf7;
+  --good: #66705f;
+  --shadow: 24 28 38;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --olive: #5d6652;
-    --paper: #121311;
-    --surface: #1b1c19;
-    --surface-2: #252621;
+    --stone: #8a7f6e;
+    --paper: #111316;
+    --surface: #191c21;
+    --surface-2: #23272d;
     --ink: #ecebe5;
-    --ink-2: #c7c5bc;
-    --muted: #8e8d84;
-    --line: #2d2e29;
-    --accent: #c88a6e;
-    --accent-ink: #1a120d;
-    --good: #9aa889;
+    --ink-2: #c5c3bc;
+    --muted: #8d8c86;
+    --line: #2b2f35;
+    --accent: #2e4370;
+    --link: #9db0d2;
+    --accent-ink: #f2f0eb;
+    --good: #a3ab97;
     --shadow: 0 0 0;
     color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-olive: var(--olive);
+  --color-stone: var(--stone);
   --color-paper: var(--paper);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
@@ -47,6 +49,7 @@
   --color-line: var(--line);
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
+  --color-link: var(--link);
   --color-good: var(--good);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-serif: var(--font-fraunces), ui-serif, Georgia, serif;

@@ -178,7 +178,7 @@ function WhatPick({ onPick, onPlace }: { onPick: (p: Picked) => void; onPlace: (
         </div>
       )}
       <button onClick={onPlace} className="mt-4 flex h-12 w-full items-center gap-3 rounded-2xl border border-dashed border-line px-4 text-left active:bg-surface-2">
-        <Icon name="pin" size={18} className="text-olive" />
+        <Icon name="pin" size={18} className="text-link" />
         <span className="flex-1 text-[15px] font-medium">It’s a place</span>
         <Icon name="chevron" size={17} className="text-muted" />
       </button>

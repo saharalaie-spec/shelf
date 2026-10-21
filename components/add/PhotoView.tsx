@@ -96,7 +96,7 @@ export function PhotoView({ kind, onReview }: { kind: Kind; onReview: (items: Ca
           onChange={(e) => onFile(e.target.files?.[0])}
         />
       </label>
-      {error && <p className="mt-3 text-center text-[14px] text-accent">{error}</p>}
+      {error && <p className="mt-3 text-center text-[14px] text-link">{error}</p>}
       {preview && !reading && (
         <Button variant="secondary" className="mt-3 w-full" onClick={() => setPreview(undefined)}>
           Try another photo

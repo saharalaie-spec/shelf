@@ -265,7 +265,7 @@ function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; 
           <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
             <p className="font-serif text-[19px] font-medium">{from.chosen ? `${who} picked these for you` : `${who}’s favorites lately`}</p>
             {from.picks.some((p) => !have.has(p.key)) && (
-              <button onClick={addAll} className="shrink-0 text-[14px] font-medium text-accent active:opacity-60">
+              <button onClick={addAll} className="shrink-0 text-[14px] font-medium text-link active:opacity-60">
                 Want all {from.picks.length}
               </button>
             )}

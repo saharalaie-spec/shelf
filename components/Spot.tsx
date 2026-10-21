@@ -5,18 +5,18 @@ import { Icon, type IconName } from "./ui";
 
 /** How each kind of spot looks: an icon on a color, standing in for a cover. */
 const STYLE: Record<string, { icon: IconName; color: string }> = {
-  // Shades of Trove's olive and clay, with stone between: the icon tells them apart.
-  "Food & Drink": { icon: "food", color: "#9e6148" },
-  Cafés: { icon: "coffee", color: "#6e5646" },
-  "Bars & Nightlife": { icon: "glass", color: "#2f3329" },
-  "Museums & Culture": { icon: "museum", color: "#4f5450" },
-  Sights: { icon: "camera", color: "#5e6a51" },
-  "Beaches & Nature": { icon: "leaf", color: "#727a5c" },
-  Shopping: { icon: "bag", color: "#8a7255" },
-  Stays: { icon: "bed", color: "#6b6a62" },
-  Activities: { icon: "sparkle", color: "#85503c" },
+  // Stones, with Trove's navy for the night: the icon tells them apart.
+  "Food & Drink": { icon: "food", color: "#806a5e" },
+  Cafés: { icon: "coffee", color: "#77695b" },
+  "Bars & Nightlife": { icon: "glass", color: "#1e2b47" },
+  "Museums & Culture": { icon: "museum", color: "#5b6066" },
+  Sights: { icon: "camera", color: "#6e7264" },
+  "Beaches & Nature": { icon: "leaf", color: "#727a6c" },
+  Shopping: { icon: "bag", color: "#857868" },
+  Stays: { icon: "bed", color: "#6b6863" },
+  Activities: { icon: "sparkle", color: "#3a4660" },
 };
-const FALLBACK = { icon: "pin" as IconName, color: "#4c5342" };
+const FALLBACK = { icon: "pin" as IconName, color: "#5b6066" };
 
 export const spotStyle = (categories: string[]) => STYLE[categories.find((c) => STYLE[c]) ?? ""] ?? FALLBACK;
 

@@ -215,7 +215,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
                     <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>
                   )}
                   {f.id === SAMPLE_FRIEND_ID && (
-                    <span className="block truncate text-[13px] text-accent">Sample friend · remove anytime from her page</span>
+                    <span className="block truncate text-[13px] text-link">Sample friend · remove anytime from her page</span>
                   )}
                 </span>
               </Link>
@@ -224,7 +224,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
                 aria-pressed={f.inCircle}
                 aria-label={f.inCircle ? `Take ${f.name ?? "them"} out of your circle` : `Add ${f.name ?? "them"} to your circle`}
                 className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[22px] leading-none transition-transform active:scale-90 ${
-                  f.inCircle ? "text-accent" : "text-line"
+                  f.inCircle ? "text-link" : "text-line"
                 }`}
               >
                 {f.inCircle ? "★" : "☆"}
@@ -532,7 +532,7 @@ function AskForm({ onSent }: { onSent: () => void }) {
         </Button>
       </div>
       {error ? (
-        <p className="mt-1.5 text-[13px] text-accent">{error}</p>
+        <p className="mt-1.5 text-[13px] text-link">{error}</p>
       ) : (
         <p className="mt-1.5 text-[13px] text-muted">Not on Trove yet? They’ll see it when they join.</p>
       )}

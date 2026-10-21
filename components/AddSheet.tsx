@@ -129,7 +129,7 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
       headerRight={
         <button
           onClick={() => onOpenChange(false)}
-          className="-mr-2 h-10 rounded-full px-3 text-[16px] font-medium text-accent active:bg-surface-2"
+          className="-mr-2 h-10 rounded-full px-3 text-[16px] font-medium text-link active:bg-surface-2"
         >
           Done
         </button>
@@ -150,7 +150,7 @@ export function AddSheet({ kind, open, onOpenChange, section, destination = null
             onClick={() => go("where")}
             className="flex h-10 min-w-0 items-center gap-2 rounded-full bg-surface-2 pr-3 pl-1.5 text-[15px] font-medium active:scale-95"
           >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-olive text-white">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink">
               <Icon name="pin" size={15} />
             </span>
             <span className="truncate">{dest.name}</span>

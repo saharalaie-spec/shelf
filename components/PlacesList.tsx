@@ -82,7 +82,7 @@ function SpotRow({ item, onOpen, onToggle }: { item: Item; onOpen: () => void; o
 }
 
 const TAG = {
-  read: { label: "Been", icon: "check", className: "bg-olive text-white" },
+  read: { label: "Been", icon: "check", className: "bg-accent text-accent-ink" },
   want: { label: "Want to go", icon: "flag", className: "border border-line text-ink-2" },
 } as const;
 
@@ -190,7 +190,7 @@ export function DestinationCards({
 function Mosaic({ spots }: { spots: Item[] }) {
   if (spots.length === 0) {
     return (
-      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-olive/12 text-olive">
+      <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[18px] bg-accent/12 text-link">
         <Icon name="pin" size={26} />
       </span>
     );

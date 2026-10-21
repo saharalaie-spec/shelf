@@ -121,7 +121,7 @@ export function VoiceView({ kind, onReview }: { kind: Kind; onReview: (items: Ca
         <p className="mt-5 text-center text-[16px] text-muted">
           {listening ? "Listening… say a title, pause, say the next." : lines.length ? "Tap to keep going." : `Tap and start naming ${v.many}.`}
         </p>
-        {error && <p className="mt-2 text-center text-[14px] text-accent">{error}</p>}
+        {error && <p className="mt-2 text-center text-[14px] text-link">{error}</p>}
       </div>
 
       <ul className="min-h-0 flex-1 space-y-1.5 overflow-y-auto" data-vaul-no-drag="">

@@ -19,13 +19,13 @@ export function Mark({ scale }: { scale: number }) {
         justifyContent: "center",
         gap: s(4),
         paddingBottom: s(12),
-        background: "#f3f1ec",
+        background: "#f2f0eb",
         borderRadius: s(14),
       }}
     >
-      <div style={{ width: s(11), height: s(36), background: "#4c5342", borderRadius: s(2) }} />
-      <div style={{ width: s(11), height: s(42), background: "#a5654a", borderRadius: s(2) }} />
-      <div style={{ width: s(11), height: s(33), background: "#4a4d44", borderRadius: s(2), transform: `rotate(12deg) translateX(${s(3)}px)` }} />
+      <div style={{ width: s(11), height: s(36), background: "#1e2b47", borderRadius: s(2) }} />
+      <div style={{ width: s(11), height: s(42), background: "#a89c88", borderRadius: s(2) }} />
+      <div style={{ width: s(11), height: s(33), background: "#474a51", borderRadius: s(2), transform: `rotate(12deg) translateX(${s(3)}px)` }} />
     </div>
   );
 }

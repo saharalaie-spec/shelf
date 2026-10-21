@@ -11,8 +11,8 @@ export function useHydrated() {
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 32 32" aria-hidden>
-      <rect x="4" y="7" width="6" height="21" rx="1.5" fill="var(--olive)" />
-      <rect x="11.5" y="4" width="6" height="24" rx="1.5" fill="var(--accent)" />
+      <rect x="4" y="7" width="6" height="21" rx="1.5" fill="var(--link)" />
+      <rect x="11.5" y="4" width="6" height="24" rx="1.5" fill="var(--stone)" />
       <rect x="19.5" y="8" width="6" height="20" rx="1.5" fill="var(--ink-2)" transform="rotate(12 22.5 18)" />
     </svg>
   );

@@ -412,7 +412,7 @@ function RelationButton({
               </p>
               <Button
                 variant="secondary"
-                className="mt-5 w-full text-accent"
+                className="mt-5 w-full text-link"
                 loading={busy}
                 onClick={() =>
                   act({ kind: "stranger" }, async () => {

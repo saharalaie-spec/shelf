@@ -79,13 +79,13 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
 
       <button
         onClick={() => setCapturing(true)}
-        className="mx-5 mb-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-3xl bg-ink p-4 pl-5 text-left text-paper shadow-book active:scale-[0.99]"
+        className="mx-5 mb-5 flex w-[calc(100%-2.5rem)] items-center gap-3 rounded-3xl bg-accent p-4 pl-5 text-left text-accent-ink shadow-book active:scale-[0.99]"
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[17px] font-medium">Someone recommended something?</span>
-          <span className="block text-[14px] text-paper/65">Save it and who said it, in seconds.</span>
+          <span className="block text-[14px] text-accent-ink/65">Save it and who said it, in seconds.</span>
         </span>
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-paper text-ink">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-ink text-accent">
           <Icon name="plus" size={22} />
         </span>
       </button>
