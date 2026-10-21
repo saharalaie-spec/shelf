@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { toast } from "sonner";
 import type { Feedback } from "@/lib/feedback";
-import { Button, Icon, Logo, useHydrated } from "./ui";
+import { Button, Icon, Wordmark, useHydrated } from "./ui";
 
 /** Feedback as plain text: each note with who and where, and everything copyable at once. */
 export function FeedbackList({ items }: { items: Feedback[] }) {
@@ -20,8 +20,7 @@ export function FeedbackList({ items }: { items: Feedback[] }) {
     <div className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16">
       <header className="flex h-16 items-center justify-between pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </Link>
         {items.length > 0 && (
           <Button variant="secondary" className="h-10 px-4 text-[14px]" onClick={copyAll} icon={<Icon name="copy" size={16} />}>

@@ -13,7 +13,7 @@ import { KINDS, type Hit, type Item, type Kind, type RecBy, type Status } from "
 import { Cover } from "./Cover";
 import { CitySearch, Search } from "./QuickSearch";
 import { SpotTile, spotLine } from "./Spot";
-import { Avatar, Button, Icon, KIND_ICON, Logo } from "./ui";
+import { Avatar, Button, Icon, KIND_ICON, Wordmark } from "./ui";
 
 type Mine = { id: string; key: string; kind: Kind; title: string; status: Status };
 
@@ -141,8 +141,7 @@ export function Start({ name, from, invited, mine, features, inviteToken }: Prop
     <div className="mx-auto min-h-dvh w-full max-w-xl pb-32">
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </div>
         <div className="flex items-center gap-3">
           <span className="flex gap-1.5" aria-label={`Step ${at + 1} of ${steps.length}`}>

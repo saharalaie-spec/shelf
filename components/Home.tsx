@@ -17,7 +17,7 @@ import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { MoodCard } from "./MoodCard";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
-import { Icon, KIND_ICON, Logo } from "./ui";
+import { Icon, KIND_ICON, Wordmark } from "./ui";
 
 type Props = {
   user: Profile & { contact: string };
@@ -53,8 +53,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
     <div className="mx-auto min-h-dvh w-full max-w-3xl pb-16">
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <div className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </div>
         <div className="flex items-center gap-1">
           <FriendsButton pending={pendingRequests} />

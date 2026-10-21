@@ -14,7 +14,7 @@ import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
-import { Avatar, Button, Icon, KIND_ICON, Logo, useHydrated } from "./ui";
+import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -104,8 +104,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
     <div className="mx-auto min-h-dvh w-full max-w-3xl pb-40">
       <header className="flex h-16 items-center justify-between px-5 pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
-          <Logo size={24} />
-          <span className="font-serif text-[19px] font-semibold tracking-tight">Trove</span>
+          <Wordmark size={24} />
         </Link>
         {signedIn && (
           <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
