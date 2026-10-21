@@ -205,7 +205,7 @@ function KindCard({ kind, summary }: { kind: Kind; summary: Summary }) {
           <Icon name={KIND_ICON[kind]} size={20} />
         </span>
         <h2 className="mt-auto font-serif text-[30px] leading-none font-medium tracking-tight">{v.label}</h2>
-        <p className="mt-2 truncate text-[14px] text-ink-2">
+        <p className="mt-2 truncate text-[14px] text-ink/80">
           {empty
             ? {
                 book: "Add the books you’ve read",

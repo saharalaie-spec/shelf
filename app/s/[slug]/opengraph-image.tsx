@@ -6,7 +6,7 @@ export const alt = "A shared list on Trove";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const PALETTE = ["#eae7e2", "#e6e5e2", "#e3e0da", "#dedbd5", "#d8d5cf", "#e0ddd8"];
+const PALETTE = ["#cdbfa8", "#aab1b6", "#c4a594", "#b4b7a2", "#bdb4a6", "#d6cbb9"];
 
 /** Inline covers as data URLs; a cover that's slow or missing just becomes a typeset one. */
 async function inline(url: string | null) {
