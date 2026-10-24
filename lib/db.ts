@@ -299,6 +299,26 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX feedback_by_time ON feedback (created_at)`,
     ],
   },
+  {
+    id: "2026-10-24-metrics",
+    statements: [
+      // Who brought someone in, and through what: an invite link, a shared list, or a profile.
+      `ALTER TABLE users ADD COLUMN invited_by TEXT REFERENCES users(id) ON DELETE SET NULL`,
+      `ALTER TABLE users ADD COLUMN came_via TEXT`,
+      // What people do, for the numbers page (lib/metrics.ts). Saves and moves are already in item_events and
+      // thank-yous in thanks; this holds the rest. `visitor` is an anonymous browser id, for people not signed in yet.
+      `CREATE TABLE activity (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+        visitor TEXT,
+        action TEXT NOT NULL,
+        ref TEXT,
+        at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX activity_by_action ON activity (action, at)`,
+      `CREATE INDEX activity_by_user ON activity (user_id, action, at)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

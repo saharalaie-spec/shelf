@@ -4,7 +4,7 @@ import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/client";
+import { api, trackAction } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import { SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import type { StartFrom } from "@/lib/start";
@@ -578,6 +578,7 @@ function InviteStep({ name: initialName, token }: { name: string | null; token: 
           text: `${who ? `${who} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
           url: link(),
         });
+        trackAction("invite_share", "share");
         setSent("shared");
         return;
       } catch (err) {
@@ -589,6 +590,7 @@ function InviteStep({ name: initialName, token }: { name: string | null; token: 
   const copy = async () => {
     keepName();
     await navigator.clipboard.writeText(link()).catch(() => {});
+    trackAction("invite_share", "copy");
     setSent("copied");
     toast("Invite link copied");
   };

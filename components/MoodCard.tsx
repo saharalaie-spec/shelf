@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ago, api, itemLinks } from "@/lib/client";
+import { ago, api, itemLinks, trackAction } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import type { TodayCandidates } from "@/lib/today";
 import type { Item, Kind } from "@/lib/types";
@@ -61,6 +61,7 @@ export function MoodCard({ candidates, suggest }: { candidates: TodayCandidates;
   const kind = open ?? last;
 
   const show = (k: Kind) => {
+    trackAction("next_open", k);
     setChosen(null);
     setOpen(k);
     setLast(k);

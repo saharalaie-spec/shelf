@@ -102,8 +102,12 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | Better movie & TV matches and posters | `TMDB_API_KEY` (optional: free from themoviedb.org; without it, iTunes and TVmaze are used) |
 | Better spot search | `GOOGLE_PLACES_API_KEY` (optional: Places API (New) in Google Cloud; without it, OpenStreetMap is used) |
 | Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
+| Who runs it: reads `/feedback` and `/numbers` | `OWNERS` (phone numbers or emails, comma-separated); `FEEDBACK_EMAIL` to also get feedback by email |
+| The numbers page | `TIME_ZONE` (days are counted in it; New York unless set), `NOT_COUNTED` (test accounts to leave out) |
 
 Without a texting or email provider, production sign-in only works for the numbers and emails listed in `ALLOW_DEV_CODES` (comma-separated, phone numbers starting with `+` and the country code), and their codes go to the server log, never the screen. `ALLOW_DEV_CODES=1` instead shows every code on screen, which lets anyone sign in as anyone: only use it for a throwaway demo, and afterwards use **You → Sign out on all devices**.
+
+**The numbers** (`/numbers`, owners only) count who joined through a friend, how invite links convert (opened, then joined), and who's active: *visited* means they opened Trove; *active* means they saved, started or finished something, looked through a friend's trove, used "Stuck on what's next?", thanked a friend or added one. Everything is recorded in Trove's own database (`activity`, plus `item_events` and `thanks`), with no outside analytics; definitions live in `lib/metrics.ts`. Counting starts when the page ships.
 
 ## How it's built
 

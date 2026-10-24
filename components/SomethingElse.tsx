@@ -13,7 +13,8 @@ import type { Area, AreaHit, Hit, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
 import { AreaSearch } from "./QuickSearch";
 import { SpotTile } from "./Spot";
-import { Icon } from "./ui";
+import { Button, Icon } from "./ui";
+import { appendSaid, useDictation } from "./useDictation";
 
 /** Something to pick from anywhere: your lists, a friend, or a suggestion (which carries its own reason). */
 export type Choice = TodayPick & { note?: string };
@@ -94,6 +95,9 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
           ))}
         </div>
       )}
+      {kind === "screen" && suggest && (
+        <TellUs key={format} kind={kind} mood={mood} area={null} format={format !== "any" ? format : null} onChoose={onChoose} taken={taken} />
+      )}
       {/* Places: the occasion, then the city; everything below is for that city. */}
       {isPlace && (
         <>
@@ -113,6 +117,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
           ) : (
             <AreaSearch onArea={setCity} />
           )}
+          {city && suggest && <TellUs key={city.key} kind={kind} mood={mood} area={city} format={null} onChoose={onChoose} taken={taken} />}
         </>
       )}
       {mine.length > 0 && (
@@ -284,6 +289,141 @@ function MoodChips({ kind, mood, onMood }: { kind: Kind; mood: Mood; onMood: (m:
   );
 }
 
+/** An idea as something to choose, carrying its own reason. */
+function ideaChoice(s: Suggestion, kind: Kind, area: AreaHit | null, destinationId: string | null): Choice {
+  return {
+    key: `idea:${s.hit.key}`,
+    itemId: null,
+    kind,
+    workKey: s.hit.key,
+    title: s.hit.title,
+    author: s.hit.author,
+    year: s.hit.year,
+    coverUrl: s.hit.coverUrl,
+    categories: s.hit.categories,
+    ...(s.hit.place ? { place: s.hit.place } : {}),
+    destination: area?.name ?? null,
+    destinationId,
+    tier: "want",
+    // Shown with its own reason (the note); "saved" is only a fallback label.
+    reason: { type: "waiting", savedAt: 0 },
+    friendId: null,
+    note: s.why,
+  };
+}
+
+function Thinking({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-1" aria-label="Thinking about your taste">
+      {Array.from({ length: rows }, (_, i) => (
+        <div key={i} className="flex items-center gap-3 px-1 py-2">
+          <div className="h-[60px] w-10 rounded-[4px] skeleton" />
+          <div className="flex-1 space-y-1.5">
+            <div className="h-4 w-1/2 rounded skeleton" />
+            <div className="h-3 w-3/4 rounded skeleton" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+const EXAMPLE: Partial<Record<Kind, string>> = {
+  screen: "“Something funny to watch with my parents, under two hours”",
+  place: "“A cozy spot for a first date, not too loud, good wine”",
+};
+
+/**
+ * Say what you're after, out loud or typed, and get three picks for exactly that: read against your whole taste map
+ * and your friends', like the other ideas.
+ */
+function TellUs({
+  kind,
+  mood,
+  area,
+  format,
+  onChoose,
+  taken,
+}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; area: AreaHit | null; format: "movie" | "tv" | null; taken: Set<string> }) {
+  const [text, setText] = useState("");
+  const { canTalk, listening, interim, talk, stop } = useDictation();
+  const [asked, setAsked] = useState<{ wish: string; picks?: Suggestion[]; destinationId?: string | null; error?: string } | null>(null);
+  const thinking = asked !== null && !asked.picks && !asked.error;
+  const shown = interim ? `${text}${text ? " " : ""}${interim}` : text;
+
+  const send = async () => {
+    stop();
+    const wish = shown.trim();
+    if (!wish || thinking) return;
+    setText(wish);
+    setAsked({ wish });
+    try {
+      const r = await api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", { body: { kind, mood, area, format, wish } });
+      setAsked({ wish, ...r });
+    } catch (err) {
+      setAsked({ wish, error: (err as Error).message });
+    }
+  };
+
+  const picks = asked?.picks?.filter((s) => !taken.has(s.hit.key)) ?? [];
+  return (
+    <section className="mt-5 rounded-2xl bg-paper p-3">
+      <label htmlFor={`tell-${kind}`} className="block px-1 text-[15px] font-medium">
+        Or say what you’re after
+      </label>
+      <div className="mt-2 flex items-end gap-2">
+        <textarea
+          id={`tell-${kind}`}
+          value={shown}
+          onChange={(e) => !listening && setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              send();
+            }
+          }}
+          readOnly={listening}
+          placeholder={EXAMPLE[kind]}
+          rows={2}
+          maxLength={300}
+          enterKeyHint="search"
+          className="min-w-0 flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
+        />
+        {canTalk && (
+          <button
+            onClick={listening ? stop : () => talk((said) => setText((t) => appendSaid(t, said)))}
+            aria-pressed={listening}
+            aria-label={listening ? "Stop listening" : "Talk"}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink active:scale-95 ${listening ? "animate-pulse" : ""}`}
+          >
+            <Icon name={listening ? "x" : "mic"} size={20} />
+          </button>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 px-1">
+        <p className="text-[13px] text-muted">{listening ? "Listening… tap to stop" : canTalk ? "Talk or type. You’ll get three." : "You’ll get three."}</p>
+        <Button onClick={send} loading={thinking} disabled={!shown.trim()} className="h-9 shrink-0 px-4 text-[14px]" icon={<Icon name="sparkle" size={15} />}>
+          Find
+        </Button>
+      </div>
+      {thinking && <Thinking />}
+      {asked?.error && <p className="px-1 pt-2 text-[14px] text-muted">{asked.error}</p>}
+      {asked?.picks && !picks.length && (
+        <p className="px-1 pt-2 text-[14px] text-muted">Nothing new for that. Try saying it another way.</p>
+      )}
+      {picks.length > 0 && (
+        <ul className="-mx-1 mt-1">
+          {picks.map((s) => {
+            const destinationId = asked!.destinationId ?? null;
+            const c = ideaChoice(s, kind, area, destinationId);
+            return <Row key={`ask:${s.hit.key}`} kind={kind} item={c} line={s.why} onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })} />;
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** New ideas from your taste map across all four collections, in the mood you pick. Loaded only when asked. */
 function Ideas({
   kind,
@@ -337,17 +477,7 @@ function Ideas({
     >
       {chips && <div className="mb-2">{chips}</div>}
       {loading ? (
-        <div className="space-y-1" aria-label="Thinking about your taste">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="flex items-center gap-3 px-1 py-2">
-              <div className="h-[60px] w-10 rounded-[4px] skeleton" />
-              <div className="flex-1 space-y-1.5">
-                <div className="h-4 w-1/2 rounded skeleton" />
-                <div className="h-3 w-3/4 rounded skeleton" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <Thinking />
       ) : result?.error ? (
         <p className="px-1 py-2 text-[14px] text-muted">{result.error}</p>
       ) : !result?.picks.length ? (
@@ -357,25 +487,7 @@ function Ideas({
       ) : (
         <>
           {result.picks.filter((s) => !already.has(normalize(s.hit.title)) && !taken.has(s.hit.key)).map((s) => {
-            const c: Choice = {
-              key: `idea:${s.hit.key}`,
-              itemId: null,
-              kind,
-              workKey: s.hit.key,
-              title: s.hit.title,
-              author: s.hit.author,
-              year: s.hit.year,
-              coverUrl: s.hit.coverUrl,
-              categories: s.hit.categories,
-              ...(s.hit.place ? { place: s.hit.place } : {}),
-              destination: area?.name ?? null,
-              destinationId: result.destinationId,
-              tier: "want",
-              // Shown with its own reason (the note); "saved" is only a fallback label.
-              reason: { type: "waiting", savedAt: 0 },
-              friendId: null,
-              note: s.why,
-            };
+            const c = ideaChoice(s, kind, area, result.destinationId);
             return (
               <Row
                 key={c.key}

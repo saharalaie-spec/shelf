@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import { cache } from "react";
+import { track } from "@/lib/activity";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
 import { accessTo, findPerson, pendingBetween } from "@/lib/social";
 import type { Status } from "@/lib/types";
+import { CameVia } from "@/components/CameVia";
 import { Login } from "@/components/Login";
 import { PrivateTrove } from "@/components/PrivateTrove";
 import { ProfileTrove, type Relation } from "@/components/ProfileTrove";
@@ -51,7 +53,10 @@ export default async function ProfilePage({ params, searchParams }: PageProps<"/
 
   let relation: Relation;
   if (access === "self") relation = { kind: "self", hiddenCount: own.filter((b) => b.private).length };
-  else if (access === "friend") relation = { kind: "friend" };
+  else if (access === "friend") {
+    relation = { kind: "friend" };
+    await track("friend_trove", { userId: viewer!.id, ref: person.id });
+  }
   else if (!viewer) relation = { kind: "signed-out" };
   else {
     const pending = await pendingBetween(viewer, person.id);
@@ -64,14 +69,17 @@ export default async function ProfilePage({ params, searchParams }: PageProps<"/
 
   const mine: Record<string, Status> = access === "self" ? {} : Object.fromEntries(own.map((b) => [b.key, b.status]));
   return (
-    <ProfileTrove
-      person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic }}
-      items={books}
-      destinations={destinations}
-      relation={relation}
-      mine={mine}
-      channels={signInChannels()}
-      focusPlace={typeof (await searchParams).place === "string" ? String((await searchParams).place) : null}
-    />
+    <>
+      {!viewer && <CameVia via={`profile:${person.handle ?? person.id}`} />}
+      <ProfileTrove
+        person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic }}
+        items={books}
+        destinations={destinations}
+        relation={relation}
+        mine={mine}
+        channels={signInChannels()}
+        focusPlace={typeof (await searchParams).place === "string" ? String((await searchParams).place) : null}
+      />
+    </>
   );
 }

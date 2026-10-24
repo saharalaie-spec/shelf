@@ -5,6 +5,7 @@ import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { areFriends, findInviter, profileRef } from "@/lib/social";
+import { CameVia } from "@/components/CameVia";
 import { Invite } from "@/components/Invite";
 import { Login } from "@/components/Login";
 import { SetupNeeded } from "@/components/SetupNeeded";
@@ -40,11 +41,14 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
 
   if (!viewer) {
     return (
-      <Login
-        channels={signInChannels()}
-        heading={`${inviter.name ?? "A friend"} invited you to Trove`}
-        subheading="Sign in to be friends and see each other’s books."
-      />
+      <>
+        <CameVia via={`invite:${token}`} />
+        <Login
+          channels={signInChannels()}
+          heading={`${inviter.name ?? "A friend"} invited you to Trove`}
+          subheading="Sign in to be friends and see each other’s books."
+        />
+      </>
     );
   }
 

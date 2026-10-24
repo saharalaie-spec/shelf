@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/client";
+import { api, trackAction } from "@/lib/client";
 import { Avatar, Button, Icon, Wordmark } from "./ui";
 
 type Props = {
@@ -41,6 +41,7 @@ export function Invite({ token, inviter, viewerName, own, newcomer }: Props) {
 
   const copy = async () => {
     await navigator.clipboard.writeText(window.location.href);
+    trackAction("invite_share", "copy");
     toast("Invite link copied");
   };
 

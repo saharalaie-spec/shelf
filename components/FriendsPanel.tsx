@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
-import { api } from "@/lib/client";
+import { api, trackAction } from "@/lib/client";
 import { guessCountry, parseIdentifier } from "@/lib/identifier";
 import { SAMPLE_FRIEND_ID, SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import { VOCAB } from "@/lib/kinds";
@@ -313,6 +313,7 @@ function InviteCard({
   const copy = async () => {
     if (!url) return;
     await navigator.clipboard.writeText(url);
+    trackAction("invite_share", "copy");
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
     toast("Invite link copied");
@@ -327,6 +328,7 @@ function InviteCard({
           text: `${name ? `${name} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
           url,
         });
+        trackAction("invite_share", "share");
         return;
       } catch (err) {
         if ((err as DOMException).name === "AbortError") return;

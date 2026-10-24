@@ -1,3 +1,4 @@
+import { track } from "./activity";
 import "server-only";
 import { randomBytes, randomInt, randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
@@ -369,8 +370,10 @@ export async function respondToRequest(user: User, requestId: string, action: "a
   if (!req) throw new AuthError("That request is gone.", 404);
   const mine = action === "cancel" ? String(req.from_user) === user.id : [user.phone, user.email].includes(String(req.to_identifier));
   if (!mine) throw new AuthError("That request is gone.", 404);
-  if (action === "accept") await befriend(String(req.from_user), user.id);
-  else await client.execute({ sql: "DELETE FROM friend_requests WHERE id = ?", args: [requestId] });
+  if (action === "accept") {
+    await befriend(String(req.from_user), user.id);
+    await track("friend_added", { userId: user.id, ref: String(req.from_user) });
+  } else await client.execute({ sql: "DELETE FROM friend_requests WHERE id = ?", args: [requestId] });
 }
 
 // ---------- Invite links ----------
@@ -398,6 +401,7 @@ export async function acceptInvite(user: User, token: string): Promise<Person> {
   const inviter = await findInviter(token);
   if (!inviter) throw new AuthError("That invite link doesn’t work anymore.", 404);
   await befriend(inviter.id, user.id);
+  await track("friend_added", { userId: user.id, ref: inviter.id });
   return inviter;
 }
 

@@ -525,6 +525,29 @@ describe("something else: taste map and suggestions", () => {
     }
     await expect(suggest(me.id, "screen", "any", {}, ask)).rejects.toThrow(/plenty/);
   });
+
+  it("answers what you describe with three picks, every time you ask", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550812" }, "Rae");
+    const wishes: unknown[] = [];
+    let calls = 0;
+    const ask = async ({ wish }: { wish?: string | null }) => {
+      wishes.push(wish);
+      calls++;
+      return [1, 2, 3, 4, 5].map((i) => ({ title: `Show ${calls}.${i}`, creator: "", year: 0, why: "Funny, and short." }));
+    };
+    const said = "  something   funny to watch with my parents,\nunder two hours ";
+    const first = await suggest(me.id, "screen", "any", { wish: said }, ask);
+    expect(first.picks).toHaveLength(3);
+    // Tidied, and passed along as their own words.
+    expect(wishes[0]).toBe("something funny to watch with my parents, under two hours");
+    // The same words again still ask: it's a new request, not the day's picks.
+    await suggest(me.id, "screen", "any", { wish: said }, ask);
+    expect(calls).toBe(2);
+    // And a plain ask afterwards isn't answered with them.
+    await suggest(me.id, "screen", "any", {}, ask);
+    expect(wishes[2]).toBeNull();
+  });
 });
 
 describe("getting started", () => {

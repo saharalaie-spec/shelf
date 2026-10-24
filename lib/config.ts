@@ -49,11 +49,32 @@ function identifierList(setting: string, name: string) {
 
 const allowList = () => identifierList(devCodesSetting(), "ALLOW_DEV_CODES");
 
-/** Whoever runs this Trove (OWNERS: their phone numbers or emails): they read the feedback. */
+/** Whoever runs this Trove (OWNERS: their phone numbers or emails): they read the feedback and the numbers. */
 export const isOwner = (user: { phone: string | null; email: string | null }) => {
   const owners = identifierList(process.env.OWNERS ?? "", "OWNERS");
   return [user.phone, user.email].some((v) => v && owners.includes(v));
 };
+
+/** Accounts the numbers leave out: the owners, plus test accounts listed in NOT_COUNTED. */
+export const notCounted = (user: { phone: string | null; email: string | null }) => {
+  const test = identifierList(process.env.NOT_COUNTED ?? "", "NOT_COUNTED");
+  return isOwner(user) || [user.phone, user.email].some((v) => v && test.includes(v));
+};
+
+/** The time zone the numbers count days in (TIME_ZONE, e.g. America/Los_Angeles). New York unless set. */
+export function timeZone() {
+  const tz = process.env.TIME_ZONE?.trim() || "America/New_York";
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone: tz });
+    return tz;
+  } catch {
+    if (!warned.has(tz)) {
+      warned.add(tz);
+      console.warn(`TIME_ZONE "${tz}" isn’t a time zone; counting days in New York time. Use a name like America/Los_Angeles.`);
+    }
+    return "America/New_York";
+  }
+}
 
 /**
  * How a sign-in code reaches someone when no texting/email provider is set up:
