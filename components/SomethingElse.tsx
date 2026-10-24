@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
 import { screenFormat, VOCAB } from "@/lib/kinds";
@@ -96,7 +96,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
         </div>
       )}
       {kind === "screen" && suggest && (
-        <TellUs key={format} kind={kind} mood={mood} area={null} format={format !== "any" ? format : null} onChoose={onChoose} taken={taken} />
+        <TellUs kind={kind} mood={mood} area={null} format={format !== "any" ? format : null} onChoose={onChoose} taken={taken} />
       )}
       {/* Places: the occasion, then the city; everything below is for that city. */}
       {isPlace && (
@@ -117,7 +117,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
           ) : (
             <AreaSearch onArea={setCity} />
           )}
-          {city && suggest && <TellUs key={city.key} kind={kind} mood={mood} area={city} format={null} onChoose={onChoose} taken={taken} />}
+          {suggest && <TellUs kind={kind} mood={mood} area={city} format={null} onChoose={onChoose} taken={taken} />}
         </>
       )}
       {mine.length > 0 && (
@@ -333,9 +333,12 @@ const EXAMPLE: Partial<Record<Kind, string>> = {
   place: "“A cozy spot for a first date, not too loud, good wine”",
 };
 
+type Format = "movie" | "tv";
+
 /**
  * Say what you're after, out loud or typed, and get three picks for exactly that: read against your whole taste map
- * and your friends', like the other ideas.
+ * and your friends', like the other ideas. Watching asks movie or show first; going out needs the city. Then: three
+ * different ones, or say more and ask again.
  */
 function TellUs({
   kind,
@@ -344,81 +347,165 @@ function TellUs({
   format,
   onChoose,
   taken,
-}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; area: AreaHit | null; format: "movie" | "tv" | null; taken: Set<string> }) {
+}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; area: AreaHit | null; format: Format | null; taken: Set<string> }) {
   const [text, setText] = useState("");
+  // Movies & TV: which one, asked before anything else (or already picked at the top).
+  const [watch, setWatch] = useState<Format | "either" | null>(format);
   const { canTalk, listening, interim, talk, stop } = useDictation();
-  const [asked, setAsked] = useState<{ wish: string; picks?: Suggestion[]; destinationId?: string | null; error?: string } | null>(null);
+  const [asked, setAsked] = useState<{
+    wish: string;
+    area: string | null;
+    picks?: Suggestion[];
+    destinationId?: string | null;
+    error?: string;
+  } | null>(null);
+  const [more, setMore] = useState(false);
+  const box = useRef<HTMLTextAreaElement>(null);
+
+  const needsWatch = kind === "screen" && watch === null;
+  const needsCity = kind === "place" && !area;
   const thinking = asked !== null && !asked.picks && !asked.error;
   const shown = interim ? `${text}${text ? " " : ""}${interim}` : text;
+  // Answers for another city don't belong under this one.
+  const current = asked && asked.area === (area?.key ?? null) ? asked : null;
 
-  const send = async () => {
-    stop();
+  const send = async (others = false) => {
     const wish = shown.trim();
-    if (!wish || thinking) return;
+    stop(false);
     setText(wish);
-    setAsked({ wish });
+    if (!wish || thinking || needsWatch || needsCity) return;
+    // "None of these", or saying more after seeing three: never the ones already shown.
+    const fresh = others || more;
+    setMore(false);
+    const at = area?.key ?? null;
+    setAsked({ wish, area: at });
     try {
-      const r = await api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", { body: { kind, mood, area, format, wish } });
-      setAsked({ wish, ...r });
+      const r = await api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", {
+        body: { kind, mood, area, format: kind === "screen" && watch !== "either" ? watch : null, wish, fresh },
+      });
+      setAsked({ wish, area: at, ...r });
     } catch (err) {
-      setAsked({ wish, error: (err as Error).message });
+      setAsked({ wish, area: at, error: (err as Error).message });
     }
   };
 
-  const picks = asked?.picks?.filter((s) => !taken.has(s.hit.key)) ?? [];
+  const sayMore = () => {
+    setMore(true);
+    const t = text.trim();
+    setText(t ? `${t.replace(/[.!?]$/, "")}, ` : "");
+    // After the text updates, put the cursor at the end.
+    requestAnimationFrame(() => {
+      const el = box.current;
+      if (!el) return;
+      el.focus();
+      el.setSelectionRange(el.value.length, el.value.length);
+    });
+  };
+
+  const picks = current?.picks?.filter((s) => !taken.has(s.hit.key)) ?? [];
+  const hint = listening
+    ? "Listening… tap the words to edit them"
+    : needsCity
+      ? "Pick the city above, then Find."
+      : more
+        ? "Add what to change, like “lighter” or “something newer”."
+        : canTalk
+          ? "Talk or type, then edit if you like. You’ll get three."
+          : "You’ll get three.";
+
   return (
     <section className="mt-5 rounded-2xl bg-paper p-3">
-      <label htmlFor={`tell-${kind}`} className="block px-1 text-[15px] font-medium">
-        Or say what you’re after
-      </label>
-      <div className="mt-2 flex items-end gap-2">
-        <textarea
-          id={`tell-${kind}`}
-          value={shown}
-          onChange={(e) => !listening && setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              send();
-            }
-          }}
-          readOnly={listening}
-          placeholder={EXAMPLE[kind]}
-          rows={2}
-          maxLength={300}
-          enterKeyHint="search"
-          className="min-w-0 flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
-        />
-        {canTalk && (
-          <button
-            onClick={listening ? stop : () => talk((said) => setText((t) => appendSaid(t, said)))}
-            aria-pressed={listening}
-            aria-label={listening ? "Stop listening" : "Talk"}
-            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink active:scale-95 ${listening ? "animate-pulse" : ""}`}
-          >
-            <Icon name={listening ? "x" : "mic"} size={20} />
-          </button>
-        )}
-      </div>
-      <div className="mt-2 flex items-center justify-between gap-2 px-1">
-        <p className="text-[13px] text-muted">{listening ? "Listening… tap to stop" : canTalk ? "Talk or type. You’ll get three." : "You’ll get three."}</p>
-        <Button onClick={send} loading={thinking} disabled={!shown.trim()} className="h-9 shrink-0 px-4 text-[14px]" icon={<Icon name="sparkle" size={15} />}>
-          Find
-        </Button>
-      </div>
+      <p className="px-1 text-[15px] font-medium">Or say what you’re after</p>
+      {kind === "screen" && (
+        <div className="mt-2 px-1">
+          {needsWatch && <p className="mb-1.5 text-[14px] text-ink-2">First: a movie or a TV show?</p>}
+          <div className="flex gap-2" role="radiogroup" aria-label="What to watch: movie or TV show">
+            {(["movie", "tv", "either"] as const).map((f) => (
+              <button
+                key={f}
+                role="radio"
+                aria-checked={watch === f}
+                onClick={() => setWatch(f)}
+                className={`h-8 rounded-full px-3.5 text-[13px] font-medium active:scale-95 ${
+                  watch === f ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
+                }`}
+              >
+                {{ movie: "Movie", tv: "TV show", either: "Either" }[f]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      {!needsWatch && (
+        <>
+          <div className="mt-2 flex items-end gap-2">
+            <textarea
+              ref={box}
+              aria-label="What you’re after"
+              value={shown}
+              onChange={(e) => !listening && setText(e.target.value)}
+              // Tapping the words to fix one stops listening, keeping everything heard so far.
+              onFocus={() => listening && stop()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  send();
+                }
+              }}
+              placeholder={EXAMPLE[kind]}
+              rows={2}
+              maxLength={300}
+              enterKeyHint="search"
+              className="min-w-0 flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
+            />
+            {canTalk && (
+              <button
+                onClick={listening ? () => stop() : () => talk((said) => setText((t) => appendSaid(t, said)))}
+                aria-pressed={listening}
+                aria-label={listening ? "Stop listening" : "Talk"}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink active:scale-95 ${listening ? "animate-pulse" : ""}`}
+              >
+                <Icon name={listening ? "x" : "mic"} size={20} />
+              </button>
+            )}
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-2 px-1">
+            <p className="text-[13px] leading-snug text-muted">{hint}</p>
+            <Button
+              onClick={() => send()}
+              loading={thinking}
+              disabled={!shown.trim() || needsCity}
+              className="h-9 shrink-0 px-4 text-[14px]"
+              icon={<Icon name="sparkle" size={15} />}
+            >
+              Find
+            </Button>
+          </div>
+        </>
+      )}
       {thinking && <Thinking />}
-      {asked?.error && <p className="px-1 pt-2 text-[14px] text-muted">{asked.error}</p>}
-      {asked?.picks && !picks.length && (
+      {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
+      {current?.picks && !picks.length && (
         <p className="px-1 pt-2 text-[14px] text-muted">Nothing new for that. Try saying it another way.</p>
       )}
-      {picks.length > 0 && (
-        <ul className="-mx-1 mt-1">
-          {picks.map((s) => {
-            const destinationId = asked!.destinationId ?? null;
-            const c = ideaChoice(s, kind, area, destinationId);
-            return <Row key={`ask:${s.hit.key}`} kind={kind} item={c} line={s.why} onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })} />;
-          })}
-        </ul>
+      {picks.length > 0 && !thinking && (
+        <>
+          <ul className="-mx-1 mt-1">
+            {picks.map((s) => {
+              const destinationId = current!.destinationId ?? null;
+              const c = ideaChoice(s, kind, area, destinationId);
+              return <Row key={`ask:${s.hit.key}`} kind={kind} item={c} line={s.why} onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })} />;
+            })}
+          </ul>
+          <div className="mt-1 flex gap-2 px-1">
+            <Button variant="secondary" onClick={() => send(true)} className="h-9 flex-1 px-3 text-[14px]">
+              None of these
+            </Button>
+            <Button variant="secondary" onClick={sayMore} className="h-9 flex-1 px-3 text-[14px]">
+              Say more
+            </Button>
+          </div>
+        </>
       )}
     </section>
   );

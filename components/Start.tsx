@@ -490,7 +490,7 @@ function Deck({ have, save }: { have: Have; save: Save }) {
   return (
     <>
       <Title title="Quick: loved it?" sub="Well-known ones near your taste. Swipe right if you loved it, left to pass." />
-      <div className="relative mt-5 flex min-h-[380px] flex-col items-center">
+      <div className="relative mt-4 flex min-h-[380px] flex-col items-center">
         {loading ? (
           <div className="flex w-full max-w-[300px] flex-col items-center" aria-label="Building your deck">
             <div className="aspect-[2/3] w-[120px] rounded-[8px] skeleton" />
@@ -524,19 +524,12 @@ function Deck({ have, save }: { have: Have; save: Save }) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ type: "spring", stiffness: 420, damping: 32 }}
-                className="flex w-full max-w-[300px] cursor-grab touch-pan-y flex-col items-center rounded-[28px] bg-surface p-4 pb-5 text-center shadow-float active:cursor-grabbing"
+                className="flex w-full max-w-[300px] cursor-grab touch-pan-y flex-col items-center rounded-[28px] bg-surface p-4 pb-4 text-center shadow-float active:cursor-grabbing"
               >
-                <span className="mb-3 rounded-full px-2.5 py-1 text-[12px] font-medium text-ink" style={{ background: VOCAB[card.kind].tint }}>
+                <span className="mb-2.5 rounded-full px-2.5 py-1 text-[12px] font-medium text-ink" style={{ background: VOCAB[card.kind].tint }}>
                   {VOCAB[card.kind].one.replace(/^./, (c) => c.toUpperCase())}
                 </span>
-                <Cover
-                  book={card.hit}
-                  shape={VOCAB[card.kind].shape}
-                  className={VOCAB[card.kind].shape === "square" ? "w-[150px]" : "w-[120px]"}
-                  rounded="rounded-[8px]"
-                />
-                <p className="mt-3 font-serif text-[21px] leading-tight font-medium text-balance">{card.hit.title}</p>
-                <p className="mt-1 text-[14px] text-muted">{[card.hit.author, card.hit.year].filter(Boolean).join(" · ")}</p>
+                <DeckFace card={card} />
               </motion.div>
             </AnimatePresence>
             <div className="mt-5 grid w-full max-w-[340px] grid-cols-3 gap-2">
@@ -555,6 +548,46 @@ function Deck({ have, save }: { have: Have; save: Save }) {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * One card: the cover, the title, its genre, and a sentence or two on what it is, which shows on hover with a mouse
+ * and on a tap of "What's it about?" on a phone.
+ */
+function DeckFace({ card }: { card: DeckCard }) {
+  const [open, setOpen] = useState(false);
+  const genre = card.hit.categories.slice(0, 2).join(" · ");
+  const mouse = (e: React.PointerEvent) => e.pointerType === "mouse";
+  return (
+    <div
+      className="flex w-full flex-col items-center"
+      onPointerEnter={(e) => mouse(e) && setOpen(true)}
+      onPointerLeave={(e) => mouse(e) && setOpen(false)}
+    >
+      <Cover
+        book={card.hit}
+        shape={VOCAB[card.kind].shape}
+        // Smaller on phones, so the card with its description still leaves the answers in view.
+        className={VOCAB[card.kind].shape === "square" ? "w-[112px] sm:w-[150px]" : "w-[88px] sm:w-[120px]"}
+        rounded="rounded-[8px]"
+      />
+      <p className="mt-3 font-serif text-[21px] leading-tight font-medium text-balance">{card.hit.title}</p>
+      <p className="mt-1 text-[14px] text-muted">{[card.hit.author, card.hit.year].filter(Boolean).join(" · ")}</p>
+      {genre && <p className="mt-0.5 text-[13px] text-muted">{genre}</p>}
+      {card.about &&
+        (open ? (
+          <p className="mt-2.5 text-[14px] leading-snug text-ink-2 text-pretty">{card.about}</p>
+        ) : (
+          <button
+            onClick={() => setOpen(true)}
+            aria-expanded={false}
+            className="mt-2 flex h-8 items-center gap-1 px-2 text-[13px] font-medium text-ink-2 underline underline-offset-2 active:opacity-60"
+          >
+            What’s it about?
+          </button>
+        ))}
+    </div>
   );
 }
 
