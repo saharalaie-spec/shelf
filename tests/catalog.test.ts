@@ -240,7 +240,7 @@ const TMDB = {
 };
 
 /** A canned body per source; a number is an HTTP error status, an Error a network failure. */
-type Routes = { tmdb?: unknown; itunesPodcast?: unknown; itunesMovie?: unknown; tvmaze?: unknown };
+type Routes = { tmdb?: unknown; imdb?: unknown; itunesPodcast?: unknown; itunesMovie?: unknown; tvmaze?: unknown };
 
 function stubFetch(routes: Routes) {
   const calls: { url: URL; headers: Headers }[] = [];
@@ -252,7 +252,9 @@ function stubFetch(routes: Routes) {
       const body =
         url.hostname === "api.themoviedb.org"
           ? routes.tmdb
-          : url.hostname === "api.tvmaze.com"
+          : url.hostname === "v3.sg.media-imdb.com"
+            ? routes.imdb
+            : url.hostname === "api.tvmaze.com"
             ? routes.tvmaze
             : url.searchParams.get("media") === "podcast"
               ? routes.itunesPodcast
@@ -266,7 +268,24 @@ function stubFetch(routes: Routes) {
   return calls;
 }
 
-const FREE = { itunesMovie: ITUNES_MOVIES, tvmaze: TVMAZE };
+// IMDb down: the free fallbacks.
+const FREE = { imdb: 503, itunesMovie: ITUNES_MOVIES, tvmaze: TVMAZE };
+
+// What imdb.com's search box gets back for "dune": titles, a person, an episode and a game mixed in.
+const IMDB = {
+  q: "dune",
+  d: [
+    { id: "tt1160419", l: "Dune", qid: "movie", q: "feature", y: 2021, s: "Timothée Chalamet, Rebecca Ferguson", rank: 120,
+      i: { imageUrl: "https://m.media-amazon.com/images/M/MV5Bdune1._V1_.jpg", width: 1000, height: 1481 } },
+    { id: "tt15239678", l: "Dune: Part Two", qid: "movie", y: 2024, s: "Timothée Chalamet, Zendaya", rank: 40,
+      i: { imageUrl: "https://m.media-amazon.com/images/M/MV5Bdune2._V1_.jpg" } },
+    { id: "nm0001234", l: "Dune Somebody", s: "Actor" },
+    { id: "tt10466872", l: "Dune: Prophecy", qid: "tvSeries", y: 2024, s: "Emily Watson", rank: 300 },
+    { id: "tt0087182", l: "Dune", qid: "movie", y: 1984, s: "Kyle MacLachlan", rank: 2500 },
+    { id: "tt9999990", l: "Dune: The Game", qid: "videoGame", y: 2020 },
+    { id: "tt9999991", l: "Dune Episode", qid: "tvEpisode", y: 2020 },
+  ],
+};
 
 // Each test uses its own query text: successful searches are cached for an hour.
 describe("live sources", () => {
@@ -300,12 +319,33 @@ describe("live sources", () => {
     expect(hits[2]).toMatchObject({ coverUrl: null, categories: [] });
   });
 
-  it("without a TMDB key, interleaves iTunes movies and TVmaze shows", async () => {
+  it("without a TMDB key, searches IMDb: movies and shows, posters, people and games left out", async () => {
+    const calls = stubFetch({ imdb: IMDB });
+    const hits = await searchScreen("Dune", 8);
+    expect(calls.map((c) => c.url.href)).toEqual(["https://v3.sg.media-imdb.com/suggestion/x/dune.json?includeVideos=0"]);
+    // Exact titles first, the more popular of them ahead; then the rest.
+    expect(hits.map((h) => h.key)).toEqual(["imdb:movie:tt1160419", "imdb:movie:tt0087182", "imdb:movie:tt15239678", "imdb:tv:tt10466872"]);
+    expect(hits[0]).toEqual({
+      key: "imdb:movie:tt1160419",
+      title: "Dune",
+      author: "Timothée Chalamet, Rebecca Ferguson",
+      year: 2021,
+      coverUrl: "https://m.media-amazon.com/images/M/MV5Bdune1._V1_UX500_.jpg",
+      categories: ["Movies"],
+    });
+    expect(hits[3]).toMatchObject({ title: "Dune: Prophecy", coverUrl: null, categories: ["TV"] });
+    // The year still picks the right one.
+    stubFetch({ imdb: IMDB });
+    expect((await searchScreen("dune 1984", 8))[0].key).toBe("imdb:movie:tt0087182");
+  });
+
+  it("falls back to iTunes and TVmaze when IMDb fails", async () => {
     const calls = stubFetch(FREE);
     const hits = await searchCatalog("screen", "dune");
     expect(calls.map((c) => c.url.href).sort()).toEqual([
       "https://api.tvmaze.com/search/shows?q=dune",
       "https://itunes.apple.com/search?media=movie&entity=movie&limit=16&term=dune",
+      "https://v3.sg.media-imdb.com/suggestion/x/dune.json?includeVideos=0",
     ]);
     expect(hits.map((h) => h.key)).toEqual([
       "itunes:movie:1581297285",
@@ -405,11 +445,15 @@ describe("live sources", () => {
     expect(hits[0].key).toBe("tmdb:movie:693134");
   });
 
-  it("falls back to the free sources when TMDB fails", async () => {
+  it("falls back to IMDb when TMDB fails, and on to iTunes and TVmaze when IMDb does too", async () => {
     vi.stubEnv("TMDB_API_KEY", "v3key123");
-    const calls = stubFetch({ tmdb: 401, ...FREE });
+    let calls = stubFetch({ tmdb: 401, imdb: IMDB });
+    expect((await searchScreen("dune again", 8)).every((h) => h.key.startsWith("imdb:"))).toBe(true);
+    expect(calls.map((c) => c.url.hostname)).toEqual(["api.themoviedb.org", "v3.sg.media-imdb.com"]);
+
+    calls = stubFetch({ tmdb: 401, ...FREE });
     const hits = await searchScreen("dune messiah", 8);
-    expect(calls.map((c) => c.url.hostname).sort()).toEqual(["api.themoviedb.org", "api.tvmaze.com", "itunes.apple.com"]);
+    expect(calls.map((c) => c.url.hostname).sort()).toEqual(["api.themoviedb.org", "api.tvmaze.com", "itunes.apple.com", "v3.sg.media-imdb.com"]);
     expect(hits.length).toBe(5);
     expect(hits.every((h) => /^(itunes:movie|tvmaze):/.test(h.key))).toBe(true);
   });

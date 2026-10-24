@@ -13,8 +13,9 @@ export type ScreenHit = Hit & { format: ScreenFormat; popularity?: number };
 export type ScreenQuery = { title: string; full: string; year?: number; format?: ScreenFormat };
 
 /**
- * Search movies and TV. TMDB when TMDB_API_KEY is set (a v4 read token or a v3 key); otherwise, or if
- * TMDB fails, iTunes movies and TVmaze shows together. Throws only if every source failed.
+ * Search movies and TV. TMDB when TMDB_API_KEY is set (a v4 read token or a v3 key); otherwise, or if TMDB fails,
+ * IMDb's title suggestions; if that fails too, iTunes movies and TVmaze shows together. Throws only if every source
+ * failed.
  */
 export async function searchScreen(text: string, limit = 8, opts: ScreenOpts = {}): Promise<Hit[]> {
   const query = parseScreenQuery(text, opts);
@@ -31,7 +32,15 @@ export async function searchScreen(text: string, limit = 8, opts: ScreenOpts = {
     try {
       lists = [await tmdbSearch(query.title, tmdbKey)];
     } catch (err) {
-      console.warn("TMDB failed, trying iTunes and TVmaze:", (err as Error).message);
+      console.warn("TMDB failed, trying IMDb:", (err as Error).message);
+      complete = false;
+    }
+  }
+  if (!lists) {
+    try {
+      lists = [await imdbSearch(query.title)];
+    } catch (err) {
+      console.warn("IMDb failed, trying iTunes and TVmaze:", (err as Error).message);
       complete = false;
     }
   }
@@ -204,6 +213,58 @@ export async function tmdbSearch(text: string, apiKey: string): Promise<ScreenHi
         ),
         format,
         popularity: r.popularity,
+      },
+    ];
+  });
+}
+
+// ---------- IMDb ----------
+
+/**
+ * IMDb has no free API. This is the title-suggestion feed behind imdb.com's own search box: no key, good at
+ * half-typed titles, with posters. It isn't offered for apps (IMDb's terms don't allow it) and can change or be
+ * blocked without notice, which is why everything falls back to iTunes and TVmaze when it fails.
+ */
+type IMDbSuggestion = {
+  /** "tt1375666" for titles; people are "nm…". */
+  id?: string;
+  /** Title. */
+  l?: string;
+  /** "movie", "tvSeries", "tvMiniSeries", "tvMovie", "short", "videoGame", "tvEpisode"… */
+  qid?: string;
+  y?: number;
+  /** Leading cast, "Leonardo DiCaprio, Joseph Gordon-Levitt". */
+  s?: string;
+  /** Popularity rank: lower is more popular. */
+  rank?: number;
+  i?: { imageUrl?: string };
+};
+
+const IMDB_FORMAT: Record<string, ScreenFormat> = { movie: "movie", tvMovie: "movie", tvSeries: "tv", tvMiniSeries: "tv" };
+
+export async function imdbSearch(text: string): Promise<ScreenHit[]> {
+  const q = text.trim().toLowerCase();
+  const res = await fetch(`https://v3.sg.media-imdb.com/suggestion/x/${encodeURIComponent(q)}.json?includeVideos=0`, {
+    headers: { Accept: "application/json" },
+    signal: AbortSignal.timeout(TIMEOUT_MS),
+  });
+  if (!res.ok) throw new Error(`IMDb ${res.status}`);
+  const data = (await res.json()) as { d?: IMDbSuggestion[] };
+  if (!Array.isArray(data.d)) throw new Error("IMDb sent something unexpected");
+  return data.d.flatMap((t): ScreenHit[] => {
+    const format = t.qid ? IMDB_FORMAT[t.qid] : undefined;
+    if (!format || !t.id?.startsWith("tt") || !t.l) return [];
+    return [
+      {
+        key: `imdb:${format}:${t.id}`,
+        title: t.l,
+        author: t.s?.trim() || null,
+        year: t.y ?? null,
+        // Amazon's image URLs take a size; a 500px-wide poster is plenty.
+        coverUrl: https(t.i?.imageUrl?.replace(/\._V1_.*\.(jpg|png)$/, "._V1_UX500_.$1")),
+        categories: categorizeScreen([], format),
+        format,
+        popularity: t.rank ? 1_000_000 / t.rank : 0,
       },
     ];
   });
