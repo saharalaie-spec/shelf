@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { troveCount, troveTitle } from "@/lib/kinds";
 import { getSharedTrove } from "@/lib/trove";
+import { CameVia } from "@/components/CameVia";
 import { SharedTrove } from "@/components/SharedTrove";
 
 export async function generateMetadata({ params }: PageProps<"/s/[slug]">): Promise<Metadata> {
@@ -25,15 +26,18 @@ export default async function SharedTrovePage({ params }: PageProps<"/s/[slug]">
   const [shared, viewer] = await Promise.all([getSharedTrove(slug, { countView: true }), getCurrentUser()]);
   if (!shared) notFound();
   return (
-    <SharedTrove
-      title={troveTitle(shared.ownerName, shared.category, shared.status, shared.kind)}
-      kind={shared.kind}
-      ownerName={shared.ownerName}
-      status={shared.status}
-      category={shared.category}
-      items={shared.items}
-      destinations={shared.destinations}
-      viewerSignedIn={Boolean(viewer)}
-    />
+    <>
+      {!viewer && <CameVia via={`share:${slug}`} />}
+      <SharedTrove
+        title={troveTitle(shared.ownerName, shared.category, shared.status, shared.kind)}
+        kind={shared.kind}
+        ownerName={shared.ownerName}
+        status={shared.status}
+        category={shared.category}
+        items={shared.items}
+        destinations={shared.destinations}
+        viewerSignedIn={Boolean(viewer)}
+      />
+    </>
   );
 }

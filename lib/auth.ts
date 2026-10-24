@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash, createHmac, randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
+import { trackSignup, trackVisit } from "./activity";
 import { db } from "./db";
 import { deliverCode } from "./delivery";
 import type { Identifier } from "./identifier";
@@ -149,6 +150,7 @@ export async function verifyLogin(to: Identifier, code: string) {
     : String((await client.execute({ sql: `SELECT id FROM users WHERE ${column} = ?`, args: [to.value] })).rows[0].id);
 
   await createSession(userId);
+  if (created.rows.length) await trackSignup(userId);
   return { isNew: created.rows.length > 0 };
 }
 
@@ -182,6 +184,7 @@ export async function getCurrentUser(): Promise<User | null> {
     })
   ).rows[0];
   if (!row) return null;
+  await trackVisit(String(row.id));
   return {
     id: String(row.id),
     name: row.name ? String(row.name) : null,

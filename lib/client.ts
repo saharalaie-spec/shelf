@@ -14,6 +14,11 @@ export async function api<T>(path: string, init?: { method?: string; body?: unkn
   return data as T;
 }
 
+/** Notes something for the numbers page. Never in the way: failures are ignored. */
+export function trackAction(action: "invite_share" | "next_open", ref?: string) {
+  api("/api/activity", { body: { action, ref } }).catch(() => {});
+}
+
 export const possessive = (name: string) => (/s$/i.test(name) ? `${name}’` : `${name}’s`);
 
 export const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? "" : "s"}`;

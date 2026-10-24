@@ -20,6 +20,9 @@ export async function deleteAccount(user: { id: string; phone: string | null; em
       // Feedback stays (it's about the app), but no longer says who sent it.
       mine("UPDATE feedback SET user_id = NULL, name = NULL, contact = NULL WHERE user_id = ?"),
       mine("DELETE FROM starter_picks WHERE user_id = ?"),
+      mine("DELETE FROM activity WHERE user_id = ?"),
+      // People this account brought in keep their accounts; they just no longer say who invited them.
+      mine("UPDATE users SET invited_by = NULL WHERE invited_by = ?"),
       // Friends keep what they saved from you; it just stops linking to an account that's gone.
       mine("UPDATE books SET rec_user_id = NULL WHERE rec_user_id = ?"),
       mine("DELETE FROM item_events WHERE user_id = ?"),
