@@ -618,7 +618,7 @@ describe("getting started", () => {
       seen.push(exclude);
       return [
         { kind: "book" as const, title: "Beloved", creator: "Toni Morrison", year: 1987 },
-        { kind: "podcast" as const, title: `Pod ${calls}`, creator: "Host", year: 0 },
+        { kind: "podcast" as const, title: `Pod ${calls}`, creator: "Host", year: 0, about: "  A comedy podcast about nothing much.  " },
         { kind: "screen" as const, title: `Film ${calls}`, creator: "Movie · Someone", year: 2020 },
       ];
     };
@@ -628,6 +628,8 @@ describe("getting started", () => {
       ["screen", "Film 1"],
     ]);
     expect(seen[0]).toContain("Beloved");
+    // What it's about travels with the card, tidied; a card without one just has none.
+    expect(first.map((c) => c.about)).toEqual(["A comedy podcast about nothing much.", undefined]);
     // Same day: kept, minus anything added since.
     await trove.addItems(me.id, "podcast", [book("fx:pod:x", "Pod 1")]);
     expect((await tasteDeck(me.id, {}, ask)).map((c) => c.hit.title)).toEqual(["Film 1"]);

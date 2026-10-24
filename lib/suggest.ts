@@ -239,8 +239,9 @@ export async function suggest(
  */
 export const DECK_KINDS = ["book", "podcast", "screen"] as const;
 export type DeckKind = (typeof DECK_KINDS)[number];
-export type DeckCard = { kind: DeckKind; hit: Hit };
-export type DeckAsked = { kind: DeckKind; title: string; creator: string; year: number };
+/** `about`: a sentence or two on what it is and its genre (missing from decks made before it existed). */
+export type DeckCard = { kind: DeckKind; hit: Hit; about?: string };
+export type DeckAsked = { kind: DeckKind; title: string; creator: string; year: number; about?: string };
 export type DeckAsk = (input: { taste: Taste; exclude: string[] }) => Promise<DeckAsked[]>;
 // Short on purpose: enough to learn a taste, not a chore.
 const DECK_SIZE = 9;
@@ -257,8 +258,9 @@ const DECK_SCHEMA = {
           title: { type: "string" },
           creator: { type: "string", description: "Author, host, director or network." },
           year: { type: "integer", description: "Release year if certain; 0 otherwise." },
+          about: { type: "string", description: "One or two short sentences: what it is about and its genre. No spoilers." },
         },
-        required: ["kind", "title", "creator", "year"],
+        required: ["kind", "title", "creator", "year", "about"],
         additionalProperties: false,
       },
     },
@@ -277,6 +279,7 @@ Build a quick deck of ${DECK_SIZE} things for them to react to with "loved it", 
 - Pick things well known enough that they may already have read, heard or watched them: that's how the deck learns their taste fast.
 - Lean toward what their taste points to, with a few broader favorites. If they've added little, span different tastes (literary, funny, true crime, science, history, drama, sci-fi…).
 - Use the exact, commonly known title and its creator.
+- "about" tells someone who hasn't heard of it what it is, in at most 30 words: the genre and the premise, no spoilers (e.g. "A literary sci-fi novel told by a robot companion, quietly watching the family she's bought to look after.").
 - Never anything already on their lists:
 <saved>
 ${exclude.slice(0, 300).join("\n")}
@@ -294,7 +297,9 @@ const askDeckOffline: DeckAsk = async ({ exclude }) => {
       const out: DeckAsked[] = [];
       for (const h of hits) {
         if (seen.has(normalize(h.title)) || out.some((o) => o.title === h.title)) continue;
-        out.push({ kind, title: h.title, creator: h.author ?? "", year: h.year ?? 0 });
+        const genre = h.categories.find((c) => c !== "Movies" && c !== "TV")?.toLowerCase() ?? "well-known";
+        const about = `A ${genre} ${VOCAB[kind].one}. (Offline stand-in: Claude writes the real description.)`;
+        out.push({ kind, title: h.title, creator: h.author ?? "", year: h.year ?? 0, about });
         if (out.length === DECK_SIZE / 3) break;
       }
       return out;
@@ -344,7 +349,8 @@ export async function tasteDeck(
   for (const a of asked) {
     const hit = hits.get(a)!;
     if (skip.has(normalize(hit.title)) || cards.some((c) => c.hit.key === hit.key)) continue;
-    cards.push({ kind: a.kind, hit });
+    const about = a.about?.trim().slice(0, 240);
+    cards.push({ kind: a.kind, hit, ...(about ? { about } : {}) });
   }
 
   const client = await db();
