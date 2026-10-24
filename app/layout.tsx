@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   // Without APP_URL, Next.js uses the Vercel production domain (or localhost) for preview images.
   metadataBase: process.env.APP_URL ? new URL(process.env.APP_URL) : undefined,
   title: "Trove",
-  description: "Every book, podcast, show and favorite spot you love, in one place. Share your trove with friends.",
+  description: "Where curious minds open new worlds for one another. Keep the books, podcasts, shows and places you love, and find what’s next through friends.",
   appleWebApp: { capable: true, title: "Trove", statusBarStyle: "default" },
 };
 
