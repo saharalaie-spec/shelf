@@ -21,10 +21,13 @@ export function FeedbackSheet({ open, onOpenChange }: { open: boolean; onOpenCha
   };
 
   const send = async () => {
-    stop();
+    // Anything still being heard goes too.
+    const said = interim ? appendSaid(text, interim) : text;
+    stop(false);
+    setText(said);
     setSending(true);
     try {
-      await api("/api/feedback", { body: { text, page } });
+      await api("/api/feedback", { body: { text: said, page } });
       toast("Thank you. Got it.");
       setText("");
       onOpenChange(false);
@@ -44,7 +47,7 @@ export function FeedbackSheet({ open, onOpenChange }: { open: boolean; onOpenCha
         </p>
         {canTalk && (
           <button
-            onClick={listening ? stop : () => talk((said) => setText((t) => appendSaid(t, said)))}
+            onClick={listening ? () => stop() : () => talk((said) => setText((t) => appendSaid(t, said)))}
             aria-pressed={listening}
             aria-label={listening ? "Stop listening" : "Talk"}
             className={`mx-auto mt-5 flex h-20 w-20 items-center justify-center rounded-full bg-accent text-accent-ink transition-transform active:scale-95 ${listening ? "animate-pulse" : ""}`}
@@ -56,6 +59,8 @@ export function FeedbackSheet({ open, onOpenChange }: { open: boolean; onOpenCha
         <textarea
           value={interim ? `${text}${text ? " " : ""}${interim}` : text}
           onChange={(e) => !listening && setText(e.target.value)}
+          // Tapping the text to fix a word stops listening, keeping everything heard so far.
+          onFocus={() => listening && stop()}
           readOnly={listening}
           placeholder={canTalk ? "Your words show up here. You can edit them before sending." : "What should we know?"}
           aria-label="Your feedback"
@@ -63,7 +68,7 @@ export function FeedbackSheet({ open, onOpenChange }: { open: boolean; onOpenCha
           maxLength={4000}
           className="mt-4 block w-full resize-none rounded-2xl border border-line bg-surface px-4 py-3 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
         />
-        <Button onClick={send} loading={sending} disabled={!text.trim()} className="mt-3 mb-3 w-full" icon={<Icon name="arrow" size={18} />}>
+        <Button onClick={send} loading={sending} disabled={!text.trim() && !interim.trim()} className="mt-3 mb-3 w-full" icon={<Icon name="arrow" size={18} />}>
           Send
         </Button>
       </div>

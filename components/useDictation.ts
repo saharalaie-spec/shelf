@@ -26,7 +26,8 @@ export const appendSaid = (text: string, said: string) => (text.trim() ? `${text
 
 /**
  * Talk instead of type, where the browser can listen. `talk(onSaid)` hands over each finished phrase; `interim` is
- * the phrase still being heard. Listening keeps going through pauses until `stop()`, and stops when the component goes.
+ * the phrase still being heard. Listening keeps going through pauses until `stop()`, which hands over the phrase still
+ * being heard too (unless `keep` is false, for when the caller already took it), and stops when the component goes.
  */
 export function useDictation() {
   const [interim, setInterim] = useState("");
@@ -34,10 +35,15 @@ export function useDictation() {
   const [canTalk] = useState(() => Boolean(recognizer()));
   const rec = useRef<Recognition | null>(null);
   const wanted = useRef(false);
+  const said = useRef<((said: string) => void) | null>(null);
+  const pending = useRef("");
 
-  const stop = () => {
+  const stop = (keep = true) => {
     wanted.current = false;
     rec.current?.stop();
+    const rest = pending.current.trim();
+    if (keep && rest) said.current?.(rest);
+    pending.current = "";
     setListening(false);
     setInterim("");
   };
@@ -57,16 +63,18 @@ export function useDictation() {
     r.continuous = true;
     r.interimResults = true;
     r.lang = navigator.language || "en-US";
+    said.current = onSaid;
     r.onresult = (e) => {
-      let pending = "";
+      let heard = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
         if (res.isFinal) {
-          const said = res[0].transcript.trim();
-          if (said) onSaid(said);
-        } else pending += res[0].transcript;
+          const phrase = res[0].transcript.trim();
+          if (phrase) onSaid(phrase);
+        } else heard += res[0].transcript;
       }
-      setInterim(pending);
+      pending.current = heard;
+      setInterim(heard);
     };
     // Browsers stop after a pause; keep listening until they tap stop.
     r.onend = () => {
@@ -76,6 +84,7 @@ export function useDictation() {
           return;
         } catch {}
       }
+      pending.current = "";
       setListening(false);
       setInterim("");
     };
