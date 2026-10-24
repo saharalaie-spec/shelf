@@ -1,6 +1,8 @@
 # Trove
 
-Every book, podcast, show and favorite spot you love, in one place, shared with your friends.
+*Where curious minds open new worlds for one another.*
+
+Every book, podcast, show and favorite spot you love, in one place, shared with your friends. The mission, logo and colors are in [BRAND.md](BRAND.md).
 
 - **Four collections: Books, Podcasts, Movies & TV, Places.** After you sign in, a home screen shows one card per collection with your counts, a few covers and what you're in the middle of. Tap a card to go in; tap the collection's name at the top to jump to another one.
 - **Three sections in Books, Podcasts and Movies & TV:**
