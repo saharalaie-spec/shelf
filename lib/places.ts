@@ -503,6 +503,12 @@ export function spotType(key: string, value: string): string {
 
 type GooglePlace = {
   id?: string;
+  rating?: number;
+  userRatingCount?: number;
+  /** "PRICE_LEVEL_MODERATE"… */
+  priceLevel?: string;
+  /** "OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY". */
+  businessStatus?: string;
   displayName?: { text?: string };
   formattedAddress?: string;
   shortFormattedAddress?: string;
@@ -517,6 +523,11 @@ type GooglePlace = {
  * the area's bbox when it has one, biased toward its position when it only has that.
  */
 export async function googleSpots(textQuery: string, area: Area, limit: number, apiKey: string): Promise<Hit[]> {
+  const places = await googlePlaces(textQuery, area, limit, apiKey);
+  return dedupeSpots(places.flatMap((p) => googleSpot(p, area) ?? [])).slice(0, limit);
+}
+
+async function googlePlaces(textQuery: string, area: Area, limit: number, apiKey: string, fields = GOOGLE_FIELDS): Promise<GooglePlace[]> {
   const body: Record<string, unknown> = { textQuery, maxResultCount: Math.min(Math.max(limit, 1), 20), languageCode: LANG };
   if (area.bbox) {
     const [west, south, east, north] = area.bbox;
@@ -528,14 +539,49 @@ export async function googleSpots(textQuery: string, area: Area, limit: number, 
   }
   const res = await fetch(GOOGLE_SEARCH, {
     method: "POST",
-    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": GOOGLE_FIELDS },
+    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": fields },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Google Places ${res.status}`);
   const data = (await res.json()) as { places?: GooglePlace[] };
-  const places = keepCountry(Array.isArray(data.places) ? data.places : [], (p) => lastPart(p.formattedAddress), area, false);
-  return dedupeSpots(places.flatMap((p) => googleSpot(p, area) ?? [])).slice(0, limit);
+  return keepCountry(Array.isArray(data.places) ? data.places : [], (p) => lastPart(p.formattedAddress), area, false);
+}
+
+/** A real place to suggest, with what helps choose among them. */
+export type SpotCandidate = { hit: Hit; rating: number | null; ratings: number | null; price: string | null };
+
+const PRICE: Record<string, string> = {
+  PRICE_LEVEL_FREE: "free",
+  PRICE_LEVEL_INEXPENSIVE: "$",
+  PRICE_LEVEL_MODERATE: "$$",
+  PRICE_LEVEL_EXPENSIVE: "$$$",
+  PRICE_LEVEL_VERY_EXPENSIVE: "$$$$",
+};
+const CANDIDATE_FIELDS = `${GOOGLE_FIELDS},places.rating,places.userRatingCount,places.priceLevel,places.businessStatus`;
+
+/** Whether suggestions can start from Google Maps' own list. */
+export const googlePlacesEnabled = () => googleKey() !== null;
+
+/**
+ * Up to 20 real, open places on Google Maps for what someone's after ("persian restaurant, cozy, for a date") in an
+ * area, with ratings and price, for picking suggestions from. Null without a Google key; throws if Google fails.
+ */
+export async function placeCandidates(what: string, area: Area): Promise<SpotCandidate[] | null> {
+  const apiKey = googleKey();
+  if (!apiKey) return null;
+  const term = what.trim().slice(0, 200);
+  return cached(JSON.stringify(["candidates", term.toLowerCase(), areaKey(area)]), async () => {
+    const places = await googlePlaces(located(area) ? term : `${term} in ${area.name}`, area, 20, apiKey, CANDIDATE_FIELDS);
+    const value: SpotCandidate[] = [];
+    for (const p of places) {
+      if (p.businessStatus && p.businessStatus !== "OPERATIONAL") continue;
+      const hit = googleSpot(p, area);
+      if (!hit || dedupeSpots([...value.map((c) => c.hit), hit]).length === value.length) continue;
+      value.push({ hit, rating: p.rating ?? null, ratings: p.userRatingCount ?? null, price: p.priceLevel ? (PRICE[p.priceLevel] ?? null) : null });
+    }
+    return { value, complete: true };
+  });
 }
 
 function googleSpot(p: GooglePlace, area: Area): Hit | null {
@@ -683,7 +729,8 @@ export async function matchSpots(
 }
 
 const squash = (s: string) => norm(s).replace(/ /g, "");
-function mentions(hit: Hit, title: string) {
+/** Whether a map result is the place named ("Casa Montaña" in "Casa Montaña Bar"), not just something nearby. */
+export function mentions(hit: Hit, title: string) {
   const a = squash(hit.title);
   const b = squash(title);
   return b.length > 0 && (a.includes(b) || (a.length >= 4 && b.includes(a)));

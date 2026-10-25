@@ -1,7 +1,7 @@
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 import type { User } from "@/lib/auth";
 
 let social: typeof import("@/lib/social");
@@ -506,10 +506,14 @@ describe("something else: taste map and suggestions", () => {
     await suggest(me.id, "screen", "short", { format: "movie" }, async (input) => (formats.push(input.format), [{ title: "A film", creator: "", year: 0, why: "x" }]));
     await suggest(me.id, "screen", "short", {}, async (input) => (formats.push(input.format), [{ title: "A show", creator: "", year: 0, why: "x" }]));
     expect(formats).toEqual(["movie", null]);
-        // Any city from the map, not one of theirs.
-    const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, ask);
+    // Any city from the map, not one of theirs. Only spots the map knows by that name get through: a made-up one never does.
+    const kyoto = async () => [
+      { title: "Moonlight Kaiseki House", creator: "Gion", year: 0, why: "Invented." },
+      { title: "Nishiki Market", creator: "Nakagyō", year: 0, why: "Grazing for two." },
+    ];
+    const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, kyoto);
     expect(anywhere.destinationId).toBeNull();
-    expect(anywhere.picks.length).toBeGreaterThan(0);
+    expect(anywhere.picks.map((p) => [p.hit.title, p.why])).toEqual([["Nishiki Market", "Grazing for two."]]);
     // A place with no spots yet: ideas are for it.
     const { findOrCreateDestination } = await import("@/lib/destinations");
     const lisbon = await findOrCreateDestination(me.id, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });
@@ -524,6 +528,72 @@ describe("something else: taste map and suggestions", () => {
       });
     }
     await expect(suggest(me.id, "screen", "any", {}, ask)).rejects.toThrow(/plenty/);
+  });
+
+  it("with Google, picks places from Google Maps' own list: open ones, not yours, never a made-up one", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550813" }, "Ari");
+    const { findOrCreateDestination } = await import("@/lib/destinations");
+    const nyc = { name: "New York", country: "United States", lat: 40.71, lon: -74.0, bbox: [-74.26, 40.49, -73.7, 40.92] as [number, number, number, number] };
+    const mine = await findOrCreateDestination(me.id, nyc);
+    await trove.addItems(me.id, "place", [{ ...book("gplace:sofreh", "Sofreh"), categories: ["Food & Drink"], status: "read" }], { destinationId: mine.id });
+
+    vi.stubEnv("BOOKS_PROVIDER", "live");
+    vi.stubEnv("GOOGLE_PLACES_API_KEY", "test-google-key");
+    const bodies: { textQuery: string }[] = [];
+    const place = (id: string, name: string, extra: object = {}) => ({
+      id,
+      displayName: { text: name },
+      formattedAddress: "1 Main St, New York, NY 10001, USA",
+      shortFormattedAddress: "1 Main St, Manhattan, New York",
+      location: { latitude: 40.72, longitude: -73.99 },
+      primaryType: "persian_restaurant",
+      primaryTypeDisplayName: { text: "Persian Restaurant" },
+      types: ["persian_restaurant", "restaurant"],
+      rating: 4.6,
+      userRatingCount: 900,
+      priceLevel: "PRICE_LEVEL_MODERATE",
+      businessStatus: "OPERATIONAL",
+      ...extra,
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+        expect(String(input)).toBe("https://places.googleapis.com/v1/places:searchText");
+        bodies.push(JSON.parse(String(init?.body)));
+        return Response.json({
+          places: [
+            place("ravagh", "Ravagh Persian Grill"),
+            place("sofreh", "Sofreh"),
+            place("gone", "Persepolis", { businessStatus: "CLOSED_PERMANENTLY" }),
+            place("taste", "Taste of Persia NYC", { rating: 4.8, userRatingCount: 2100, priceLevel: "PRICE_LEVEL_INEXPENSIVE" }),
+          ],
+        });
+      }),
+    );
+    try {
+      const offered: string[][] = [];
+      const choose = async ({ candidates }: { candidates: { hit: { title: string } }[] }) => {
+        offered.push(candidates.map((c) => c.hit.title));
+        // A number off the end of the list is ignored, like anything not on it.
+        return [
+          { n: 2, why: "Cheap, cheerful, and the stew you'd want." },
+          { n: 7, why: "Not a real choice." },
+          { n: 1, why: "Grilled meats for a proper dinner." },
+        ];
+      };
+      const { picks } = await suggest(me.id, "place", "date", { place: nyc, wish: "persian restaurant, cozy" }, async () => [], choose);
+      // Searched with their words; closed and already-saved places never offered.
+      expect(bodies[0].textQuery).toBe("persian restaurant, cozy");
+      expect(offered[0]).toEqual(["Ravagh Persian Grill", "Taste of Persia NYC"]);
+      expect(picks.map((p) => [p.hit.key, p.why])).toEqual([
+        ["gplace:taste", "Cheap, cheerful, and the stew you'd want."],
+        ["gplace:ravagh", "Grilled meats for a proper dinner."],
+      ]);
+    } finally {
+      vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
+    }
   });
 
   it("answers what you describe with three picks, every time you ask", async () => {
