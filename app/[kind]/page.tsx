@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
-import { databaseUrl, signInChannels } from "@/lib/config";
+import { databaseUrl, isOwner, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
@@ -40,6 +40,7 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
         handle: user.handle,
         isPublic: user.isPublic,
         shareActivity: user.shareActivity,
+        owner: isOwner(user),
       }}
       pendingRequests={incoming.length}
       initialItems={items}

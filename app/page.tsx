@@ -1,6 +1,6 @@
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { databaseUrl, signInChannels } from "@/lib/config";
+import { databaseUrl, isOwner, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { suggestEnabled } from "@/lib/suggest";
@@ -35,6 +35,7 @@ export default async function HomePage() {
         handle: user.handle,
         isPublic: user.isPublic,
         shareActivity: user.shareActivity,
+        owner: isOwner(user),
       }}
       pendingRequests={incoming.length}
       summaries={summaries}
