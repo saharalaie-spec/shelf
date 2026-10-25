@@ -486,7 +486,11 @@ function TellUs({
       {thinking && <Thinking />}
       {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
       {current?.picks && !picks.length && (
-        <p className="px-1 pt-2 text-[14px] text-muted">Nothing new for that. Try saying it another way.</p>
+        <p className="px-1 pt-2 text-[14px] text-muted">
+          {kind === "place"
+            ? "No spots we could find on the map for that. Try saying it another way."
+            : "Nothing new for that. Try saying it another way."}
+        </p>
       )}
       {picks.length > 0 && !thinking && (
         <>

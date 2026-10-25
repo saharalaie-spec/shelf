@@ -506,10 +506,14 @@ describe("something else: taste map and suggestions", () => {
     await suggest(me.id, "screen", "short", { format: "movie" }, async (input) => (formats.push(input.format), [{ title: "A film", creator: "", year: 0, why: "x" }]));
     await suggest(me.id, "screen", "short", {}, async (input) => (formats.push(input.format), [{ title: "A show", creator: "", year: 0, why: "x" }]));
     expect(formats).toEqual(["movie", null]);
-        // Any city from the map, not one of theirs.
-    const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, ask);
+    // Any city from the map, not one of theirs. Only spots the map knows by that name get through: a made-up one never does.
+    const kyoto = async () => [
+      { title: "Moonlight Kaiseki House", creator: "Gion", year: 0, why: "Invented." },
+      { title: "Nishiki Market", creator: "Nakagyō", year: 0, why: "Grazing for two." },
+    ];
+    const anywhere = await suggest(me.id, "place", "date", { place: { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null } }, kyoto);
     expect(anywhere.destinationId).toBeNull();
-    expect(anywhere.picks.length).toBeGreaterThan(0);
+    expect(anywhere.picks.map((p) => [p.hit.title, p.why])).toEqual([["Nishiki Market", "Grazing for two."]]);
     // A place with no spots yet: ideas are for it.
     const { findOrCreateDestination } = await import("@/lib/destinations");
     const lisbon = await findOrCreateDestination(me.id, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });

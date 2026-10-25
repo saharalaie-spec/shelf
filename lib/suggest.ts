@@ -3,7 +3,7 @@ import { normalize, typedHit } from "@/components/add/typed";
 import { aiEnabled, askJson } from "./ai";
 import type { Mood } from "./moods";
 import { AuthError } from "./auth";
-import { matchCandidates, searchCatalog } from "./catalog";
+import { isNamedSpot, matchCandidates, searchCatalog } from "./catalog";
 import { db } from "./db";
 import { getDestination, listDestinations } from "./destinations";
 import { screenFormat, VOCAB } from "./kinds";
@@ -102,6 +102,12 @@ ${wish}
   const mix = wish
     ? "Fit what they asked for above all. Among the things that fit, pick what their taste and their friends point to, and make one a step outside their usual."
     : "Mix: two that build on what they loved, two their friends' picks point to, one wildcard they wouldn't choose themselves.";
+  const want = wish ? WISH_COUNT : COUNT;
+  // Places are checked against the map and anything it doesn't know is dropped, so ask for spares.
+  const spots =
+    kind === "place"
+      ? `\n- Only places you're sure exist and are open today, named exactly as they appear on maps. Leave out anything you're unsure of; ${want} sure ones beat ${want * 2} guesses.`
+      : "";
   const why = wish
     ? "at most 18 words, speaking to them, naming how it fits what they asked for and the specific thing in their taste it connects to"
     : "at most 14 words, speaking to them, naming the specific thing it connects to";
@@ -110,8 +116,8 @@ ${wish}
 ${taste.text || "They haven't added much yet."}
 </taste>
 
-${asked}Suggest ${wish ? WISH_COUNT : COUNT} ${what}${where} for them today.${moodLine}
-- Each must be real and easy to find. Use the exact, commonly known title and its creator.
+${asked}Suggest ${kind === "place" ? `up to ${want * 2}` : want} ${what}${where} for them today.${moodLine}
+- Each must be real and easy to find. Use the exact, commonly known title and its creator.${spots}
 - Read the whole taste map, not just this collection: a book they loved can point to a podcast or a film.
 - ${mix}
 - Never suggest anything already on their lists:
@@ -220,9 +226,13 @@ export async function suggest(
       ).catch(() => [])
     : [];
   const picks: Suggestion[] = [];
+  const want = said ? WISH_COUNT : COUNT;
   asked.forEach((a, i) => {
-    const hit = matched[i]?.match ?? typedHit(kind, { title: a.title, author: a.creator || undefined, year: a.year > 1800 ? a.year : undefined });
-    if (skip.has(normalize(hit.title)) || picks.some((p) => p.hit.key === hit.key) || (said && picks.length >= WISH_COUNT)) return;
+    const found = matched[i]?.match;
+    // A place has to be on the map under that name: a made-up spot, or someone else's nearby, never gets through.
+    if (kind === "place" && !(found && isNamedSpot(found, a.title))) return;
+    const hit = found ?? typedHit(kind, { title: a.title, author: a.creator || undefined, year: a.year > 1800 ? a.year : undefined });
+    if (skip.has(normalize(hit.title)) || picks.some((p) => p.hit.key === hit.key) || picks.length >= want) return;
     picks.push({ hit, why: a.why.trim().slice(0, 140) || `A ${VOCAB[kind].one} for today.` });
   });
 

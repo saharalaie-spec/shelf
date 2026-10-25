@@ -19,6 +19,9 @@ const screen = (text: string, limit: number, opts?: ScreenOpts) =>
 const spots = (text: string, area: Area, limit: number) =>
   offline() ? fixtureSpots(text, area, limit) : searchSpots(text, area, limit);
 
+/** Whether a map result is the place named: suggested spots only count if the map knows them by that name. */
+export { mentions as isNamedSpot } from "./places";
+
 /** Spots only exist inside a destination: searching or matching them without one is a programming error. */
 function needArea(area: Area | undefined): Area {
   if (!area) throw new Error("Spots are searched inside a destination: pass the area (city, region or country) to search in.");

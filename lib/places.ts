@@ -683,7 +683,8 @@ export async function matchSpots(
 }
 
 const squash = (s: string) => norm(s).replace(/ /g, "");
-function mentions(hit: Hit, title: string) {
+/** Whether a map result is the place named ("Casa Montaña" in "Casa Montaña Bar"), not just something nearby. */
+export function mentions(hit: Hit, title: string) {
   const a = squash(hit.title);
   const b = squash(title);
   return b.length > 0 && (a.includes(b) || (a.length >= 4 && b.includes(a)));
