@@ -99,7 +99,7 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | Public URL | `APP_URL` (optional on Vercel, which provides its own) |
 | Hosted database | `DATABASE_URL` + `DATABASE_AUTH_TOKEN`, or `TURSO_DATABASE_URL` + `TURSO_AUTH_TOKEN` (any libSQL database; defaults to `data/shelf.db` locally) |
 | Reading photos and screenshots | `ANTHROPIC_API_KEY` |
-| Better movie & TV matches and posters | `TMDB_API_KEY` (optional: free from themoviedb.org; without it, iTunes and TVmaze are used) |
+| Better movie & TV matches and posters | `TMDB_API_KEY` (optional: free from themoviedb.org; without it, IMDb's title suggestions are used, the feed behind imdb.com's own search box, which isn't an official API and can change without notice; if it fails, iTunes and TVmaze) |
 | Better spot search | `GOOGLE_PLACES_API_KEY` (optional: Places API (New) in Google Cloud; without it, OpenStreetMap is used) |
 | Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
 | Who runs it: reads `/feedback` and `/numbers` | `OWNERS` (phone numbers or emails, comma-separated); `FEEDBACK_EMAIL` to also get feedback by email |

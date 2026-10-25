@@ -53,9 +53,11 @@ export function itemLinks(item: Pick<Hit, "key" | "title" | "author" | "place">,
       ? `https://www.themoviedb.org/movie/${id}`
       : k.startsWith("tmdb:tv:")
         ? `https://www.themoviedb.org/tv/${id}`
-        : k.startsWith("tvmaze:")
-          ? `https://www.tvmaze.com/shows/${id}`
-          : `https://www.themoviedb.org/search?query=${q}`;
+        : k.startsWith("imdb:")
+          ? `https://www.imdb.com/title/${id}/`
+          : k.startsWith("tvmaze:")
+            ? `https://www.tvmaze.com/shows/${id}`
+            : `https://www.themoviedb.org/search?query=${q}`;
     return [
       { label: "Where to watch", href: `https://www.justwatch.com/us/search?q=${q}` },
       { label: "More about it", href: page },

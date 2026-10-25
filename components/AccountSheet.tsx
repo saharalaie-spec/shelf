@@ -20,6 +20,8 @@ type Props = {
   countLabel: string;
   privateCount: number;
   onProfile: (patch: Partial<Profile>) => void;
+  /** Runs this Trove (OWNERS): gets the numbers and the feedback. */
+  owner?: boolean;
 };
 
 export function AccountSheet({ open, onOpenChange, ...rest }: Props) {
@@ -50,6 +52,7 @@ function AccountBody({
   privateCount,
   onProfile,
   onFeedback,
+  owner,
 }: Omit<Props, "open" | "onOpenChange"> & { onFeedback: () => void }) {
   const [draft, setDraft] = useState(profile.name ?? "");
   const [leaving, setLeaving] = useState<"here" | "everywhere" | null>(null);
@@ -91,6 +94,19 @@ function AccountBody({
       <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Who sees your trove</p>
       <ProfileSettings profile={profile} privateCount={privateCount} onProfile={onProfile} />
 
+      {owner && (
+        <>
+          <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Only you see these</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/numbers" className="flex h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[16px] font-medium active:scale-[0.97]">
+              <Icon name="sparkle" size={17} /> Numbers
+            </Link>
+            <Link href="/feedback" className="flex h-12 items-center justify-center gap-2 rounded-full bg-surface-2 text-[16px] font-medium active:scale-[0.97]">
+              <Icon name="mic" size={17} /> Feedback
+            </Link>
+          </div>
+        </>
+      )}
       <Button variant="secondary" className="mt-7 w-full" onClick={onFeedback} icon={<Icon name="mic" size={18} />}>
         Send feedback
       </Button>
