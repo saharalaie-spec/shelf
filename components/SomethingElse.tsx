@@ -338,7 +338,7 @@ type Format = "movie" | "tv";
 /**
  * Say what you're after, out loud or typed, and get three picks for exactly that: read against your whole taste map
  * and your friends', like the other ideas. Watching asks movie or show first; going out needs the city. Then: three
- * different ones, or say more and ask again.
+ * different ones, or explain more and ask again.
  */
 function TellUs({
   kind,
@@ -374,7 +374,7 @@ function TellUs({
     stop(false);
     setText(wish);
     if (!wish || thinking || needsWatch || needsCity) return;
-    // "None of these", or saying more after seeing three: never the ones already shown.
+    // "None of these", or explaining more after seeing three: never the ones already shown.
     const fresh = others || more;
     setMore(false);
     const at = area?.key ?? null;
@@ -389,7 +389,7 @@ function TellUs({
     }
   };
 
-  const sayMore = () => {
+  const explainMore = () => {
     setMore(true);
     const t = text.trim();
     setText(t ? `${t.replace(/[.!?]$/, "")}, ` : "");
@@ -408,7 +408,9 @@ function TellUs({
     : needsCity
       ? "Pick the city above, then Find."
       : more
-        ? "Add what to change, like “lighter” or “something newer”."
+        ? canTalk
+          ? "Keep going: type or tap the mic to add to what you said, like “but lighter”."
+          : "Keep going: add to what you said, like “but lighter”."
         : canTalk
           ? "Talk or type, then edit if you like. You’ll get three."
           : "You’ll get three.";
@@ -501,12 +503,12 @@ function TellUs({
               return <Row key={`ask:${s.hit.key}`} kind={kind} item={c} line={s.why} onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })} />;
             })}
           </ul>
-          <div className="mt-1 flex gap-2 px-1">
-            <Button variant="secondary" onClick={() => send(true)} className="h-9 flex-1 px-3 text-[14px]">
+          <div className="mt-1 grid grid-cols-2 gap-2 px-1">
+            <Button variant="secondary" onClick={() => send(true)} className="h-9 min-w-0 px-2 text-[13px] whitespace-nowrap">
               None of these
             </Button>
-            <Button variant="secondary" onClick={sayMore} className="h-9 flex-1 px-3 text-[14px]">
-              Say more
+            <Button variant="secondary" onClick={explainMore} className="h-9 min-w-0 px-2 text-[13px] whitespace-nowrap">
+              Let me explain more
             </Button>
           </div>
         </>
