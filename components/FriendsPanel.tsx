@@ -115,36 +115,36 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
     }
   };
 
+  const hasFriends = (data?.friends.length ?? 0) > 0;
+  const invite = (
+    <InviteCard
+      url={data?.inviteUrl ?? null}
+      name={name}
+      picks={data?.picks ?? null}
+      onPicks={(picks) => setData((d) => d && { ...d, picks })}
+      outgoing={data?.outgoing ?? []}
+      onCancel={cancel}
+      onSent={() => reload().catch(() => {})}
+      first={!hasFriends}
+    />
+  );
+
+  // What needs an answer first, then your friends, then adding more. With nobody yet, adding comes first.
   return (
     <div className="pb-safe">
       {!name && <NamePrompt onName={onName} />}
-      <InviteCard
-        url={data?.inviteUrl ?? null}
-        name={name}
-        picks={data?.picks ?? null}
-        onPicks={(picks) => setData((d) => d && { ...d, picks })}
-      />
-      <AskForm onSent={() => reload().catch(() => {})} />
-      {data && !data.friends.some((f) => f.id === SAMPLE_FRIEND_ID) && (
-        <SampleCard
-          onAdded={() => {
-            reload().catch(() => {});
-            onTableChange();
-          }}
-        />
-      )}
 
       <AnimatePresence initial={false}>
         {data && data.incoming.length > 0 && (
           <motion.section key="incoming" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}>
-            <Heading>Requests</Heading>
+            <Heading first>Requests · {data.incoming.length}</Heading>
             <ul className="space-y-2">
               {data.incoming.map((r) => (
                 <motion.li
                   key={r.id}
                   layout
                   exit={{ opacity: 0, x: 40 }}
-                  className="flex items-center gap-3 rounded-2xl bg-paper p-3"
+                  className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-book"
                 >
                   <Avatar name={r.from.name} size={44} />
                   <div className="min-w-0 flex-1">
@@ -169,24 +169,23 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
         )}
       </AnimatePresence>
 
-      <Heading>{data && data.friends.length > 0 ? `Friends · ${data.friends.length}` : "Friends"}</Heading>
-      {data && data.friends.length > 0 && (
-        <p className="-mt-1 mb-2 text-[13px] leading-snug text-muted">
-          Tap ★ to add someone to your circle ({circleSize}/15). Their picks come first on your Table. Only you can see your circle.
-        </p>
+      {!hasFriends && data && (
+        <>
+          <div className={data.incoming.length ? "mt-7" : ""}>{invite}</div>
+          {!data.friends.some((f) => f.id === SAMPLE_FRIEND_ID) && (
+            <SampleCard
+              onAdded={() => {
+                reload().catch(() => {});
+                onTableChange();
+              }}
+            />
+          )}
+        </>
       )}
-      {data && data.friends.length > 12 && (
-        <input
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          placeholder="Find a friend"
-          aria-label="Find a friend"
-          className="mb-2 h-11 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] outline-none focus:border-ink"
-        />
-      )}
+
       {!data ? (
         <div className="space-y-2">
-          {[0, 1].map((i) => (
+          {[0, 1, 2].map((i) => (
             <div key={i} className="flex items-center gap-3 p-1">
               <div className="skeleton h-11 w-11 rounded-full" />
               <div className="flex-1 space-y-1.5">
@@ -196,67 +195,70 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
             </div>
           ))}
         </div>
-      ) : data.friends.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-line px-4 py-5 text-center text-[15px] text-muted">
-          No friends yet. Send your invite link to the people you swap recommendations with.
-        </p>
       ) : (
-        <ul className="-mx-2">
-          {shown.map((f) => (
-            <li key={f.id} className="flex items-center">
-              <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
-                <Avatar name={f.name} size={44} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-[16px] font-medium">{f.name ?? "Trove member"}</span>
-                  <span className="block truncate text-[13px] text-muted">
-                    {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
-                  </span>
-                  {(f.fromThem > 0 || f.fromMe > 0) && (
-                    <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>
-                  )}
-                  {f.id === SAMPLE_FRIEND_ID && (
-                    <span className="block truncate text-[13px] text-link">Sample friend · remove anytime from her page</span>
-                  )}
+        hasFriends && (
+          <>
+            <Heading
+              first={!data.incoming.length}
+              aside={
+                <span className="flex items-center gap-1 text-[12px] text-muted">
+                  <span className="text-[14px] leading-none text-link">★</span> Circle {circleSize}/15
                 </span>
-              </Link>
-              <button
-                onClick={() => toggleCircle(f)}
-                aria-pressed={f.inCircle}
-                aria-label={f.inCircle ? `Take ${f.name ?? "them"} out of your circle` : `Add ${f.name ?? "them"} to your circle`}
-                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[22px] leading-none transition-transform active:scale-90 ${
-                  f.inCircle ? "text-link" : "text-line"
-                }`}
-              >
-                {f.inCircle ? "★" : "☆"}
-              </button>
-            </li>
-          ))}
-        </ul>
+              }
+            >
+              Friends · {data.friends.length}
+            </Heading>
+            {data.friends.length > 12 && (
+              <input
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                placeholder="Find a friend"
+                aria-label="Find a friend"
+                className="mb-2 h-11 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] outline-none focus:border-ink"
+              />
+            )}
+            <ul className="-mx-2">
+              {shown.map((f) => (
+                <li key={f.id} className="flex items-center">
+                  <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
+                    <Avatar name={f.name} size={44} />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[16px] font-medium">
+                        {f.name ?? "Trove member"}
+                        {f.id === SAMPLE_FRIEND_ID && <span className="ml-1.5 text-[12px] font-normal text-muted">Sample</span>}
+                      </span>
+                      <span className="block truncate text-[13px] text-muted">
+                        {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
+                      </span>
+                      {(f.fromThem > 0 || f.fromMe > 0) && <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>}
+                    </span>
+                  </Link>
+                  <button
+                    onClick={() => toggleCircle(f)}
+                    aria-pressed={f.inCircle}
+                    aria-label={f.inCircle ? `Take ${f.name ?? "them"} out of your circle` : `Add ${f.name ?? "them"} to your circle`}
+                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[22px] leading-none transition-transform active:scale-90 ${
+                      f.inCircle ? "text-link" : "text-line"
+                    }`}
+                  >
+                    {f.inCircle ? "★" : "☆"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {circleSize === 0 && (
+              <p className="mt-1 text-[13px] leading-snug text-muted">Star up to 15 people to put their picks first on Lately. Only you see who.</p>
+            )}
+
+            <Heading>Add friends</Heading>
+            {invite}
+          </>
+        )
       )}
 
-      {data && data.outgoing.length > 0 && (
-        <>
-          <Heading>Waiting to hear back</Heading>
-          <ul className="-mx-2">
-            {data.outgoing.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 px-2 py-2">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-surface-2 text-muted">
-                  <Icon name="addPerson" size={17} />
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[15px] text-ink-2">{r.display}</span>
-                <button onClick={() => cancel(r)} className="h-9 rounded-full px-3 text-[14px] font-medium text-muted active:bg-surface-2">
-                  Cancel
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
-
-      <p className="mt-6 mb-3 flex gap-2 text-[13px] leading-snug text-muted">
-        <Icon name="lock" size={15} className="mt-px shrink-0" />
-        Friends see everything you add: books, podcasts, shows and places. Anything you mark private stays yours, and
-        anything you keep quiet stays off their Table.
+      <p className="mt-8 mb-3 flex gap-2 text-[12px] leading-snug text-muted">
+        <Icon name="lock" size={14} className="mt-px shrink-0" />
+        Friends see what you add, except anything you mark private.
       </p>
     </div>
   );
@@ -301,14 +303,25 @@ function InviteCard({
   name,
   picks,
   onPicks,
+  outgoing,
+  onCancel,
+  onSent,
+  first,
 }: {
   url: string | null;
   name: string | null;
   picks: Item[] | null;
   onPicks: (picks: Item[]) => void;
+  /** Requests you've sent that haven't been answered. */
+  outgoing: OutgoingRequest[];
+  onCancel: (r: OutgoingRequest) => void;
+  onSent: () => void;
+  /** Nobody yet: the card leads the page, with its own title. */
+  first: boolean;
 }) {
   const [copied, setCopied] = useState(false);
   const [choosing, setChoosing] = useState(false);
+  const [asking, setAsking] = useState(false);
 
   const copy = async () => {
     if (!url) return;
@@ -338,17 +351,19 @@ function InviteCard({
   };
 
   return (
-    <section className="rounded-3xl bg-paper p-5">
-      <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent text-accent-ink">
-          <Icon name="people" size={22} />
-        </span>
-        <div className="min-w-0">
-          <p className="font-serif text-[20px] leading-tight font-medium">Invite friends</p>
-          <p className="text-[14px] text-muted">Whoever opens your link can add you in one tap.</p>
+    <section className="rounded-3xl bg-surface p-4 shadow-book">
+      {first && (
+        <div className="mb-4 flex items-center gap-3">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink">
+            <Icon name="people" size={22} />
+          </span>
+          <div className="min-w-0">
+            <p className="font-serif text-[20px] leading-tight font-medium">Invite friends</p>
+            <p className="text-[14px] text-muted">Whoever opens your link can add you in one tap.</p>
+          </div>
         </div>
-      </div>
-      <div className="mt-4 grid grid-cols-[1fr_auto] gap-2">
+      )}
+      <div className="grid grid-cols-[1fr_auto] gap-2">
         <Button onClick={share} disabled={!url} icon={<Icon name="share" size={18} />}>
           Send invite link
         </Button>
@@ -356,10 +371,20 @@ function InviteCard({
           {copied ? "Copied" : "Copy"}
         </Button>
       </div>
+      {asking ? (
+        <AskForm onSent={onSent} />
+      ) : (
+        <button
+          onClick={() => setAsking(true)}
+          className="mt-1 flex h-11 w-full items-center justify-center gap-1.5 rounded-full text-[14px] font-medium text-ink-2 active:bg-surface-2"
+        >
+          <Icon name="addPerson" size={16} /> Add by phone or email
+        </button>
+      )}
       {picks && (
         <button
           onClick={() => setChoosing(true)}
-          className="mt-3 flex w-full items-center gap-3 rounded-2xl bg-surface-2 p-3 text-left active:opacity-80"
+          className="mt-2 flex w-full items-center gap-3 border-t border-line pt-3 text-left active:opacity-80"
         >
           <span className="min-w-0 flex-1">
             <span className="block text-[15px] font-medium">{picks.length ? "Your picks for new friends" : "Pick 3 for new friends"}</span>
@@ -374,6 +399,21 @@ function InviteCard({
           </span>
           <Icon name="chevron" size={17} className="shrink-0 text-muted" />
         </button>
+      )}
+      {outgoing.length > 0 && (
+        <div className="mt-3 border-t border-line pt-3">
+          <p className="mb-1 text-[13px] text-muted">Waiting to hear back</p>
+          <ul>
+            {outgoing.map((r) => (
+              <li key={r.id} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate text-[15px] text-ink-2">{r.display}</span>
+                <button onClick={() => onCancel(r)} className="h-9 rounded-full px-3 text-[14px] font-medium text-muted active:bg-surface-2">
+                  Cancel
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
       <PicksSheet open={choosing} onOpenChange={setChoosing} picks={picks ?? []} onSaved={onPicks} />
     </section>
@@ -510,9 +550,9 @@ function AskForm({ onSent }: { onSent: () => void }) {
   };
 
   return (
-    <form onSubmit={submit} className="mt-5" noValidate>
-      <label htmlFor="ask-friend" className="mb-1.5 block text-[14px] text-muted">
-        Or ask by phone number or email
+    <form onSubmit={submit} className="mt-3" noValidate>
+      <label htmlFor="ask-friend" className="sr-only">
+        Their phone number or email
       </label>
       <div className="flex gap-2">
         <input
@@ -523,6 +563,8 @@ function AskForm({ onSent }: { onSent: () => void }) {
             setError(undefined);
           }}
           placeholder="Phone number or email"
+          // Opened by tapping "Add by phone or email", so they're here to type.
+          autoFocus
           inputMode="email"
           autoComplete="off"
           autoCapitalize="off"
@@ -571,8 +613,13 @@ export function SampleCard({ onAdded, compact }: { onAdded: () => void; compact?
   );
 }
 
-function Heading({ children }: { children: React.ReactNode }) {
-  return <h3 className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">{children}</h3>;
+function Heading({ children, aside, first }: { children: React.ReactNode; aside?: React.ReactNode; first?: boolean }) {
+  return (
+    <div className={`${first ? "" : "mt-7"} mb-2 flex items-baseline justify-between gap-2`}>
+      <h3 className="text-[13px] font-medium tracking-wide text-muted uppercase">{children}</h3>
+      {aside}
+    </div>
+  );
 }
 
 /** "You saved 3 of their picks · they saved 1 of yours" */
