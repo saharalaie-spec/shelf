@@ -41,6 +41,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
     handle: user.handle,
     isPublic: user.isPublic,
     shareActivity: user.shareActivity,
+    photo: user.photo,
   });
   const [account, setAccount] = useState(false);
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
@@ -57,7 +58,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         </div>
         <div className="flex items-center gap-1">
           <FriendsButton pending={pendingRequests} />
-          <AvatarButton name={profile.name} contact={user.contact} onClick={() => setAccount(true)} />
+          <AvatarButton name={profile.name} photo={profile.photo} contact={user.contact} onClick={() => setAccount(true)} />
         </div>
       </header>
 

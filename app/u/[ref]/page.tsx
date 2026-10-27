@@ -76,7 +76,7 @@ export default async function ProfilePage({ params, searchParams }: PageProps<"/
     <>
       {!viewer && <CameVia via={`profile:${person.handle ?? person.id}`} />}
       <ProfileTrove
-        person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic }}
+        person={{ id: person.id, name: person.name, handle: person.handle, isPublic: person.isPublic, photo: person.photo }}
         items={books}
         destinations={destinations}
         relation={relation}

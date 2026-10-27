@@ -44,6 +44,7 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
         handle: user.handle,
         isPublic: user.isPublic,
         shareActivity: user.shareActivity,
+        photo: user.photo,
         owner: isOwner(user),
       }}
       pendingRequests={incoming.length}

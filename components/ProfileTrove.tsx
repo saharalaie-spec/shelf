@@ -26,7 +26,7 @@ export type Relation =
   | { kind: "signed-out" };
 
 type Props = {
-  person: { id: string; name: string | null; handle: string | null; isPublic: boolean };
+  person: { id: string; name: string | null; handle: string | null; isPublic: boolean; photo: string | null };
   /** Everything they share, across collections. */
   items: Item[];
   /** Where their shared spots are. */
@@ -117,7 +117,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
 
       <section className="px-5 pt-5 pb-6">
         <div className="flex items-center gap-4">
-          <Avatar name={person.name} size={64} />
+          <Avatar name={person.name} photo={person.photo} size={64} />
           <div className="min-w-0">
             <h1 className="font-serif text-[32px] leading-[1.05] font-medium tracking-tight text-balance">{name}</h1>
             <p className="mt-1 text-[15px] leading-snug text-muted">

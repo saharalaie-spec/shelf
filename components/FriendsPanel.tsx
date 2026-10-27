@@ -146,7 +146,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
                   exit={{ opacity: 0, x: 40 }}
                   className="flex items-center gap-3 rounded-2xl bg-surface p-3 shadow-book"
                 >
-                  <Avatar name={r.from.name} size={44} />
+                  <Avatar name={r.from.name} photo={r.from.photo} size={44} />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[16px] font-medium">{r.from.name ?? "Someone"}</p>
                     <p className="truncate text-[13px] text-muted">{r.hint}</p>
@@ -221,7 +221,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
               {shown.map((f) => (
                 <li key={f.id} className="flex items-center">
                   <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
-                    <Avatar name={f.name} size={44} />
+                    <Avatar name={f.name} photo={f.photo} size={44} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[16px] font-medium">
                         {f.name ?? "Trove member"}

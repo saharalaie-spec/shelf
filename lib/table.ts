@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { photoUrl } from "./photos";
 import { isKind, isStatus, type Area, type BBox, type Kind, type PlaceInfo, type Status } from "./types";
 
 /**
@@ -16,7 +17,7 @@ const DAY = 24 * 60 * 60 * 1000;
 /** Per section; the page shows the first few and "See all" for the rest. */
 const PER_SECTION = 30;
 
-export type TableFriend = { id: string; name: string | null; circle: boolean; status: Status; at: number };
+export type TableFriend = { id: string; name: string | null; photo: string | null; circle: boolean; status: Status; at: number };
 
 export type TableItem = {
   key: string;
@@ -83,7 +84,7 @@ export async function friendsTable(userId: string, now = Date.now()): Promise<Fr
     // Only friends who share what they're into; never private or quiet items.
     client.execute({
       sql: `SELECT b.kind, b.status, b.status_at, b.added_at, b.work_key, b.title, b.author, b.year, b.cover_url,
-                   b.categories, b.geo, b.rec_user_id, u.id AS friend_id, u.name AS friend_name,
+                   b.categories, b.geo, b.rec_user_id, u.id AS friend_id, u.name AS friend_name, u.photo_at AS friend_photo_at,
                    d.name AS dest_name, d.country AS dest_country, d.label AS dest_label, d.lat AS dest_lat,
                    d.lon AS dest_lon, d.bbox AS dest_bbox,
                    EXISTS (SELECT 1 FROM circle c WHERE c.user_id = f.user_id AND c.friend_id = u.id) AS in_circle
@@ -127,6 +128,7 @@ export async function friendsTable(userId: string, now = Date.now()): Promise<Fr
     const friend: TableFriend = {
       id: String(r.friend_id),
       name: r.friend_name ? String(r.friend_name) : null,
+      photo: photoUrl(String(r.friend_id), r.friend_photo_at),
       circle: Boolean(r.in_circle),
       status,
       at,

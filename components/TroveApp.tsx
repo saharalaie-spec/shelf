@@ -101,6 +101,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
     handle: user.handle,
     isPublic: user.isPublic,
     shareActivity: user.shareActivity,
+    photo: user.photo,
   });
   const { name } = profile;
   const [section, setSection] = useState<Status>("read");
@@ -469,7 +470,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
               </button>
             )}
             <FriendsButton pending={pendingRequests} />
-            <AvatarButton name={name} contact={user.contact} onClick={() => setAccount(true)} />
+            <AvatarButton name={name} photo={profile.photo} contact={user.contact} onClick={() => setAccount(true)} />
           </div>
         </div>
 

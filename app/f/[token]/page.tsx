@@ -54,6 +54,6 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
 
   if (viewer.id !== inviter.id && (await areFriends(viewer.id, inviter.id))) redirect(`/u/${profileRef(inviter)}`);
   return (
-    <Invite token={token} inviter={{ name: inviter.name }} viewerName={viewer.name} own={viewer.id === inviter.id} newcomer={!viewer.started} />
+    <Invite token={token} inviter={{ name: inviter.name, photo: inviter.photo }} viewerName={viewer.name} own={viewer.id === inviter.id} newcomer={!viewer.started} />
   );
 }
