@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { ago, api } from "@/lib/client";
+import { api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
 import { SAMPLE_FRIEND_ID } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
@@ -19,7 +19,7 @@ import { KindMenu } from "./KindMenu";
 import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
-import { Button, Icon, Logo, useHydrated } from "./ui";
+import { Button, Icon, Logo } from "./ui";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
@@ -689,7 +689,6 @@ function SectionHeading({ v, section, count, filter }: { v: Vocab; section: Stat
 }
 
 function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOpen: () => void; onFinish: () => void }) {
-  const hydrated = useHydrated();
   // The circle fills with a check for a moment, then the card moves to the finished section.
   const [ticked, setTicked] = useState(false);
   const finish = () => {
@@ -712,12 +711,7 @@ function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOp
         <span className="min-w-0">
           <span className="block font-serif text-[19px] leading-tight font-medium line-clamp-2">{book.title}</span>
           {book.author && <span className="mt-0.5 block truncate text-[14px] text-ink-2">{book.author}</span>}
-          {/* Relative dates depend on the viewer's clock and locale, so they render after hydration. */}
-          <span className="mt-1 block min-h-5 text-[13px] text-muted">
-            {[hydrated && book.statusAt ? `${v.started} ${ago(book.statusAt)}` : "", book.recBy && `from ${book.recBy.name}`]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
+          {book.recBy && <span className="mt-1 block truncate text-[13px] text-muted">from {book.recBy.name}</span>}
         </span>
       </button>
       <button

@@ -6,6 +6,9 @@ import { isMood } from "@/lib/moods";
 import { suggest, suggestEnabled } from "@/lib/suggest";
 import { isKind, type Kind } from "@/lib/types";
 
+// Places someone describes are researched on the web, which can take a while.
+export const maxDuration = 60;
+
 /** A few "something else" picks in one collection, from your taste map and your friends, or three for what you describe. */
 export const POST = route(async (req: Request) => {
   const user = await requireUser();

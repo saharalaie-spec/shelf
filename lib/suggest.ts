@@ -5,6 +5,7 @@ import type { Mood } from "./moods";
 import { AuthError } from "./auth";
 import { isNamedSpot, matchCandidates, searchCatalog } from "./catalog";
 import { googlePlacesEnabled, placeCandidates, type SpotCandidate } from "./places";
+import { researchPlaces, sourceName, type Research } from "./research";
 import { db } from "./db";
 import { getDestination, listDestinations } from "./destinations";
 import { screenFormat, VOCAB } from "./kinds";
@@ -30,7 +31,8 @@ const MOOD_TEXT: Record<Mood, string> = {
   solo: "time on their own: a café to read in, a walk, a museum, an unhurried spot",
 };
 
-export type Suggestion = { hit: Hit; why: string };
+/** An idea, why it fits, and for a place found on the web, the page it was found on. */
+export type Suggestion = { hit: Hit; why: string; source?: { name: string; url: string } };
 
 /** What the model is asked for, and what it answers. Swappable in tests. */
 export type AskInput = {
@@ -252,6 +254,43 @@ async function placesFromMap(input: Omit<ChooseInput, "candidates"> & { skip: Se
   return picks;
 }
 
+/**
+ * What they described, researched on the web (lib/research.ts). A pick is kept if the map knows it by that name, or if
+ * its source is a page the searches really returned; otherwise it's dropped, however good it sounds.
+ */
+async function placesFromWeb(
+  input: { request: string; taste: Taste; area: Area; count: number; skip: Set<string>; exclude: string[] },
+  research: Research,
+): Promise<Suggestion[]> {
+  const { places, seen } = await research({
+    request: input.request,
+    taste: input.taste.text,
+    area: input.area,
+    exclude: input.exclude,
+    // A couple of spares, since some may not check out.
+    count: input.count + 2,
+  });
+  // The same page, cited with or without a trailing slash or #section.
+  const page = (url: string) => url.trim().replace(/#.*$/, "").replace(/\/+$/, "");
+  const found = new Set([...seen].map(page));
+  const fresh = places.filter((p) => !input.skip.has(normalize(p.name)));
+  const matched = fresh.length
+    ? await matchCandidates("place", fresh.map((p) => ({ title: p.name, author: p.neighborhood || undefined })), input.area).catch(() => [])
+    : [];
+  const picks: Suggestion[] = [];
+  fresh.forEach((p, i) => {
+    const match = matched[i]?.match;
+    const onMap = match && isNamedSpot(match, p.name) ? match : null;
+    const sourced = found.has(page(p.sourceUrl));
+    if (!onMap && !sourced) return;
+    const hit = onMap ?? typedHit("place", { title: p.name, author: p.neighborhood || input.area.name });
+    if (input.skip.has(normalize(hit.title)) || picks.some((x) => x.hit.key === hit.key) || picks.length >= input.count) return;
+    const name = sourced ? sourceName(p.sourceUrl) : null;
+    picks.push({ hit, why: p.why || "Fits what you asked for.", ...(name ? { source: { name, url: p.sourceUrl } } : {}) });
+  });
+  return picks;
+}
+
 const today = () => new Date().toISOString().slice(0, 10);
 const ENOUGH = "That’s plenty of new ideas for today. More tomorrow.";
 
@@ -279,6 +318,8 @@ export async function suggest(
   }: { fresh?: boolean; destinationId?: string | null; place?: Area | null; format?: ScreenFormat | null; wish?: string | null } = {},
   ask: Ask = aiEnabled() ? askClaude : askOffline,
   choose: Choose = aiEnabled() ? chooseClaude : chooseByRating,
+  // Searching the web needs Claude, and the live catalogs to check against.
+  research: Research | null = aiEnabled() && !offline() ? researchPlaces : null,
 ): Promise<{ picks: Suggestion[]; destinationId: string | null }> {
   const client = await db();
   const day = today();
@@ -329,6 +370,16 @@ export async function suggest(
     });
     return { picks, destinationId: destination };
   };
+
+  // Places they've described in their own words: researched on the web, the way a person would look.
+  if (kind === "place" && area && said && research) {
+    try {
+      const picks = await placesFromWeb({ request: said, taste, area, count: want, skip, exclude }, research);
+      if (picks.length) return await keep(picks);
+    } catch (err) {
+      console.warn("Researching places failed, trying the map:", (err as Error).message);
+    }
+  }
 
   // Places, with Google: chosen from Google Maps' list. If Google fails, fall back to naming and checking.
   if (kind === "place" && area && googlePlacesEnabled() && !offline()) {
