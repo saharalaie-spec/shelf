@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { troveCount, troveTitle, spotTally, vocab } from "@/lib/kinds";
-import type { Destination, Item, Kind, Status } from "@/lib/types";
+import { STATUSES, type Destination, type Item, type Kind, type ShareStatus } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
@@ -19,7 +19,7 @@ type Props = {
   items: Item[];
   /** Places: shares are per destination rather than per category. */
   destinations?: Destination[];
-  initialStatus: Status;
+  initialStatus: ShareStatus;
   /** A category, or for places a destination id. */
   initialCategory: string | null;
   name: string | null;
@@ -49,7 +49,7 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
   // What a link can be narrowed to: a category, or for places a destination.
   const scopesOf = (b: Item) => (isPlace ? (b.destinationId ? [b.destinationId] : []) : b.categories);
   const scopeLabel = (s: string) => (isPlace ? (destinations.find((d) => d.id === s)?.name ?? "Elsewhere") : s);
-  const [status, setStatus] = useState<Status>(initialStatus);
+  const [status, setStatus] = useState<ShareStatus>(initialStatus);
   const [scope, setScope] = useState<string | null>(initialCategory);
   const [draftName, setDraftName] = useState("");
   const [copied, setCopied] = useState(false);
@@ -58,8 +58,9 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
   const books = all.filter((b) => !b.private);
 
   // Places are shared a destination at a time, every spot in it, each marked Been or Want to go.
-  const inSection = isPlace ? books : books.filter((b) => b.status === status);
-  const counts: Record<Status, number> = { read: 0, reading: 0, want: 0 };
+  // "All" shares the whole collection, every section.
+  const inSection = isPlace || status === "all" ? books : books.filter((b) => b.status === status);
+  const counts: Record<ShareStatus, number> = { all: books.length, read: 0, reading: 0, want: 0 };
   for (const b of books) counts[b.status]++;
   const tally = new Map<string, number>();
   for (const b of inSection) for (const c of scopesOf(b)) tally.set(c, (tally.get(c) ?? 0) + 1);
@@ -81,7 +82,7 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
   const url = links[scopeKey];
   const shown = category ? inSection.filter((b) => scopesOf(b).includes(category)) : inSection;
   const hidden = all.filter(
-    (b) => b.private && (isPlace || b.status === status) && (!category || scopesOf(b).includes(category)),
+    (b) => b.private && (isPlace || status === "all" || b.status === status) && (!category || scopesOf(b).includes(category)),
   ).length;
   const displayName = name ?? (draftName.trim() || null);
   const title = troveTitle(displayName, category && scopeLabel(category), status, kind);
@@ -122,7 +123,14 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
     <div className="overflow-y-auto pb-safe" data-vaul-no-drag="">
         {!isPlace && (
           <div className="px-5 pt-1">
-            <SectionTabs value={status} labels={v.sections} counts={counts} onChange={setStatus} layoutId="share-status-pill" />
+            <SectionTabs<ShareStatus>
+              value={status}
+              options={["all", ...STATUSES]}
+              labels={{ all: "All", ...v.sections }}
+              counts={counts}
+              onChange={setStatus}
+              layoutId="share-status-pill"
+            />
           </div>
         )}
         <div className={`no-scrollbar flex gap-2 overflow-x-auto px-5 pb-4 ${isPlace ? "pt-1" : "pt-3"}`}>

@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { after } from "next/server";
 import { cache } from "react";
 import { track } from "@/lib/activity";
 import { getCurrentUser } from "@/lib/auth";
+import { fillCovers } from "@/lib/covers";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
@@ -45,6 +47,8 @@ export default async function ProfilePage({ params, searchParams }: PageProps<"/
     return <PrivateTrove />;
   }
 
+  // A friend's things without covers get them too, after the page is sent.
+  after(() => fillCovers(person.id));
   const [books, own, destinations] = await Promise.all([
     listItems(person.id),
     viewer ? listItems(viewer.id, { includePrivate: true }) : Promise.resolve([]),

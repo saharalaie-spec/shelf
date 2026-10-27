@@ -63,6 +63,21 @@ describe("private books", () => {
     expect((await trove.getSharedTrove(slug))!.items.map((b) => b.title)).toEqual([a.title]);
   });
 
+  it("can be shared all at once: every section, its own link, still without private ones", async () => {
+    const me = await signUp({ phone: "+14155550105" }, "Cy");
+    await trove.addItems(me.id, "book", [
+      book("fx:all1", "Done one"),
+      book("fx:all2", "On now", { status: "reading" }),
+      book("fx:all3", "Someday", { status: "want" }),
+      book("fx:all4", "Hidden", { status: "want", private: true }),
+    ]);
+    const all = await trove.getOrCreateShare(me.id, "book", "all", "");
+    expect(all).not.toBe(await trove.getOrCreateShare(me.id, "book", "read", ""));
+    const shared = (await trove.getSharedTrove(all))!;
+    expect(shared.status).toBe("all");
+    expect(shared.items.map((b) => b.title).sort()).toEqual(["Done one", "On now", "Someday"]);
+  });
+
   it("can't be changed by someone else", async () => {
     const owner = await signUp({ phone: "+14155550103" });
     const other = await signUp({ phone: "+14155550104" });

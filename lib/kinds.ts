@@ -1,5 +1,5 @@
 import { possessive } from "./client";
-import { STATUSES, type Kind, type Status } from "./types";
+import { STATUSES, type Kind, type ShareStatus, type Status } from "./types";
 
 /** How each collection talks about itself. One place, so every screen says the same thing. */
 export type Vocab = {
@@ -23,7 +23,7 @@ export type Vocab = {
   sectionSub: Record<Status, string>;
   /** Share-card counts: "12 books read". */
   countSuffix: Record<Status, string>;
-  /** The one-tap button on in-progress cards. */
+  /** The one-tap button on in-progress cards, naming where it moves to: "Mark as read". */
   finish: string;
   /** "Started 3 days ago" */
   started: string;
@@ -58,7 +58,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     sections: { read: "Read", reading: "Reading", want: "Want to read" },
     sectionSub: { read: "you’ve read", reading: "you’re reading", want: "you want to read" },
     countSuffix: { read: "read", reading: "in progress", want: "to read" },
-    finish: "Finished",
+    finish: "Mark as read",
     started: "Started",
     shape: "portrait",
     placeholder: "Type a title, hit enter, repeat",
@@ -69,7 +69,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     tint: "var(--tint-book)",
     empty: ["Your books", "Type the books you remember, paste a list, scan barcodes or import from Goodreads."],
     sectionEmpty: {
-      read: ["Nothing finished yet", "Books you’ve read land here. Tap Finished on a book you’re reading, or add some."],
+      read: ["Nothing finished yet", "Books you’ve read land here. Tap Mark as read on a book you’re reading, or add some."],
       reading: ["Not reading anything right now", "Start a book from Want to read, or add the one on your nightstand."],
       want: ["Your list is empty", "Save the books you’d like to read next, so they’re here when you need one."],
     },
@@ -85,7 +85,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     sections: { read: "Listened", reading: "Listening", want: "Up next" },
     sectionSub: { read: "you’ve listened to", reading: "you’re listening to", want: "you want to try" },
     countSuffix: { read: "listened to", reading: "on rotation", want: "to try" },
-    finish: "Done",
+    finish: "Mark as listened",
     started: "Started",
     shape: "square",
     placeholder: "Type a show, hit enter, repeat",
@@ -112,7 +112,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     sections: { read: "Watched", reading: "Watching", want: "Watchlist" },
     sectionSub: { read: "you’ve watched", reading: "you’re watching", want: "you want to watch" },
     countSuffix: { read: "watched", reading: "in progress", want: "to watch" },
-    finish: "Watched",
+    finish: "Mark as watched",
     started: "Started",
     shape: "portrait",
     placeholder: "Type a movie or show, hit enter, repeat",
@@ -140,7 +140,7 @@ export const VOCAB: Record<Kind, Vocab> = {
     sections: { read: "Been", reading: "Want to go", want: "Want to go" },
     sectionSub: { read: "you’ve been to", reading: "you want to go to", want: "you want to go to" },
     countSuffix: { read: "been", reading: "to go", want: "to go" },
-    finish: "Been",
+    finish: "Mark as been",
     started: "Saved",
     shape: "square",
     placeholder: "Search for a spot, hit enter, repeat",
@@ -167,7 +167,7 @@ export const kindFromSlug = (slug: string): Kind | null => Object.values(VOCAB).
  * "Sahar’s Valencia", "Sahar’s places". For places, `category` is the destination's name and there are no
  * sections: a destination is shared whole, each spot marked Been or Want to go.
  */
-export function troveTitle(name: string | null, category: string | null, status: Status = "read", kind: Kind = "book") {
+export function troveTitle(name: string | null, category: string | null, status: ShareStatus = "read", kind: Kind = "book") {
   if (kind === "place") {
     if (name) return `${possessive(name)} ${category ?? "places"}`;
     return category ? `Spots in ${category}` : "Favorite spots";
@@ -186,9 +186,9 @@ export function troveTitle(name: string | null, category: string | null, status:
   return name ? `${possessive(name)} ${cat}${done}` : `${category ? cat : "Favorite "}${done}`;
 }
 
-/** "12 books read", "2 podcasts on rotation", "15 movies & shows to watch"; places are just "12 spots". */
-export const troveCount = (n: number, status: Status, kind: Kind = "book") =>
-  kind === "place" ? VOCAB.place.noun(n) : `${VOCAB[kind].noun(n)} ${VOCAB[kind].countSuffix[status]}`;
+/** "12 books read", "2 podcasts on rotation", "15 movies & shows to watch"; a whole collection, and places, are just "12 books". */
+export const troveCount = (n: number, status: ShareStatus, kind: Kind = "book") =>
+  kind === "place" || status === "all" ? VOCAB[kind].noun(n) : `${VOCAB[kind].noun(n)} ${VOCAB[kind].countSuffix[status]}`;
 
 /** "5 been · 2 want to go", for a destination's spots. */
 export function spotTally(items: readonly { status: Status }[]) {

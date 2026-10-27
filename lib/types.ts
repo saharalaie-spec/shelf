@@ -48,6 +48,9 @@ export type Destination = Area & { id: string; label: string | null; createdAt: 
 export const STATUSES = ["read", "reading", "want"] as const;
 export type Status = (typeof STATUSES)[number];
 export const isStatus = (s: unknown): s is Status => STATUSES.includes(s as Status);
+/** What a share link covers: one section, or the whole collection. */
+export type ShareStatus = Status | "all";
+export const isShareStatus = (s: unknown): s is ShareStatus => s === "all" || isStatus(s);
 
 /** An item in someone's trove. `statusAt` is when it last changed section; `private` items are owner-only. */
 /** Who recommended something: a friend on Trove (`id`), or anyone the owner names ("Mom"). */
