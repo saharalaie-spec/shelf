@@ -1,5 +1,7 @@
 import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
+import { fillCovers } from "@/lib/covers";
 import { databaseUrl, isOwner, signInChannels } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
@@ -19,6 +21,8 @@ export default async function HomePage() {
   // New here: get started first (it can be skipped).
   if (!user.started) redirect("/start");
   await refreshSampleFriendFor(user.id);
+  // Anything saved without a cover gets one looked up, after the page is sent.
+  after(() => fillCovers(user.id));
   const [summaries, incoming, destinations, thanks] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
     incomingRequests(user),

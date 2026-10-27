@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { itemLinks } from "@/lib/client";
 import { troveCount, spotTally, vocab } from "@/lib/kinds";
-import type { Destination, Item, Kind, Status } from "@/lib/types";
+import { STATUSES, type Destination, type Item, type Kind, type ShareStatus } from "@/lib/types";
 import { Cover } from "./Cover";
 import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
@@ -16,7 +16,7 @@ type Props = {
   title: string;
   kind: Kind;
   ownerName: string | null;
-  status: Status;
+  status: ShareStatus;
   category: string | null;
   items: Item[];
   /** Places: the destinations the spots belong to. */
@@ -40,6 +40,11 @@ export function SharedTrove({ title, kind, ownerName, status, category, items: b
 
   const visible = filter ? books.filter((b) => b.categories.includes(filter)) : books;
   const shown = open ?? lastOpen;
+  // A whole collection reads section by section: Read, then Reading, then Want to read.
+  const sections =
+    status === "all"
+      ? STATUSES.map((s) => ({ label: v.sections[s] as string | null, items: visible.filter((b) => b.status === s) })).filter((g) => g.items.length)
+      : [{ label: null, items: visible }];
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-3xl pb-40">
@@ -98,32 +103,41 @@ export function SharedTrove({ title, kind, ownerName, status, category, items: b
           />
         </div>
       ) : (
-        <ul className="grid grid-cols-3 gap-x-3 gap-y-5 px-5 sm:grid-cols-4 md:grid-cols-5">
-          <AnimatePresence initial={false} mode="popLayout">
-            {visible.map((b, i) => (
-              <motion.li
-                key={b.id}
-                layout="position"
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: Math.min(i, 18) * 0.025, type: "spring", stiffness: 380, damping: 32 }}
-              >
-                <button
-                  onClick={() => {
-                    setOpen(b);
-                    setLastOpen(b);
-                  }}
-                  className="block w-full text-left transition-transform active:scale-[0.96]"
-                >
-                  <Cover book={b} shape={v.shape} />
-                  <p className="mt-2 line-clamp-2 text-[13px] leading-snug font-medium">{b.title}</p>
-                  {b.author && <p className="truncate text-[12px] text-muted">{b.author}</p>}
-                </button>
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
+        sections.map((g) => (
+          <section key={g.label ?? "all"} className={g.label ? "mb-8" : undefined}>
+            {g.label && (
+              <h2 className="mb-3 px-5 text-[13px] font-medium tracking-wide text-muted uppercase">
+                {g.label} <span className="tabular-nums">{g.items.length}</span>
+              </h2>
+            )}
+            <ul className="grid grid-cols-3 gap-x-3 gap-y-5 px-5 sm:grid-cols-4 md:grid-cols-5">
+              <AnimatePresence initial={false} mode="popLayout">
+                {g.items.map((b, i) => (
+                  <motion.li
+                    key={b.id}
+                    layout="position"
+                    initial={{ opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ delay: Math.min(i, 18) * 0.025, type: "spring", stiffness: 380, damping: 32 }}
+                  >
+                    <button
+                      onClick={() => {
+                        setOpen(b);
+                        setLastOpen(b);
+                      }}
+                      className="block w-full text-left transition-transform active:scale-[0.96]"
+                    >
+                      <Cover book={b} shape={v.shape} />
+                      <p className="mt-2 line-clamp-2 text-[13px] leading-snug font-medium">{b.title}</p>
+                      {b.author && <p className="truncate text-[12px] text-muted">{b.author}</p>}
+                    </button>
+                  </motion.li>
+                ))}
+              </AnimatePresence>
+            </ul>
+          </section>
+        ))
       )}
 
       {/* The invitation. This is where the "get the app" hook will live. */}

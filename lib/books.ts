@@ -36,6 +36,37 @@ export async function findBooks(query: Query, limit = 8): Promise<Hit[]> {
   });
 }
 
+/**
+ * A real cover for a book saved without one: Open Library first, then Google Books, which has covers for many books
+ * Open Library lists without one. Only a book with the same title counts. Null if neither has one.
+ */
+export async function bookCover(title: string, author: string | null): Promise<string | null> {
+  if (process.env.BOOKS_PROVIDER === "fixture") {
+    return fixtureSearch({ title, author: author ?? undefined }, 4).find((h) => h.coverUrl && sameTitle(h.title, title))?.coverUrl ?? null;
+  }
+  const query: Query = { title, author: author ?? undefined };
+  for (const source of [openLibrary, googleBooks]) {
+    const hits = await source(query, 5).catch(() => [] as Hit[]);
+    const hit = hits.find((h) => h.coverUrl && sameTitle(h.title, title));
+    if (hit) return hit.coverUrl;
+  }
+  return null;
+}
+
+const plain = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/^(the|a|an) /, "");
+/** "Sapiens" and "Sapiens: A Brief History of Humankind" are the same book; "Dune" and "Dune Messiah" aren't. */
+export function sameTitle(a: string, b: string) {
+  const [x, y] = [plain(a.split(/[:(]/)[0]), plain(b.split(/[:(]/)[0])];
+  return x.length > 0 && x === y;
+}
+
 /** Free-text search that understands "Title by Author" but falls back to a plain query. */
 export async function searchText(text: string, limit = 8) {
   const split = splitTitleAuthor(text);

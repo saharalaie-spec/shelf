@@ -319,6 +319,13 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX activity_by_user ON activity (user_id, action, at)`,
     ],
   },
+  {
+    id: "2026-10-27-cover-check",
+    statements: [
+      // When Trove last looked for a real cover for something saved without one (lib/covers.ts).
+      `ALTER TABLE books ADD COLUMN cover_checked_at INTEGER`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

@@ -452,11 +452,16 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             <KindMenu kind={kind} />
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {(isPlace ? visible.some((b) => !b.private) : inSection.length > 0) && (
+            {/* Anything shareable in the collection: an empty section can still share "All". */}
+            {(isPlace ? visible.some((b) => !b.private) : items.some((b) => !b.private)) && (
               <button
                 onClick={() => setSharing(true)}
                 aria-label={
-                  isPlace ? `Share ${dest ? dest.name : "your places"}` : filter ? `Share ${filter}` : `Share ${v.sections[section]}`
+                  isPlace
+                    ? `Share ${dest ? dest.name : "your places"}`
+                    : filter
+                      ? `Share ${filter}`
+                      : `Share ${inSection.length ? v.sections[section] : v.label}`
                 }
                 className="flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 transition-transform active:scale-95"
               >
@@ -636,7 +641,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         kind={kind}
         items={items}
         destinations={destinations}
-        initialStatus={isPlace ? "read" : section}
+        initialStatus={isPlace ? "read" : inSection.some((b) => !b.private) ? section : "all"}
         initialCategory={isPlace ? (dest?.id ?? null) : filter}
         name={name}
         onName={setName}
@@ -685,6 +690,14 @@ function SectionHeading({ v, section, count, filter }: { v: Vocab; section: Stat
 
 function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOpen: () => void; onFinish: () => void }) {
   const hydrated = useHydrated();
+  // The circle fills with a check for a moment, then the card moves to the finished section.
+  const [ticked, setTicked] = useState(false);
+  const finish = () => {
+    if (ticked) return;
+    setTicked(true);
+    navigator.vibrate?.(10);
+    setTimeout(onFinish, 380);
+  };
   return (
     <motion.li
       layout="position"
@@ -708,10 +721,20 @@ function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOp
         </span>
       </button>
       <button
-        onClick={onFinish}
-        className="flex h-10 shrink-0 items-center gap-1.5 rounded-full bg-accent px-4 text-[14px] font-medium text-accent-ink transition-transform active:scale-95"
+        onClick={finish}
+        aria-label={`${v.finish}: ${book.title}`}
+        className={`flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-[14px] font-medium transition-colors active:scale-95 ${
+          ticked ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface text-ink"
+        }`}
       >
-        <Icon name="check" size={16} />
+        {/* An empty circle until tapped: an action, not a state. */}
+        <span
+          className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 transition-colors ${
+            ticked ? "border-accent-ink" : "border-ink-2"
+          }`}
+        >
+          {ticked && <Icon name="check" size={11} />}
+        </span>
         {v.finish}
       </button>
     </motion.li>

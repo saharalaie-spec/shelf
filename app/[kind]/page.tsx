@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { after } from "next/server";
 import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
+import { fillCovers } from "@/lib/covers";
 import { databaseUrl, isOwner, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
@@ -23,6 +25,8 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
   if (!user) return <Login channels={signInChannels()} />;
+  // Anything saved without a cover gets one looked up, after the page is sent.
+  if (kind !== "place") after(() => fillCovers(user.id));
   const [items, incoming, destinations] = await Promise.all([
     listItems(user.id, { kind, includePrivate: true }),
     incomingRequests(user),

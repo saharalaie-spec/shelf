@@ -1,5 +1,7 @@
+import { after } from "next/server";
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
+import { fillCovers } from "@/lib/covers";
 import { findOrCreateDestination, getDestination, type NewDestination } from "@/lib/destinations";
 import { accessTo, findPerson } from "@/lib/social";
 import { addItems, listItems } from "@/lib/trove";
@@ -80,6 +82,8 @@ export const POST = route(async (req: Request) => {
     })),
     { destinationId },
   );
+  // Saved without a cover (typed in, or a catalog with no image): look one up, after answering.
+  if (body.kind !== "place" && hits.some((h) => !h.coverUrl)) after(() => fillCovers(user.id));
   return Response.json({ added });
 });
 

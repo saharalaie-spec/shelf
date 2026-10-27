@@ -3,21 +3,24 @@
 import { motion } from "motion/react";
 import { STATUSES, type Status } from "@/lib/types";
 
-/** Read · Reading · Want to read (or each collection's own words), as a segmented control with a sliding pill. */
-export function SectionTabs({
+/**
+ * Read · Reading · Want to read (or each collection's own words), as a segmented control with a sliding pill. Other
+ * options can join the sections, like "All" when sharing.
+ */
+export function SectionTabs<T extends string = Status>({
   value,
-  options = STATUSES,
+  options = STATUSES as readonly string[] as readonly T[],
   labels,
   counts,
   onChange,
   layoutId = "section-pill",
 }: {
-  value: Status;
-  /** Which sections to offer (places only have Been and Want to go). */
-  options?: readonly Status[];
-  labels: Record<Status, string>;
-  counts?: Record<Status, number>;
-  onChange: (s: Status) => void;
+  value: T;
+  /** Which to offer (places only have Been and Want to go). */
+  options?: readonly T[];
+  labels: Record<T, string>;
+  counts?: Record<T, number>;
+  onChange: (s: T) => void;
   layoutId?: string;
 }) {
   return (

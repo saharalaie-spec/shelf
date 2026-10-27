@@ -3,7 +3,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
 import { db } from "./db";
 import { getDestination, listDestinations } from "./destinations";
-import { isKind, isStatus, KINDS, type Destination, type Hit, type Item, type Kind, type PlaceInfo, type RecBy, type Status } from "./types";
+import { isKind, isShareStatus, isStatus, KINDS, type Destination, type Hit, type Item, type Kind, type PlaceInfo, type RecBy, type ShareStatus, type Status } from "./types";
 
 // Every collection lives in the `books` table (it predates the others); `kind` tells them apart.
 
@@ -291,7 +291,7 @@ export async function summarize(userId: string, { includePrivate = false } = {})
  * For places the "category" is a destination id, so each destination can be shared on its own, and the section
  * doesn't matter: a link shows every spot, each marked Been or Want to go.
  */
-export async function getOrCreateShare(userId: string, kind: Kind, status: Status, category: string): Promise<string> {
+export async function getOrCreateShare(userId: string, kind: Kind, status: ShareStatus, category: string): Promise<string> {
   const client = await db();
   const existing = (
     await client.execute({
@@ -312,7 +312,8 @@ export async function getOrCreateShare(userId: string, kind: Kind, status: Statu
 export type SharedTrove = {
   ownerName: string | null;
   kind: Kind;
-  status: Status;
+  /** One section, or "all" of the collection. */
+  status: ShareStatus;
   /** The category shared, or for places the destination's name. */
   category: string | null;
   items: Item[];
@@ -334,7 +335,7 @@ export async function getSharedTrove(slug: string, { countView = false } = {}): 
     client.execute({ sql: "UPDATE shares SET views = views + 1 WHERE slug = ?", args: [slug] }).catch(() => {});
   }
   const kind = isKind(row.kind) ? row.kind : "book";
-  const status = isStatus(row.status) ? row.status : "read";
+  const status = isShareStatus(row.status) ? row.status : "read";
   const userId = String(row.user_id);
   const ownerName = row.name ? String(row.name) : null;
   if (kind === "place") {
@@ -361,7 +362,7 @@ export async function getSharedTrove(slug: string, { countView = false } = {}): 
     kind,
     status,
     category,
-    items: await listItems(userId, { kind, status, category: category ?? undefined }),
+    items: await listItems(userId, { kind, status: status === "all" ? undefined : status, category: category ?? undefined }),
     destinations: [],
   };
 }
