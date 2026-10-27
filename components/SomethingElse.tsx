@@ -312,9 +312,10 @@ function ideaChoice(s: Suggestion, kind: Kind, area: AreaHit | null, destination
   };
 }
 
-function Thinking({ rows = 3 }: { rows?: number }) {
+function Thinking({ rows = 3, label }: { rows?: number; label?: string }) {
   return (
-    <div className="space-y-1" aria-label="Thinking about your taste">
+    <div className="space-y-1" aria-label={label ?? "Thinking about your taste"}>
+      {label && <p className="px-1 pt-2 text-[13px] text-muted">{label}</p>}
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center gap-3 px-1 py-2">
           <div className="h-[60px] w-10 rounded-[4px] skeleton" />
@@ -485,7 +486,7 @@ function TellUs({
           </div>
         </>
       )}
-      {thinking && <Thinking />}
+      {thinking && <Thinking label={kind === "place" ? "Searching the web for places that fit…" : undefined} />}
       {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
       {current?.picks && !picks.length && (
         <p className="px-1 pt-2 text-[14px] text-muted">
@@ -500,7 +501,16 @@ function TellUs({
             {picks.map((s) => {
               const destinationId = current!.destinationId ?? null;
               const c = ideaChoice(s, kind, area, destinationId);
-              return <Row key={`ask:${s.hit.key}`} kind={kind} item={c} line={s.why} onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })} />;
+              return (
+                <Row
+                  key={`ask:${s.hit.key}`}
+                  kind={kind}
+                  item={c}
+                  line={s.why}
+                  source={s.source}
+                  onPick={() => onChoose(c, { hit: s.hit, friendId: null, destinationId, area })}
+                />
+              );
             })}
           </ul>
           <div className="mt-1 grid grid-cols-2 gap-2 px-1">
@@ -612,7 +622,20 @@ function Group({ title, aside, children }: { title: string; aside?: React.ReactN
   );
 }
 
-function Row({ kind, item, line, onPick }: { kind: Kind; item: Choice; line: string; onPick: () => void }) {
+function Row({
+  kind,
+  item,
+  line,
+  source,
+  onPick,
+}: {
+  kind: Kind;
+  item: Choice;
+  line: string;
+  /** Where a place found on the web was found, credited under it. */
+  source?: { name: string; url: string };
+  onPick: () => void;
+}) {
   return (
     <li>
       <button onClick={onPick} className="flex w-full items-center gap-3 rounded-2xl px-1 py-2 text-left active:bg-surface-2">
@@ -627,6 +650,16 @@ function Row({ kind, item, line, onPick }: { kind: Kind; item: Choice; line: str
         </span>
         <Icon name="chevron" size={16} className="shrink-0 text-muted" />
       </button>
+      {source && (
+        <a
+          href={source.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="-mt-1.5 mb-1 ml-[56px] block truncate text-[12px] text-muted underline decoration-line underline-offset-2"
+        >
+          via {source.name}
+        </a>
+      )}
     </li>
   );
 }

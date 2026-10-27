@@ -611,6 +611,42 @@ describe("something else: taste map and suggestions", () => {
     }
   });
 
+  it("researches places you describe on the web, keeping only ones the map or a real search result backs", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550814" }, "Ines");
+    const kyoto = { name: "Kyoto", country: "Japan", lat: 35, lon: 135.7, bbox: null };
+    const asked: { request: string; count: number }[] = [];
+    const research = async (input: { request: string; count: number }) => {
+      asked.push(input);
+      return {
+        places: [
+          // On the map by that name.
+          { name: "Nishiki Market", neighborhood: "Nakagyō", why: "Graze stall to stall, no booking.", sourceUrl: "https://example.com/made-up" },
+          // Not on the map, but a page the searches really returned says so.
+          { name: "Kamo Riverside Hall", neighborhood: "Sakyō", why: "Seats 20, no deposit.", sourceUrl: "https://www.kyotoguide.example/groups/" },
+          // Neither: dropped, however good it sounds.
+          { name: "Moonlight Kaiseki House", neighborhood: "Gion", why: "Invented.", sourceUrl: "https://nowhere.example/" },
+        ],
+        seen: new Set(["https://www.kyotoguide.example/groups"]),
+      };
+    };
+    const never = async () => {
+      throw new Error("Shouldn't name places from memory when the research found some.");
+    };
+    const { picks } = await suggest(me.id, "place", "any", { place: kyoto, wish: "birthday for 20, not pricey, no deposit" }, never, undefined, research);
+    expect(asked[0].request).toBe("birthday for 20, not pricey, no deposit");
+    expect(picks.map((p) => [p.hit.title, p.why, p.source ?? null])).toEqual([
+      ["Nishiki Market", "Graze stall to stall, no booking.", null],
+      ["Kamo Riverside Hall", "Seats 20, no deposit.", { name: "kyotoguide.example", url: "https://www.kyotoguide.example/groups/" }],
+    ]);
+    expect(picks[1].hit.author).toBe("Sakyō");
+
+    // Without their own words, no web search: the usual picks.
+    asked.length = 0;
+    await suggest(me.id, "place", "any", { place: kyoto }, async () => [], undefined, research);
+    expect(asked).toEqual([]);
+  });
+
   it("answers what you describe with three picks, every time you ask", async () => {
     const { suggest } = await import("@/lib/suggest");
     const me = await signUp({ phone: "+14155550812" }, "Rae");
