@@ -12,7 +12,7 @@ Use it word for word. It leads the sign-in screen and the app's descriptions (`c
 
 ## Logo
 
-"trove" in Fraunces, lowercase, with a keyhole for its "o": a trove is a chest you get to open. The keyhole is navy; the rest is ink. The keyhole "o" alone is the mark and the app icon. Drawn by `Wordmark` and `Logo` in `components/ui.tsx`, and by `KeyholeO` in `app/icon.tsx` for server-rendered images.
+"trove" in Inter semibold, lowercase, tight, with its "o" in navy: the font's own letter, nothing added. The rest is ink. The navy "o" alone is the mark and the app icon, drawn from Inter's "o" in `lib/logo.ts`. Drawn by `Wordmark` and `Logo` in `components/ui.tsx`, and `NavyO` in `app/icon.tsx` for server-rendered images.
 
 ## Colors
 
@@ -20,7 +20,7 @@ Two brand colors: **Navy** and **Stone**.
 
 | Role | Light | Dark |
 |---|---|---|
-| Navy, the signature (buttons, links, selected, the keyhole) | `#1E2B47` | `#2E4370` fills, `#9DB0D2` text |
+| Navy, the signature (buttons, links, selected, the logo's "o") | `#1E2B47` | `#2E4370` fills, `#9DB0D2` text |
 | Stone (logo, accents) | `#A89C88` | `#8A7F6E` |
 | Paper (background) | `#F2F0EB` | `#111316` |
 | Ink (text) | `#1C1F26` | `#ECEBE5` |

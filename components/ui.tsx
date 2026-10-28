@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { LOGO_O, LOGO_SQUARE } from "@/lib/logo";
 
 const noop = () => () => {};
 /** False during SSR and hydration, true afterwards. For values only the browser knows. */
@@ -10,40 +11,27 @@ export function useHydrated() {
   return useSyncExternalStore(noop, () => true, () => false);
 }
 
-/** Trove's "o": a ring with a navy keyhole, because a trove is a chest you get to open. */
-function KeyholeO({ ring = 15 }: { ring?: number }) {
-  return (
-    <>
-      <circle cx="50" cy="50" r={50 - ring / 2} fill="none" stroke="currentColor" strokeWidth={ring} />
-      <circle cx="50" cy="42" r="11.5" fill="var(--link)" />
-      <path d="M43.5 46 L56.5 46 L60.5 71 L39.5 71 Z" fill="var(--link)" />
-    </>
-  );
-}
-
-/** The mark on its own: the keyhole "o". */
+/** The mark: Trove's "o" on its own, the font's letter in navy (lib/logo.ts). */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100" aria-hidden className="text-ink">
-      <KeyholeO ring={13} />
+    <svg width={size} height={size} viewBox={LOGO_SQUARE} aria-hidden>
+      <path d={LOGO_O} fill="var(--link)" fillRule="evenodd" />
     </svg>
   );
 }
 
-/** "trove", with the keyhole for its "o". `size` is the font size in px. */
+/** "trove" in the app's sans, its "o" in navy. `size` is the font size in px. */
 export function Wordmark({ size = 20 }: { size?: number }) {
   return (
     <span
       role="img"
       aria-label="Trove"
-      className="inline-flex items-baseline font-serif leading-none font-semibold tracking-[-0.035em] text-ink"
+      className="inline-flex items-baseline font-sans leading-none font-semibold tracking-[-0.045em] text-ink"
       style={{ fontSize: size }}
     >
-      <span aria-hidden>tr</span>
-      <svg viewBox="0 0 100 100" aria-hidden className="mx-[0.02em] h-[0.53em] w-[0.53em] shrink-0">
-        <KeyholeO />
-      </svg>
-      <span aria-hidden>ve</span>
+      <span aria-hidden>
+        tr<span className="text-link">o</span>ve
+      </span>
     </span>
   );
 }
