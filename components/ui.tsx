@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { LOGO_O, LOGO_SQUARE } from "@/lib/logo";
+import { LOGO_BOX, LOGO_IN_TEXT, LOGO_O, LOGO_SQUARE } from "@/lib/logo";
 
 const noop = () => () => {};
 /** False during SSR and hydration, true afterwards. For values only the browser knows. */
@@ -11,27 +11,42 @@ export function useHydrated() {
   return useSyncExternalStore(noop, () => true, () => false);
 }
 
-/** The mark: Trove's "o" on its own, the font's letter in navy (lib/logo.ts). */
+/** The mark: Trove's "o" on its own, the font's letter filled solid navy (lib/logo.ts). */
 export function Logo({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox={LOGO_SQUARE} aria-hidden>
-      <path d={LOGO_O} fill="var(--link)" fillRule="evenodd" />
+      <ellipse {...LOGO_O} fill="var(--link)" />
     </svg>
   );
 }
 
-/** "trove" in the app's sans, its "o" in navy. `size` is the font size in px. */
+/** "trove" in the app's sans, its "o" filled solid navy. `size` is the font size in px. */
 export function Wordmark({ size = 20 }: { size?: number }) {
+  const t = LOGO_IN_TEXT;
+  const tracking = -0.045;
   return (
     <span
       role="img"
       aria-label="Trove"
-      className="inline-flex items-baseline font-sans leading-none font-semibold tracking-[-0.045em] text-ink"
-      style={{ fontSize: size }}
+      className="inline-flex items-baseline font-sans leading-none font-semibold text-ink"
+      style={{ fontSize: size, letterSpacing: `${tracking}em` }}
     >
-      <span aria-hidden>
-        tr<span className="text-link">o</span>ve
-      </span>
+      <span aria-hidden>tr</span>
+      <svg
+        aria-hidden
+        viewBox={LOGO_BOX}
+        className="shrink-0"
+        style={{
+          width: `${t.width}em`,
+          height: `${t.height}em`,
+          // Where the letter would be: its side bearings (and the tracking after it), just dipping under the baseline.
+          margin: `0 ${t.right + tracking}em 0 ${t.left}em`,
+          transform: `translateY(${t.dip}em)`,
+        }}
+      >
+        <ellipse {...LOGO_O} fill="var(--link)" />
+      </svg>
+      <span aria-hidden>ve</span>
     </span>
   );
 }

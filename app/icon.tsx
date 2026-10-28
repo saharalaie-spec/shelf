@@ -23,7 +23,7 @@ export function Mark({ scale }: { scale: number }) {
         borderRadius: s(14),
       }}
     >
-      <NavyO size={s(40)} />
+      <NavyO size={s(36)} />
     </div>
   );
 }
@@ -32,7 +32,7 @@ export function Mark({ scale }: { scale: number }) {
 export function NavyO({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox={LOGO_SQUARE}>
-      <path d={LOGO_O} fill="#1e2b47" fillRule="evenodd" />
+      <ellipse cx={LOGO_O.cx} cy={LOGO_O.cy} rx={LOGO_O.rx} ry={LOGO_O.ry} fill="#1e2b47" />
     </svg>
   );
 }

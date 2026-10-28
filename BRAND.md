@@ -12,7 +12,7 @@ Use it word for word. It leads the sign-in screen and the app's descriptions (`c
 
 ## Logo
 
-"trove" in Inter semibold, lowercase, tight, with its "o" in navy: the font's own letter, nothing added. The rest is ink. The navy "o" alone is the mark and the app icon, drawn from Inter's "o" in `lib/logo.ts`. Drawn by `Wordmark` and `Logo` in `components/ui.tsx`, and `NavyO` in `app/icon.tsx` for server-rendered images.
+"trove" in Inter semibold, lowercase, tight, with its "o" filled solid navy: the outline of the font's own letter, with no hole. The rest is ink. The solid navy "o" alone is the mark and the app icon. Its shape is measured from Inter's "o" in `lib/logo.ts`, and drawn by `Wordmark` and `Logo` in `components/ui.tsx`, and `NavyO` in `app/icon.tsx` for server-rendered images.
 
 ## Colors
 
