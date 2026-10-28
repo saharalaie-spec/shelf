@@ -20,7 +20,7 @@ export function Logo({ size = 28 }: { size?: number }) {
   );
 }
 
-/** "trove" in the app's sans, its "o" filled solid navy. `size` is the font size in px. */
+/** "trove" in the app's sans, all navy, its "o" filled solid. `size` is the font size in px. */
 export function Wordmark({ size = 20 }: { size?: number }) {
   const t = LOGO_IN_TEXT;
   const tracking = -0.045;
@@ -28,7 +28,7 @@ export function Wordmark({ size = 20 }: { size?: number }) {
     <span
       role="img"
       aria-label="Trove"
-      className="inline-flex items-baseline font-sans leading-none font-semibold text-ink"
+      className="inline-flex items-baseline font-sans leading-none font-semibold text-link"
       style={{ fontSize: size, letterSpacing: `${tracking}em` }}
     >
       <span aria-hidden>tr</span>
