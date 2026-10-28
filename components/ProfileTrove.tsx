@@ -145,9 +145,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
               aria-label={`${VOCAB[k].label}, ${total(k)}`}
               onClick={() => showKind(k)}
               className={`flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[12px] font-medium transition-colors active:scale-95 ${
-                k === kind ? "text-ink ring-1 ring-line ring-inset" : "bg-surface-2 text-ink-2"
+                k === kind ? "bg-ink text-paper shadow-book" : "bg-surface-2 text-ink-2"
               }`}
-              style={k === kind ? { background: VOCAB[k].tint } : undefined}
             >
               <Icon name={KIND_ICON[k]} size={19} className="shrink-0" />
               <span className="max-w-full truncate">{VOCAB[k].label}</span>
