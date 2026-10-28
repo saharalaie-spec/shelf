@@ -29,7 +29,7 @@ async function signUp(contact: { phone?: string; email?: string }, name: string 
     sql: "INSERT INTO users (id, phone, email, name, created_at) VALUES (?, ?, ?, ?, ?)",
     args: [id, contact.phone ?? null, contact.email ?? null, name, Date.now()],
   });
-  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false, shareActivity: true, started: false };
+  return { id, name, phone: contact.phone ?? null, email: contact.email ?? null, handle: null, isPublic: false, shareActivity: true, started: false, photo: null };
 }
 
 beforeAll(async () => {
@@ -223,6 +223,34 @@ describe("invite links", () => {
     expect(friend.counts).toEqual({ book: 2, podcast: 0, screen: 1, place: 0 });
     // The most recent thing in progress, whatever the collection.
     expect(friend.now).toEqual({ kind: "screen", title: "The Bear" });
+  });
+});
+
+describe("profile photos", () => {
+  it("keeps only real images, shows them to friends, and gives each new photo a new URL", async () => {
+    const photos = await import("@/lib/photos");
+    const a = await signUp({ phone: "+14155550980" }, "Pia");
+    const b = await signUp({ phone: "+14155550981" }, "Quin");
+    await social.acceptInvite(b, await social.inviteToken(a.id));
+    const jpeg = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3]);
+
+    expect(await photos.savePhoto(a.id, new TextEncoder().encode("<svg onload=alert(1)>"))).toBeNull();
+    expect((await social.listFriends(b.id))[0].photo).toBeNull();
+
+    const first = await photos.savePhoto(a.id, jpeg);
+    expect(first).toMatch(new RegExp(`^/api/photos/${a.id}\\?v=\\d+$`));
+    expect((await social.listFriends(b.id))[0].photo).toBe(first);
+    expect(await photos.readPhoto(a.id)).toEqual({ data: jpeg, type: "image/jpeg" });
+
+    await new Promise((r) => setTimeout(r, 2));
+    const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a]);
+    const second = await photos.savePhoto(a.id, png);
+    expect(second).not.toBe(first);
+    expect((await photos.readPhoto(a.id))?.type).toBe("image/png");
+
+    await photos.removePhoto(a.id);
+    expect((await social.listFriends(b.id))[0].photo).toBeNull();
+    expect(await photos.readPhoto(a.id)).toBeNull();
   });
 });
 

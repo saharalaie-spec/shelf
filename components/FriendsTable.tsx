@@ -210,7 +210,7 @@ function Faces({ friends }: { friends: TableFriend[] }) {
   return (
     <span className="flex shrink-0 items-center pl-2" aria-hidden>
       {friends.slice(0, 3).map((f, i) => (
-        <Avatar key={f.id} name={f.name} size={28} className={`ring-2 ring-paper ${i ? "-ml-2" : ""} text-[13px]`} />
+        <Avatar key={f.id} name={f.name} photo={f.photo} size={28} className={`ring-2 ring-paper ${i ? "-ml-2" : ""} text-[13px]`} />
       ))}
       {friends.length > 3 && <span className="ml-1 text-[12px] text-muted tabular-nums">+{friends.length - 3}</span>}
     </span>
@@ -294,7 +294,7 @@ function FriendList({ item }: { item: TableItem }) {
       <ul className="-mx-2">
         {item.friends.map((f) => (
           <li key={f.id} className="flex items-center gap-3 rounded-2xl px-2 py-1.5">
-            <Avatar name={f.name} size={36} />
+            <Avatar name={f.name} photo={f.photo} size={36} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">
                 {f.name ?? "A friend"}

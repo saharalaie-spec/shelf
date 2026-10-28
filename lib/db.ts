@@ -326,6 +326,19 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `ALTER TABLE books ADD COLUMN cover_checked_at INTEGER`,
     ],
   },
+  {
+    id: "2026-10-27-photos",
+    statements: [
+      // Profile photos (lib/photos.ts), and when each was set, for its URL.
+      `CREATE TABLE IF NOT EXISTS photos (
+        user_id TEXT PRIMARY KEY,
+        data BLOB NOT NULL,
+        type TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `ALTER TABLE users ADD COLUMN photo_at INTEGER`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

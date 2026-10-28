@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { FeedbackSheet } from "./FeedbackSheet";
 import { Sheet } from "./Sheet";
-import { Button, Icon, Switch, useHydrated } from "./ui";
+import { Avatar, Button, Icon, Switch, useHydrated } from "./ui";
 
-export type Profile = { id: string; name: string | null; handle: string | null; isPublic: boolean; shareActivity: boolean };
+export type Profile = {
+  id: string;
+  name: string | null;
+  handle: string | null;
+  isPublic: boolean;
+  shareActivity: boolean;
+  photo: string | null;
+};
 
 type Props = {
   open: boolean;
@@ -40,6 +47,98 @@ export function AccountSheet({ open, onOpenChange, ...rest }: Props) {
       </Sheet>
       <FeedbackSheet open={feedback} onOpenChange={setFeedback} />
     </>
+  );
+}
+
+const PHOTO_PX = 800;
+
+/** A square, centered crop of the photo, shrunk to PHOTO_PX and saved as JPEG (so an iPhone's HEIC works too). */
+async function squarePhoto(file: File): Promise<Blob> {
+  const image = await createImageBitmap(file);
+  const side = Math.min(image.width, image.height);
+  const out = Math.min(PHOTO_PX, side);
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = out;
+  canvas.getContext("2d")!.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, out, out);
+  image.close();
+  return new Promise((resolve, reject) =>
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("Couldn’t read that photo."))), "image/jpeg", 0.86),
+  );
+}
+
+/** Your photo: tap to add or change it, hold to see it large. */
+function PhotoPicker({ name, photo, onPhoto }: { name: string | null; photo: string | null; onPhoto: (photo: string | null) => void }) {
+  const input = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  const upload = async (file: File) => {
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.append("photo", await squarePhoto(file).catch(() => file), "photo.jpg");
+      const res = await fetch("/api/me/photo", { method: "POST", body: form });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error ?? "Couldn’t save that photo. Try again.");
+      onPhoto(body.photo);
+      toast("Photo saved");
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const remove = async () => {
+    const before = photo;
+    onPhoto(null);
+    try {
+      await api("/api/me/photo", { method: "DELETE" });
+    } catch (err) {
+      onPhoto(before);
+      toast.error((err as Error).message);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-4">
+      <button
+        onClick={() => input.current?.click()}
+        disabled={busy}
+        aria-label={photo ? "Change your photo" : "Add a photo"}
+        className={`relative shrink-0 rounded-full transition-transform active:scale-95 ${busy ? "opacity-60" : ""}`}
+      >
+        {photo ? (
+          <Avatar name={name} photo={photo} size={72} />
+        ) : (
+          <span className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-dashed border-line bg-surface-2 text-muted">
+            <Icon name="camera" size={26} />
+          </span>
+        )}
+      </button>
+      <div className="min-w-0">
+        <button onClick={() => input.current?.click()} disabled={busy} className="block text-[16px] font-medium text-ink active:opacity-60">
+          {busy ? "Saving…" : photo ? "Change photo" : "Add a photo"}
+        </button>
+        {photo ? (
+          <button onClick={remove} disabled={busy} className="mt-0.5 block text-[14px] text-muted active:opacity-60">
+            Remove
+          </button>
+        ) : (
+          <p className="mt-0.5 text-[13px] leading-snug text-muted">Friends see it on requests and your profile.</p>
+        )}
+      </div>
+      <input
+        ref={input}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          e.target.value = "";
+          if (file) upload(file);
+        }}
+      />
+    </div>
   );
 }
 
@@ -77,7 +176,8 @@ function AccountBody({
 
   return (
     <div className="overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
-      <p className="text-[15px] text-muted">
+      <PhotoPicker name={name} photo={profile.photo} onPhoto={(photo) => onProfile({ photo })} />
+      <p className="mt-4 text-[15px] text-muted">
         {contact} · {countLabel}
       </p>
       <label className="mt-5 mb-1.5 block text-[14px] text-muted">Your name</label>

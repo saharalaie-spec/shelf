@@ -5,10 +5,18 @@ import type { Row } from "@libsql/client";
 import { AuthError, type User } from "./auth";
 import { db } from "./db";
 import { parseIdentifier } from "./identifier";
+import { photoUrl } from "./photos";
 import { isKind, type Kind } from "./types";
 
 /** Someone else's account, as much of it as other people may see. */
-export type Person = { id: string; name: string | null; handle: string | null; isPublic: boolean };
+export type Person = {
+  id: string;
+  name: string | null;
+  handle: string | null;
+  isPublic: boolean;
+  /** Their profile photo's URL, if they've added one. */
+  photo: string | null;
+};
 
 /** Profile URLs use the handle when there is one, otherwise the (unguessable) user id. */
 export const profileRef = (p: { id: string; handle: string | null }) => p.handle ?? p.id;
@@ -18,6 +26,7 @@ const toPerson = (r: Row): Person => ({
   name: r.name ? String(r.name) : null,
   handle: r.handle ? String(r.handle) : null,
   isPublic: Boolean(r.is_public),
+  photo: photoUrl(String(r.id), r.photo_at),
 });
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -26,7 +35,7 @@ export async function findPerson(ref: string): Promise<Person | null> {
   const client = await db();
   const row = (
     await client.execute({
-      sql: `SELECT id, name, handle, is_public FROM users WHERE ${UUID_RE.test(ref) ? "id" : "handle"} = ?`,
+      sql: `SELECT id, name, handle, is_public, photo_at FROM users WHERE ${UUID_RE.test(ref) ? "id" : "handle"} = ?`,
       args: [UUID_RE.test(ref) ? ref : ref.toLowerCase()],
     })
   ).rows[0];
@@ -152,7 +161,7 @@ export type Friend = Person & {
 export async function listFriends(userId: string): Promise<Friend[]> {
   const client = await db();
   const { rows } = await client.execute({
-    sql: `SELECT u.id, u.name, u.handle, u.is_public,
+    sql: `SELECT u.id, u.name, u.handle, u.is_public, u.photo_at,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'book') AS n_book,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'podcast') AS n_podcast,
             (SELECT COUNT(*) FROM books b WHERE b.user_id = u.id AND b.private = 0 AND b.kind = 'screen') AS n_screen,
@@ -314,7 +323,7 @@ export async function incomingRequests(user: User): Promise<IncomingRequest[]> {
   if (!ids.length) return [];
   const client = await db();
   const { rows } = await client.execute({
-    sql: `SELECT r.id AS request_id, r.created_at, u.id, u.name, u.handle, u.is_public, u.phone, u.email
+    sql: `SELECT r.id AS request_id, r.created_at, u.id, u.name, u.handle, u.is_public, u.photo_at, u.phone, u.email
           FROM friend_requests r JOIN users u ON u.id = r.from_user
           WHERE r.to_identifier IN (${ids.map(() => "?").join(", ")})
             AND NOT EXISTS (SELECT 1 FROM friendships f WHERE f.user_id = ? AND f.friend_id = u.id)
@@ -392,7 +401,7 @@ export async function inviteToken(userId: string): Promise<string> {
 export async function findInviter(token: string): Promise<Person | null> {
   const client = await db();
   const row = (
-    await client.execute({ sql: "SELECT id, name, handle, is_public FROM users WHERE invite_token = ?", args: [token] })
+    await client.execute({ sql: "SELECT id, name, handle, is_public, photo_at FROM users WHERE invite_token = ?", args: [token] })
   ).rows[0];
   return row ? toPerson(row) : null;
 }

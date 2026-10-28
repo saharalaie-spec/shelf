@@ -249,7 +249,7 @@ function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; 
   return (
     <>
       <div className="flex items-center gap-4 pt-2">
-        <Avatar name={from.friend.name} size={56} />
+        <Avatar name={from.friend.name} photo={from.friend.photo} size={56} />
         <div className="min-w-0">
           <h1 className="font-serif text-[30px] leading-[1.05] font-medium tracking-tight text-balance">Start from {who}’s trove</h1>
         </div>

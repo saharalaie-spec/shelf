@@ -10,7 +10,7 @@ import { Avatar, Button, Icon, Wordmark } from "./ui";
 
 type Props = {
   token: string;
-  inviter: { name: string | null };
+  inviter: { name: string | null; photo: string | null };
   viewerName: string | null;
   own: boolean;
   /** Just joined: start from the inviter's trove instead of landing on it. */
@@ -58,7 +58,7 @@ export function Invite({ token, inviter, viewerName, own, newcomer }: Props) {
         transition={{ type: "spring", stiffness: 300, damping: 30 }}
         className="flex flex-1 flex-col items-center justify-center pb-[10vh] text-center"
       >
-        <Avatar name={inviter.name} size={80} />
+        <Avatar name={inviter.name} photo={inviter.photo} size={80} />
         {own ? (
           <>
             <h1 className="mt-6 font-serif text-[32px] leading-tight font-medium tracking-tight text-balance">This is your invite link</h1>

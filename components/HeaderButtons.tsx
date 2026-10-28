@@ -29,8 +29,30 @@ export function FriendsButton({ pending }: { pending: number }) {
   );
 }
 
-/** Your initial; opens the account sheet. */
-export function AvatarButton({ name, contact, onClick }: { name: string | null; contact: string; onClick: () => void }) {
+/** Your photo or initial; opens the account sheet. */
+export function AvatarButton({
+  name,
+  photo,
+  contact,
+  onClick,
+}: {
+  name: string | null;
+  photo: string | null;
+  contact: string;
+  onClick: () => void;
+}) {
+  if (photo) {
+    return (
+      <button
+        onClick={onClick}
+        aria-label="Account"
+        className="ml-1 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-2 transition-transform active:scale-95"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- a small, already-sized photo from our own API */}
+        <img src={photo} alt="" className="h-full w-full object-cover" />
+      </button>
+    );
+  }
   return (
     <button
       onClick={onClick}

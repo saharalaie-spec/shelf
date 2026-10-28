@@ -1,6 +1,8 @@
 "use client";
 
-import { useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useRef, useState, useSyncExternalStore, type ComponentProps, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 const noop = () => () => {};
 /** False during SSR and hydration, true afterwards. For values only the browser knows. */
@@ -309,9 +311,21 @@ export function Switch({
 }
 
 /** A round initial, standing in for a profile photo. */
-export function Avatar({ name, size = 40, className = "" }: { name: string | null; size?: number; className?: string }) {
+/** Their photo, or their initial on a color of their own. Hold a photo to see it large. */
+export function Avatar({
+  name,
+  photo,
+  size = 40,
+  className = "",
+}: {
+  name: string | null;
+  photo?: string | null;
+  size?: number;
+  className?: string;
+}) {
   const letter = (name ?? "").trim().charAt(0).toUpperCase() || "?";
   const hue = [...(name ?? "?")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) % 360, 0);
+  if (photo) return <PhotoPeek src={photo} name={name} size={size} className={className} />;
   return (
     <span
       aria-hidden
@@ -320,5 +334,82 @@ export function Avatar({ name, size = 40, className = "" }: { name: string | nul
     >
       {letter}
     </span>
+  );
+}
+
+const HOLD_MS = 350;
+
+/**
+ * A round photo that, held for a moment, shows large in the middle of the screen until you let go. A hold never also
+ * counts as a tap, so holding a friend's photo in a list doesn't open their page.
+ */
+function PhotoPeek({ src, name, size, className }: { src: string; name: string | null; size: number; className: string }) {
+  const [open, setOpen] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  const held = useRef(false);
+  // The large view goes on the page itself, once it's in the browser.
+  const hydrated = useHydrated();
+  const start = () => {
+    held.current = false;
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      held.current = true;
+      setOpen(true);
+      navigator.vibrate?.(8);
+    }, HOLD_MS);
+  };
+  const end = () => {
+    clearTimeout(timer.current);
+    setOpen(false);
+  };
+  return (
+    <>
+      <span
+        role="img"
+        aria-label={name ? `${name}’s photo` : "Photo"}
+        onPointerDown={start}
+        onPointerUp={end}
+        onPointerCancel={end}
+        onPointerLeave={end}
+        onContextMenu={(e) => e.preventDefault()}
+        onClickCapture={(e) => {
+          if (!held.current) return;
+          held.current = false;
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className={`block shrink-0 overflow-hidden rounded-full bg-surface-2 select-none [-webkit-touch-callout:none] ${className}`}
+        style={{ width: size, height: size }}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element -- a small, already-sized photo from our own API */}
+        <img src={src} alt="" draggable={false} className="h-full w-full object-cover" />
+      </span>
+      {hydrated &&
+        createPortal(
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                key="peek"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center bg-black/45 backdrop-blur-sm"
+              >
+                <motion.img
+                  src={src}
+                  alt={name ? `${name}’s photo` : "Photo"}
+                  initial={{ scale: 0.6 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0.8 }}
+                  transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
+                  className="aspect-square w-[min(78vw,420px)] rounded-[32px] object-cover shadow-2xl"
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>,
+          document.body,
+        )}
+    </>
   );
 }
