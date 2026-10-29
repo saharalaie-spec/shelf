@@ -1,4 +1,5 @@
 import { ImageResponse } from "next/og";
+import { LOGO_O, LOGO_SQUARE } from "@/lib/logo";
 
 export const size = { width: 64, height: 64 };
 export const contentType = "image/png";
@@ -7,7 +8,7 @@ export default function Icon() {
   return new ImageResponse(<Mark scale={1} />, size);
 }
 
-/** Trove's keyhole "o" on stone, for the browser tab and the home screen. */
+/** Trove's navy "o" on stone, for the browser tab and the home screen. */
 export function Mark({ scale }: { scale: number }) {
   const s = (n: number) => n * scale;
   return (
@@ -22,18 +23,16 @@ export function Mark({ scale }: { scale: number }) {
         borderRadius: s(14),
       }}
     >
-      <KeyholeO size={s(42)} ring={13} />
+      <NavyO size={s(36)} />
     </div>
   );
 }
 
-/** The same keyhole "o" the app draws, for images rendered on the server. */
-export function KeyholeO({ size, ring = 15 }: { size: number; ring?: number }) {
+/** The same "o" the app draws (lib/logo.ts), for images rendered on the server. */
+export function NavyO({ size }: { size: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 100 100">
-      <circle cx="50" cy="50" r={50 - ring / 2} fill="none" stroke="#1c1f26" strokeWidth={ring} />
-      <circle cx="50" cy="42" r="11.5" fill="#1e2b47" />
-      <path d="M43.5 46 L56.5 46 L60.5 71 L39.5 71 Z" fill="#1e2b47" />
+    <svg width={size} height={size} viewBox={LOGO_SQUARE}>
+      <ellipse cx={LOGO_O.cx} cy={LOGO_O.cy} rx={LOGO_O.rx} ry={LOGO_O.ry} fill="#1e2b47" />
     </svg>
   );
 }
