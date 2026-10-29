@@ -83,7 +83,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
       >
         <span className="min-w-0 flex-1">
           <span className="block text-[17px] font-medium">Someone recommended something?</span>
-          <span className="block text-[14px] text-accent-ink/65">Save it, and who it’s from, in seconds.</span>
+          <span className="block text-[14px] text-accent-ink/65">Save it and who in seconds.</span>
         </span>
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-ink text-accent">
           <Icon name="plus" size={22} />
