@@ -28,6 +28,10 @@ export type MetricsInput = {
   itemEvents: { userId: string; at: number }[];
   /** When someone told a friend they loved their pick. */
   thanks: { userId: string; at: number }[];
+  /** Friendships, one row per person per friend (the sample friend left out). */
+  friendships: { userId: string; friendId: string }[];
+  /** When someone saved something from a friend's trove (the sample friend's picks left out). */
+  savedFromFriends: { userId: string; at: number }[];
   /** When counting started: nothing before this was recorded. */
   since: number;
   now: number;
@@ -52,6 +56,8 @@ export type WeekRow = {
   inviteJoins: number;
   /** Friends added by people who were already on Trove. */
   connections: number;
+  /** Things saved from a friend's trove. */
+  savedFromFriends: number;
   active: number;
   visited: number;
 };
@@ -67,6 +73,19 @@ export type Numbers = {
   invites: { shares: number; opens: number; joins: number; conversion: number | null; otherLinkJoins: number; connections: number };
   topInviters: { name: string; joined: number }[];
   cohorts: { start: string; joined: number; backAfterWeek: number | null; backAfterMonth: number | null }[];
+  /** Is it working? Against the goals for the first friend group. */
+  goals: {
+    people: number;
+    /** How many friends each person has on Trove: none, one or two, three or more. */
+    friends: { none: number; few: number; threePlus: number };
+    /** Of everyone, the share with 3+ friends. Goal: 70%. */
+    connected: number | null;
+    /** Of everyone, the share active in the last 7 days. Goal: 40%. */
+    activeWeekly: number | null;
+    /** Saved from a friend in the last 7 days, in all and per active person. Goal: 1 each. */
+    savedFromFriends: number;
+    savedPerActive: number | null;
+  };
 };
 
 /** "2026-10-24" for a moment, in the given time zone. */
@@ -147,6 +166,7 @@ export function computeNumbers(input: MetricsInput): Numbers {
           inviteOpens: 0,
           inviteJoins: 0,
           connections: 0,
+          savedFromFriends: 0,
           active: across(active, start, end).size,
           visited: across(visited, start, end).size,
         },
@@ -190,6 +210,26 @@ export function computeNumbers(input: MetricsInput): Numbers {
     }
   }
   for (const [start, visitors] of opened) rows.get(start)!.inviteOpens = visitors.size;
+
+  // Recommendations passed along: saved from a friend's trove.
+  let savedThisWeek = 0;
+  for (const s of input.savedFromFriends) {
+    if (!counted(s.userId) || s.at < input.since) continue;
+    const row = rowFor(s.at);
+    if (row) row.savedFromFriends++;
+    if (day(s.at) >= weekStart) savedThisWeek++;
+  }
+
+  // How connected everyone is: friends on Trove per person.
+  const everyone = input.users.filter((u) => u.counted);
+  const friendCount = new Map<string, number>();
+  for (const f of input.friendships) if (counted(f.userId)) friendCount.set(f.userId, (friendCount.get(f.userId) ?? 0) + 1);
+  const friends = { none: 0, few: 0, threePlus: 0 };
+  for (const u of everyone) {
+    const n = friendCount.get(u.id) ?? 0;
+    friends[n === 0 ? "none" : n < 3 ? "few" : "threePlus"]++;
+  }
+  const share = (n: number) => (everyone.length ? n / everyone.length : null);
 
   const inviteJoins = joinedSince.filter((u) => u.cameVia === "invite").length;
   const brought = new Map<string, number>();
@@ -237,5 +277,13 @@ export function computeNumbers(input: MetricsInput): Numbers {
       .slice(0, 5)
       .map(([id, joined]) => ({ name: people.get(id)?.name ?? "Someone", joined })),
     cohorts,
+    goals: {
+      people: everyone.length,
+      friends,
+      connected: share(friends.threePlus),
+      activeWeekly: share(weekActive.size),
+      savedFromFriends: savedThisWeek,
+      savedPerActive: weekActive.size ? savedThisWeek / weekActive.size : null,
+    },
   };
 }
