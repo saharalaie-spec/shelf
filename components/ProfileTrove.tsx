@@ -106,7 +106,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         <Link href="/" className="flex items-center gap-2">
           <Wordmark size={24} />
         </Link>
-        {signedIn && (
+        {/* Previewing your own: the banner below already leads back. */}
+        {signedIn && relation.kind !== "self" && (
           <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
             Your trove
           </Link>
