@@ -20,7 +20,7 @@ import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Wordmark } from "./ui";
 
 type Props = {
-  user: Profile & { contact: string; owner?: boolean };
+  user: Profile & { contact: string };
   pendingRequests: number;
   summaries: Record<Kind, Summary>;
   today: TodayCandidates;
@@ -133,7 +133,6 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         }
         privateCount={hidden}
         onProfile={updateProfile}
-        owner={user.owner}
       />
       <CaptureSheet open={capturing} onOpenChange={setCapturing} onSaved={() => router.refresh()} />
     </div>

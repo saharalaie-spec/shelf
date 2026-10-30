@@ -22,11 +22,16 @@ export function FeedbackList({ items }: { items: Feedback[] }) {
         <Link href="/" className="flex items-center gap-2">
           <Wordmark size={24} />
         </Link>
-        {items.length > 0 && (
-          <Button variant="secondary" className="h-10 px-4 text-[14px]" onClick={copyAll} icon={<Icon name="copy" size={16} />}>
-            Copy all
-          </Button>
-        )}
+        <span className="flex items-center gap-1">
+          <Link href="/owner" className="flex h-10 items-center gap-1 rounded-full px-3 text-[14px] font-medium text-ink-2 active:bg-surface-2">
+            Owner
+          </Link>
+          {items.length > 0 && (
+            <Button variant="secondary" className="h-10 px-4 text-[14px]" onClick={copyAll} icon={<Icon name="copy" size={16} />}>
+              Copy all
+            </Button>
+          )}
+        </span>
       </header>
       <h1 className="mt-4 font-serif text-[34px] leading-tight font-medium tracking-tight">Feedback</h1>
       <p className="mt-1 text-[15px] text-muted">{items.length ? `${items.length} ${items.length === 1 ? "note" : "notes"}, newest first.` : "Nothing yet."}</p>

@@ -4,7 +4,7 @@ import { after } from "next/server";
 import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { fillCovers } from "@/lib/covers";
-import { databaseUrl, isOwner, signInChannels } from "@/lib/config";
+import { databaseUrl, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
@@ -45,7 +45,6 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
         isPublic: user.isPublic,
         shareActivity: user.shareActivity,
         photo: user.photo,
-        owner: isOwner(user),
       }}
       pendingRequests={incoming.length}
       initialItems={items}

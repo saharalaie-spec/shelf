@@ -44,7 +44,7 @@ export type TroveActions = Omit<TroveApi, "add"> & {
 
 type Props = {
   kind: Kind;
-  user: Profile & { contact: string; owner?: boolean };
+  user: Profile & { contact: string };
   /** Friend requests waiting for an answer, for the badge on the Friends button. */
   pendingRequests: number;
   initialItems: Item[];
@@ -655,7 +655,6 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         countLabel={v.noun(items.length)}
         privateCount={privateCount}
         onProfile={updateProfile}
-        owner={user.owner}
       />
       {isPlace && (
         <DestinationSheet
