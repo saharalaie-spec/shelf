@@ -46,6 +46,21 @@ function Table({ head, rows }: { head: string[]; rows: (string | number)[][] }) 
   );
 }
 
+/** A number next to the goal it's working towards. */
+function Goal({ label, value, met, goal, note }: { label: string; value: string; met: boolean | null; goal: string; note: string }) {
+  return (
+    <div className="rounded-2xl bg-surface p-4 shadow-book">
+      <p className="text-[13px] text-muted">{label}</p>
+      <p className="mt-1 font-serif text-[32px] leading-none font-medium tracking-tight">{value}</p>
+      <p className={`mt-1.5 text-[13px] font-medium ${met ? "text-good" : "text-ink-2"}`}>
+        {met ? "✓ Goal met: " : "Goal: "}
+        {goal}
+      </p>
+      <p className="mt-1.5 text-[13px] leading-snug text-muted">{note}</p>
+    </div>
+  );
+}
+
 const H2 = ({ children }: { children: React.ReactNode }) => (
   <h2 className="mt-10 font-serif text-[24px] leading-tight font-medium tracking-tight">{children}</h2>
 );
@@ -55,6 +70,7 @@ export function NumbersView({ numbers: n }: { numbers: Numbers }) {
   const throughFriend = n.weeks.reduce((s, w) => s + w.throughFriend, 0);
   const since = new Date(n.since).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: n.timeZone });
   const zone = n.timeZone.split("/").pop()!.replace(/_/g, " ");
+  const g = n.goals;
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16">
@@ -70,6 +86,41 @@ export function NumbersView({ numbers: n }: { numbers: Numbers }) {
       <p className="mt-1 text-[15px] text-muted">
         Counting since {since}, in {zone} time. Your account, test accounts and Juno are left out.
       </p>
+
+      <H2>Is it working?</H2>
+      <p className="mt-1 text-[14px] leading-snug text-muted">
+        For the first friend group: people connected to each other, coming back, and passing things on.
+      </p>
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Goal
+          label="Have 3+ friends here"
+          value={pct(g.connected)}
+          goal="70%"
+          met={g.connected === null ? null : g.connected >= 0.7}
+          note={`${g.friends.threePlus} of ${g.people} · ${g.friends.few} have 1 or 2 · ${g.friends.none} have none`}
+        />
+        <Goal
+          label="Active this week"
+          value={pct(g.activeWeekly)}
+          goal="40%"
+          met={g.activeWeekly === null ? null : g.activeWeekly >= 0.4}
+          note={`${n.week.active} of ${g.people} ${g.people === 1 ? "person" : "people"}, in the last 7 days`}
+        />
+        <Goal
+          label="Saved from a friend"
+          value={g.savedPerActive === null ? "–" : g.savedPerActive.toFixed(1)}
+          goal="1"
+          met={g.savedPerActive === null ? null : g.savedPerActive >= 1}
+          note={`Per active person this week · ${g.savedFromFriends} in all`}
+        />
+        <Goal
+          label="Invite conversion"
+          value={pct(n.invites.conversion)}
+          goal="50%"
+          met={n.invites.conversion === null ? null : n.invites.conversion >= 0.5}
+          note={`${n.invites.joins} joined of ${n.invites.opens} who opened an invite`}
+        />
+      </div>
 
       <H2>Active</H2>
       <p className="mt-1 text-[14px] leading-snug text-muted">
@@ -133,8 +184,8 @@ export function NumbersView({ numbers: n }: { numbers: Numbers }) {
 
       <H2>Week by week</H2>
       <Table
-        head={["Week of", "Visited", "Active", "Invites shared"]}
-        rows={[...n.weeks].reverse().map((w) => [short(w.start), w.visited, w.active, w.inviteShares])}
+        head={["Week of", "Visited", "Active", "Saved from friends", "Invites shared"]}
+        rows={[...n.weeks].reverse().map((w) => [short(w.start), w.visited, w.active, w.savedFromFriends, w.inviteShares])}
       />
     </div>
   );

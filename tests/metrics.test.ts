@@ -24,6 +24,8 @@ const input = (over: Partial<MetricsInput>): MetricsInput => ({
   activity: [],
   itemEvents: [],
   thanks: [],
+  friendships: [],
+  savedFromFriends: [],
   since: SINCE,
   now: NOW,
   timeZone: TZ,
@@ -174,6 +176,51 @@ vi.mock("next/headers", () => ({
   }),
 }));
 
+describe("is it working", () => {
+  it("counts who has 3+ friends, who's active, and what's saved from friends", () => {
+    const people = ["a", "b", "c", "d", "e"].map((id) => user(id, 30));
+    const pair = (x: string, y: string) => [
+      { userId: x, friendId: y },
+      { userId: y, friendId: x },
+    ];
+    const n = computeNumbers(
+      input({
+        // a knows b, c and d; b, c and d know a and each other a little; e knows no one. "owner" isn't counted.
+        users: [...people, user("owner", 60, { counted: false })],
+        friendships: [...pair("a", "b"), ...pair("a", "c"), ...pair("a", "d"), ...pair("b", "c"), ...pair("b", "owner")],
+        itemEvents: [
+          { userId: "a", at: NOW - 1 * DAY },
+          { userId: "b", at: NOW - 2 * DAY },
+          { userId: "owner", at: NOW - 1 * DAY },
+        ],
+        savedFromFriends: [
+          { userId: "a", at: NOW - 1 * DAY },
+          { userId: "a", at: NOW - 3 * DAY },
+          { userId: "b", at: NOW - 2 * DAY },
+          // Last month: not this week, but in its week's row.
+          { userId: "b", at: NOW - 20 * DAY },
+          { userId: "owner", at: NOW - 1 * DAY },
+        ],
+      }),
+    );
+    expect(n.goals).toEqual({
+      people: 5,
+      // a: b, c, d · b: a, c, owner · c: a, b · d: a · e: nobody
+      friends: { none: 1, few: 2, threePlus: 2 },
+      connected: 2 / 5,
+      activeWeekly: 2 / 5,
+      savedFromFriends: 3,
+      savedPerActive: 3 / 2,
+    });
+    expect(n.weeks.reduce((sum, w) => sum + w.savedFromFriends, 0)).toBe(4);
+  });
+
+  it("has nothing to say before anyone's here", () => {
+    const { goals } = computeNumbers(input({}));
+    expect(goals).toMatchObject({ people: 0, connected: null, activeWeekly: null, savedPerActive: null });
+  });
+});
+
 describe("signing up through an invite", () => {
   let auth: typeof import("@/lib/auth");
   let activity: typeof import("@/lib/activity");
@@ -206,5 +253,33 @@ describe("signing up through an invite", () => {
     expect(signups.rows.map((r) => r.ref)).toEqual(["invite:tok123"]);
     // Used once: a second account on this browser isn't credited to the same invite.
     expect(jar.has("trove_via")).toBe(false);
+
+    // Juno doesn't count: being her friend, or saving her picks, isn't the real thing.
+    const { SAMPLE_FRIEND_ID } = await import("@/lib/sample");
+    const guest = String((await client.execute(`SELECT id FROM users WHERE phone = '+14155550701'`)).rows[0].id);
+    const now = Date.now();
+    await client.batch(
+      [
+        { sql: "INSERT INTO users (id, name, created_at) VALUES (?, 'Juno', 1) ON CONFLICT DO NOTHING", args: [SAMPLE_FRIEND_ID] },
+        ...[
+          ["host", guest],
+          [guest, "host"],
+          [guest, SAMPLE_FRIEND_ID],
+        ].map(([a, b]) => ({ sql: "INSERT INTO friendships (user_id, friend_id, created_at) VALUES (?, ?, ?)", args: [a, b, now] })),
+        ...[
+          ["s1", "host"],
+          ["s2", SAMPLE_FRIEND_ID],
+        ].map(([id, from]) => ({
+          sql: `INSERT INTO books (id, user_id, kind, work_key, title, added_at, status, status_at, rec_user_id)
+                VALUES (?, ?, 'book', ?, 'A pick', ?, 'want', ?, ?)`,
+          args: [id, guest, `typed:book:${id}`, now, now, from],
+        })),
+      ],
+      "write",
+    );
+    const { loadNumbers } = await import("@/lib/numbers");
+    const { goals } = await loadNumbers();
+    expect(goals.friends.few).toBeGreaterThanOrEqual(1);
+    expect(goals.savedFromFriends).toBe(1);
   });
 });
