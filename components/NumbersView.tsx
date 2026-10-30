@@ -58,9 +58,12 @@ export function NumbersView({ numbers: n }: { numbers: Numbers }) {
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-16">
-      <header className="flex h-16 items-center pt-[env(safe-area-inset-top)]">
+      <header className="flex h-16 items-center justify-between pt-[env(safe-area-inset-top)]">
         <Link href="/" className="flex items-center gap-2">
           <Wordmark size={24} />
+        </Link>
+        <Link href="/owner" className="flex h-10 items-center gap-1 rounded-full px-3 text-[14px] font-medium text-ink-2 active:bg-surface-2">
+          Owner
         </Link>
       </header>
       <h1 className="mt-4 font-serif text-[34px] leading-tight font-medium tracking-tight">Numbers</h1>
