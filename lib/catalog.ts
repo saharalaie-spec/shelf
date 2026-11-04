@@ -32,8 +32,8 @@ function needArea(area: Area | undefined): Area {
  * Free-text search in one collection. Spots ("place") need the destination to search inside.
  * Throws if the catalog can't be reached.
  */
-export async function searchCatalog(kind: Kind, text: string, limit = 8, area?: Area): Promise<Hit[]> {
-  if (kind === "book") return searchText(text, limit);
+export async function searchCatalog(kind: Kind, text: string, limit = 8, area?: Area, { typing = false } = {}): Promise<Hit[]> {
+  if (kind === "book") return searchText(text, limit, { typing });
   if (kind === "podcast") return podcasts(text, limit);
   if (kind === "place") return spots(text, needArea(area), limit);
   return screen(text, limit);

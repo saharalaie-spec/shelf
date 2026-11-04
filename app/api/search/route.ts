@@ -28,7 +28,7 @@ export const GET = route(async (req: Request) => {
     }
     const isbn = params.get("isbn")?.replace(/[^0-9X]/gi, "");
     if (!isbn && q.length < 2) return Response.json({ results: [] });
-    return Response.json({ results: isbn ? await lookupIsbn(isbn) : await searchCatalog(kind, q, 8) });
+    return Response.json({ results: isbn ? await lookupIsbn(isbn) : await searchCatalog(kind, q, 8, undefined, { typing: true }) });
   } catch (err) {
     if (err instanceof AuthError) throw err;
     console.warn(`${kindParam} search failed:`, (err as Error).message);
