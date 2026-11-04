@@ -44,8 +44,8 @@ const toMessage = (r: Row, me: string): Message => ({
 /** The sample friend can't write back, so she answers on her own, kindly and briefly. */
 const JUNO_REPLY = (item: MessageItem | null) =>
   item
-    ? `Oh, ${item.title}! I loved it, and I think you would too. (I'm Juno, a sample friend: real friends answer for themselves.)`
-    : "Hi! I'm Juno, a sample friend, so I can't really chat. Ask a real friend something and their answer lands here.";
+    ? `Oh, ${item.title}! I loved it, and I think you would too.`
+    : "Hi! Ask me about anything on my lists.";
 
 export async function sendMessage(fromId: string, toId: string, body: string, item: MessageItem | null = null) {
   const text = body.trim().slice(0, MAX_BODY);
