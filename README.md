@@ -89,6 +89,8 @@ After that, every push to `main` goes live by itself. Optional extras, in the sa
 
 ## Configuration
 
+Before inviting people, go through [LAUNCH.md](LAUNCH.md): the domain, sign-in codes, Google Cloud and Claude keys, in order.
+
 Copy `.env.example` to `.env.local`. Everything is optional in development.
 
 | What | Variables |
@@ -101,7 +103,7 @@ Copy `.env.example` to `.env.local`. Everything is optional in development.
 | Reading photos and screenshots | `ANTHROPIC_API_KEY` |
 | Better movie & TV matches and posters | `TMDB_API_KEY` (optional: free from themoviedb.org; without it, IMDb's title suggestions are used, the feed behind imdb.com's own search box, which isn't an official API and can change without notice; if it fails, iTunes and TVmaze) |
 | Better spot search, and place ideas from Google Maps | `GOOGLE_PLACES_API_KEY` (optional: Places API (New) in Google Cloud). With it, spot search uses Google, and Go out's ideas are chosen from Google Maps' own results for what you're after, so every one is a real, open place. Without it, OpenStreetMap is used, and suggested spots only show if the map knows them by name |
-| Google Books fallback | `GOOGLE_BOOKS_API_KEY` |
+| Google Books, asked when Open Library has nothing matching all you typed (without a key, Google turns many requests away) | `GOOGLE_BOOKS_API_KEY` (free: turn on the Books API in a Google Cloud project, then create a key) |
 | Who runs it: opens `/owner` (links to `/numbers` and `/feedback`; nothing in the app links there, so bookmark it) | `OWNERS` (phone numbers or emails, comma-separated); `FEEDBACK_EMAIL` to also get feedback by email |
 | The numbers page | `TIME_ZONE` (days are counted in it; New York unless set), `NOT_COUNTED` (test accounts to leave out) |
 

@@ -67,6 +67,40 @@ describe("book search", () => {
     expect(asked).toEqual(["Take the lead"]);
   });
 
+  it("asks Google Books too when nothing on Open Library matches all you typed, like the author", async () => {
+    vi.stubEnv("BOOKS_PROVIDER", "live");
+    const hosts: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        hosts.push(url.hostname);
+        if (url.hostname === "openlibrary.org") {
+          return Response.json({ docs: [{ key: "/works/OL5W", title: "Take the Lead", author_name: ["Someone Else"], edition_count: 9 }] });
+        }
+        return Response.json({
+          items: [
+            { id: "g1", volumeInfo: { title: "Take the Lead", authors: ["Betsy Myers"], publishedDate: "2011-09-13" } },
+            // The one Open Library already had: not listed twice.
+            { id: "g2", volumeInfo: { title: "Take the Lead", authors: ["Someone Else"] } },
+          ],
+        });
+      }),
+    );
+    const hits = await findBooks({ q: "Take the lead betsy myers", typing: true }, 5);
+    expect(hits.map((h) => [h.title, h.author])).toEqual([
+      ["Take the Lead", "Betsy Myers"],
+      ["Take the Lead", "Someone Else"],
+    ]);
+    expect(hits[1].key).toBe("ol:/works/OL5W");
+    expect(hosts).toContain("www.googleapis.com");
+
+    // When Open Library has it, Google isn't asked.
+    hosts.length = 0;
+    await findBooks({ q: "Take the lead someone", typing: true }, 5);
+    expect(hosts.every((h) => h === "openlibrary.org")).toBe(true);
+  });
+
   it("still answers when the half-word search fails", async () => {
     vi.stubEnv("BOOKS_PROVIDER", "live");
     vi.stubGlobal(

@@ -34,6 +34,7 @@ export async function findBooks(query: Query, limit = 8): Promise<Hit[]> {
   const key = JSON.stringify([query, limit]);
   return cached(key, async () => {
     if (process.env.BOOKS_PROVIDER === "fixture") return fixtureSearch(query, limit);
+    if (query.typing && query.q) return asTheyType(query.q, limit);
     try {
       return await openLibrary(query, limit);
     } catch (err) {
@@ -41,6 +42,35 @@ export async function findBooks(query: Query, limit = 8): Promise<Hit[]> {
       return googleBooks(query, limit);
     }
   });
+}
+
+/**
+ * The search box. Open Library first; if nothing there matches everything they've typed (it's thin on newer books, and
+ * people keep typing the author when they can't see their book), Google Books too, with both lists ranked together.
+ */
+async function asTheyType(q: string, limit: number): Promise<Hit[]> {
+  let failed: unknown = null;
+  const ol = await openLibrary({ q, typing: true }, limit).catch((err) => {
+    failed = err;
+    return [] as Hit[];
+  });
+  const share = (h: Hit) => matchShare(q, h.title, h.author);
+  if (ol.some((h) => share(h) === 1)) return ol;
+  const gb = await googleBooks({ q }, limit).catch((err) => {
+    console.warn("Google Books failed:", (err as Error).message);
+    return [] as Hit[];
+  });
+  if (!ol.length && !gb.length && failed) throw failed;
+  // The same book from both: keep Open Library's (it has better subjects).
+  const id = (h: Hit) => `${plain(h.title.split(/[:(]/)[0])}|${plain(h.author?.split(",")[0] ?? "").split(" ").pop()}`;
+  const seen = new Set<string>();
+  const both = [...ol, ...gb].filter((h) => !seen.has(id(h)) && seen.add(id(h)));
+  // Best match first; ties keep their place (Open Library's ranking, then Google's).
+  return both
+    .map((h, i) => ({ h, i, s: share(h) }))
+    .sort((a, b) => b.s - a.s || a.i - b.i)
+    .slice(0, limit)
+    .map(({ h }) => h);
 }
 
 /**
