@@ -7,7 +7,14 @@ const TIMEOUT_MS = 7000;
 const cache = new Map<string, { at: number; hits: Hit[] }>();
 const CACHE_TTL_MS = 60 * 60 * 1000;
 
-type Query = { q?: string; title?: string; author?: string; isbn?: string };
+type Query = {
+  q?: string;
+  title?: string;
+  author?: string;
+  isbn?: string;
+  /** From the search box, as they type: the last word may be half done. */
+  typing?: boolean;
+};
 
 async function cached(key: string, run: () => Promise<Hit[]>) {
   const hit = cache.get(key);
@@ -68,11 +75,11 @@ export function sameTitle(a: string, b: string) {
 }
 
 /** Free-text search that understands "Title by Author" but falls back to a plain query. */
-export async function searchText(text: string, limit = 8) {
+export async function searchText(text: string, limit = 8, { typing = false } = {}) {
   const split = splitTitleAuthor(text);
-  if (split.q !== undefined) return findBooks(split, limit);
+  if (split.q !== undefined) return findBooks({ ...split, typing }, limit);
   const hits = await findBooks(split, limit);
-  return hits.length ? hits : findBooks({ q: text.trim() }, limit);
+  return hits.length ? hits : findBooks({ q: text.trim(), typing }, limit);
 }
 
 /** "Meditations by Marcus Aurelius" → { title, author }; anything else is a free-text query. */
@@ -126,6 +133,38 @@ type OLDoc = {
 };
 
 async function openLibrary(query: Query, limit: number): Promise<Hit[]> {
+  const wanted = query.title ?? query.q ?? "";
+  // Typing: the last word may be half done ("take the lea"), so also ask for words starting with it ("lea*"). Whichever
+  // answers, the results are ranked together by how well they match.
+  const prefix = query.typing && query.q && /[a-z0-9]{2,}$/i.test(query.q) ? `${query.q}*` : null;
+  const [plain, partial] = await Promise.allSettled([
+    openLibraryDocs(query, limit),
+    prefix ? openLibraryDocs({ q: prefix }, limit) : Promise.resolve([]),
+  ]);
+  if (plain.status === "rejected" && (partial.status === "rejected" || !prefix)) throw plain.reason;
+  const seen = new Set<string>();
+  const docs = [...(plain.status === "fulfilled" ? plain.value : []), ...(partial.status === "fulfilled" ? partial.value : [])].filter(
+    (d) => d.title && !seen.has(d.key) && seen.add(d.key),
+  );
+  // Each list's own order counts a little: interleave them so neither list's top results get pushed down.
+  const order = new Map<string, number>();
+  for (const list of [plain, partial]) if (list.status === "fulfilled") list.value.forEach((d, i) => order.set(d.key, Math.min(order.get(d.key) ?? i, i)));
+
+  return docs
+    .map((d) => ({ d, score: rank(d, order.get(d.key) ?? 0, wanted) }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, limit)
+    .map(({ d }) => ({
+      key: `ol:${d.key}`,
+      title: d.title,
+      author: d.author_name?.slice(0, 2).join(", ") ?? null,
+      year: d.first_publish_year ?? null,
+      coverUrl: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+      categories: categorize(d.subject ?? []),
+    }));
+}
+
+async function openLibraryDocs(query: Query, limit: number): Promise<OLDoc[]> {
   const params = new URLSearchParams({
     fields: "key,title,author_name,first_publish_year,cover_i,subject,edition_count",
     limit: String(Math.max(limit * 2, 10)),
@@ -141,33 +180,36 @@ async function openLibrary(query: Query, limit: number): Promise<Hit[]> {
     signal: AbortSignal.timeout(TIMEOUT_MS),
   });
   if (!res.ok) throw new Error(`Open Library ${res.status}`);
-  const data = (await res.json()) as { docs: OLDoc[] };
-  const wanted = (query.title ?? query.q ?? "").toLowerCase();
-
-  return data.docs
-    .filter((d) => d.title)
-    .map((d, i) => ({ d, score: rank(d, i, wanted) }))
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
-    .map(({ d }) => ({
-      key: `ol:${d.key}`,
-      title: d.title,
-      author: d.author_name?.slice(0, 2).join(", ") ?? null,
-      year: d.first_publish_year ?? null,
-      coverUrl: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
-      categories: categorize(d.subject ?? []),
-    }));
+  return ((await res.json()) as { docs: OLDoc[] }).docs;
 }
 
-/** Open Library's order is decent but loves obscure editions; nudge famous, well-matched books up. */
+const words = (s: string) => plain(s).split(" ").filter(Boolean);
+
+/**
+ * How much of what they typed the book matches, 0 to 1: each word found in its title or author, the last one as the
+ * start of a word, since they may still be typing it ("take the lea" → Take the Lead).
+ */
+export function matchShare(typed: string, title: string, author: string | null = null) {
+  const want = words(typed);
+  if (!want.length) return 0;
+  const have = [...words(title), ...words(author ?? "")];
+  const found = want.filter((w, i) => have.some((h) => (i === want.length - 1 ? h.startsWith(w) : h === w)));
+  return found.length / want.length;
+}
+
+/**
+ * Matching what they typed comes first; how famous a book is only breaks ties, so a book with thousands of editions
+ * (the Bible) can't outrank the one they're typing. Open Library's own order counts a little.
+ */
 function rank(d: OLDoc, index: number, wanted: string) {
-  const title = d.title.toLowerCase();
-  let score = -index;
-  score += Math.log2((d.edition_count ?? 1) + 1) * 1.5;
-  if (wanted && title === wanted) score += 6;
-  else if (wanted && title.startsWith(wanted)) score += 2;
-  if (d.cover_i) score += 1;
-  return score;
+  const title = plain(d.title);
+  const typed = plain(wanted);
+  let score = matchShare(wanted, d.title, d.author_name?.join(" ") ?? null) * 10;
+  if (typed && title === typed) score += 3;
+  if (typed && title.startsWith(typed)) score += 4;
+  score += Math.min(Math.log2((d.edition_count ?? 1) + 1), 10) * 0.4;
+  if (d.cover_i) score += 0.5;
+  return score - index * 0.3;
 }
 
 // ---------- Google Books ----------
