@@ -89,6 +89,8 @@ After that, every push to `main` goes live by itself. Optional extras, in the sa
 
 ## Configuration
 
+Before inviting people, go through [LAUNCH.md](LAUNCH.md): the domain, sign-in codes, Google Cloud and Claude keys, in order.
+
 Copy `.env.example` to `.env.local`. Everything is optional in development.
 
 | What | Variables |
