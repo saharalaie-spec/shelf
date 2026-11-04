@@ -3,7 +3,7 @@
  *
  * - Visited: opened Trove while signed in that day.
  * - Active: did something that's Trove's point that day: saved something, started or finished something, looked
- *   through a friend's trove, used "Stuck on what's next?", told a friend you loved their pick, or added a friend.
+ *   through a friend's trove, used "Stuck on what's next?", told a friend you loved their pick, messaged a friend, or added one.
  *
  * Days are counted in one time zone (TIME_ZONE). The owners, NOT_COUNTED test accounts and the sample friend are
  * left out before anything is counted. `computeNumbers` is pure, so it can be tested; `loadNumbers` feeds it.
@@ -39,7 +39,7 @@ export type MetricsInput = {
 };
 
 /** Actions that make a day "active" (saves, moves and thank-yous come from their own tables). */
-const MEANINGFUL = new Set(["friend_added", "friend_trove", "next_open", "ideas", "ask"]);
+const MEANINGFUL = new Set(["friend_added", "friend_trove", "next_open", "ideas", "ask", "message"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKS = 8;
 const DAYS = 14;

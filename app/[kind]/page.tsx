@@ -8,6 +8,7 @@ import { databaseUrl, signInChannels } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
+import { unreadCount } from "@/lib/messages";
 import { incomingRequests } from "@/lib/social";
 import { Login } from "@/components/Login";
 import { SetupNeeded } from "@/components/SetupNeeded";
@@ -27,9 +28,10 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
   if (!user) return <Login channels={signInChannels()} />;
   // Anything saved without a cover gets one looked up, after the page is sent.
   if (kind !== "place") after(() => fillCovers(user.id));
-  const [items, incoming, destinations] = await Promise.all([
+  const [items, incoming, unread, destinations] = await Promise.all([
     listItems(user.id, { kind, includePrivate: true }),
     incomingRequests(user),
+    unreadCount(user.id),
     kind === "place" ? listDestinations(user.id, { includePrivate: true, includeEmpty: true }) : Promise.resolve([]),
   ]);
   return (
@@ -46,7 +48,7 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
         shareActivity: user.shareActivity,
         photo: user.photo,
       }}
-      pendingRequests={incoming.length}
+      pendingRequests={incoming.length + unread}
       initialItems={items}
       initialDestinations={destinations}
       features={{ photo: aiEnabled() }}

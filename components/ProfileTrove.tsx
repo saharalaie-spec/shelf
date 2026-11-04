@@ -13,6 +13,7 @@ import { Login, type Channels } from "./Login";
 import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
+import { AskBox } from "./AskBox";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
@@ -60,6 +61,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   };
   const [mine, setMine] = useState(initialMine);
   const [open, setOpen] = useState<Item | null>(null);
+  // Writing to them about the one that's open.
+  const [asking, setAsking] = useState(false);
   const [lastOpen, setLastOpen] = useState<Item | null>(null);
   const [signingIn, setSigningIn] = useState(false);
   const name = person.name ?? "Someone on Trove";
@@ -184,11 +187,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             className="px-5"
           >
             {isPlace ? (
-              <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b))} />
+              <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
                 {inSection.map((b) => (
-                  <ReadingRow key={b.id} v={v} book={b} onOpen={() => (setOpen(b), setLastOpen(b))} />
+                  <ReadingRow key={b.id} v={v} book={b} onOpen={() => (setOpen(b), setLastOpen(b), setAsking(false))} />
                 ))}
               </ul>
             ) : (
@@ -201,7 +204,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
                     transition={{ delay: Math.min(i, 18) * 0.025, type: "spring", stiffness: 380, damping: 32 }}
                   >
                     <button
-                      onClick={() => (setOpen(b), setLastOpen(b))}
+                      onClick={() => (setOpen(b), setLastOpen(b), setAsking(false))}
                       className="block w-full text-left transition-transform active:scale-[0.96]"
                     >
                       <Cover book={b} shape={v.shape} />
@@ -276,6 +279,20 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
               </div>
             )}
             <BookActions book={shown} relation={relation} mine={mine[shown.key]} onSave={save} />
+            {relation.kind === "friend" &&
+              (asking ? (
+                <AskBox
+                  key={shown.id}
+                  friend={person}
+                  item={{ kind: shown.kind, key: shown.key, title: shown.title, author: shown.author, coverUrl: shown.coverUrl }}
+                  status={shown.status}
+                  onDone={() => setAsking(false)}
+                />
+              ) : (
+                <Button variant="secondary" className="mt-2 w-full" onClick={() => setAsking(true)} icon={<Icon name="chat" size={18} />}>
+                  Ask {person.name ?? "them"} about it
+                </Button>
+              ))}
             <div className="mt-2 mb-2 flex flex-wrap gap-2">
               {itemLinks(shown, shown.kind).map((l) => (
                 <a

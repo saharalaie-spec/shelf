@@ -7,6 +7,7 @@ import { ago, api, itemLinks } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import type { FriendsTable, TableFriend, TableItem, TablePlace } from "@/lib/table";
 import type { Kind, Status } from "@/lib/types";
+import { AskBox } from "./AskBox";
 import { Cover } from "./Cover";
 import { SampleCard } from "./FriendsPanel";
 import { Sheet } from "./Sheet";
@@ -270,22 +271,11 @@ function ItemDetail({ item, mine, onSave }: { item: TableItem; mine: Status | nu
   );
 }
 
-/** Who's into it, and a way to ask each of them about it. */
+/** Who's into it, and a way to ask each of them about it, in Trove. */
 function FriendList({ item }: { item: TableItem }) {
   const hydrated = useHydrated();
-  const ask = async (f: TableFriend) => {
-    const text = `${f.name ? `${f.name}, w` : "W"}hat did you think of ${item.title}?`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ text });
-        return;
-      } catch (err) {
-        if ((err as DOMException).name === "AbortError") return;
-      }
-    }
-    await navigator.clipboard?.writeText(text).catch(() => {});
-    toast(`Copied. Paste it to ${f.name ?? "them"}.`);
-  };
+  const [asking, setAsking] = useState<string | null>(null);
+  const about = { kind: item.kind, key: item.workKey, title: item.title, author: item.author, coverUrl: item.coverUrl };
   return (
     <>
       <p className="mt-6 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">
@@ -293,7 +283,8 @@ function FriendList({ item }: { item: TableItem }) {
       </p>
       <ul className="-mx-2">
         {item.friends.map((f) => (
-          <li key={f.id} className="flex items-center gap-3 rounded-2xl px-2 py-1.5">
+          <li key={f.id} className="rounded-2xl px-2 py-1.5">
+            <div className="flex items-center gap-3">
             <Avatar name={f.name} photo={f.photo} size={36} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">
@@ -306,12 +297,15 @@ function FriendList({ item }: { item: TableItem }) {
               </span>
             </span>
             <button
-              onClick={() => ask(f)}
+              onClick={() => setAsking(asking === f.id ? null : f.id)}
+              aria-expanded={asking === f.id}
               className="h-9 shrink-0 rounded-full bg-surface-2 px-3.5 text-[14px] font-medium active:scale-95"
               aria-label={`Ask ${f.name ?? "them"} about ${item.title}`}
             >
               Ask
             </button>
+            </div>
+            {asking === f.id && <AskBox friend={f} item={about} status={f.status} onDone={() => setAsking(null)} />}
           </li>
         ))}
       </ul>

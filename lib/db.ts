@@ -339,6 +339,28 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `ALTER TABLE users ADD COLUMN photo_at INTEGER`,
     ],
   },
+  {
+    id: "2026-11-04-messages",
+    statements: [
+      // Messages between two friends (lib/messages.ts), often asking about something one of them has.
+      `CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        from_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        to_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body TEXT NOT NULL,
+        -- What it's about, as it was then, so it still reads right if the item changes or goes.
+        item_kind TEXT,
+        item_key TEXT,
+        item_title TEXT,
+        item_author TEXT,
+        item_cover TEXT,
+        created_at INTEGER NOT NULL,
+        read_at INTEGER
+      )`,
+      `CREATE INDEX IF NOT EXISTS messages_to_unread ON messages (to_user, read_at)`,
+      `CREATE INDEX IF NOT EXISTS messages_from ON messages (from_user, created_at)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {
