@@ -125,7 +125,7 @@ export function NumbersView({ numbers: n }: { numbers: Numbers }) {
       <H2>Active</H2>
       <p className="mt-1 text-[14px] leading-snug text-muted">
         Active means they saved, started or finished something, looked through a friend’s trove, used “Stuck on what’s
-        next?”, thanked a friend or added one. Visited means they opened Trove.
+        next?”, thanked or messaged a friend, or added one. Visited means they opened Trove.
       </p>
       <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
         <Stat label="Active this week" value={n.week.active} note={`${n.week.visited} visited`} />

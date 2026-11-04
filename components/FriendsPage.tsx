@@ -7,23 +7,31 @@ import { api } from "@/lib/client";
 import type { FriendsTable } from "@/lib/table";
 import { FriendsPanel } from "./FriendsPanel";
 import { FriendsTableView } from "./FriendsTable";
+import { MessagesList } from "./MessagesList";
 import { Logo } from "./ui";
 
-type Tab = "table" | "people";
+export type FriendsTab = "table" | "people" | "messages";
 
 type Props = {
   name: string | null;
   pendingRequests: number;
+  /** Messages from friends not read yet. */
+  unreadMessages: number;
   initialTable: FriendsTable;
+  /** Asked for by the link (`?tab=`), e.g. back from a conversation. */
+  initialTab?: FriendsTab | null;
 };
 
-/** The friends section: the Table (what friends are into) and People (invites, requests, your circle). */
-export function FriendsPage({ name: initialName, pendingRequests, initialTable }: Props) {
+/** The friends section: Lately (what friends are into), People (invites, requests, your circle) and Messages. */
+export function FriendsPage({ name: initialName, pendingRequests, unreadMessages, initialTable, initialTab = null }: Props) {
   const [name, setName] = useState(initialName);
   const [pending, setPending] = useState(pendingRequests);
   const [table, setTable] = useState(initialTable);
-  // Requests waiting, or nobody to show yet: start on People.
-  const [tab, setTab] = useState<Tab>(pendingRequests > 0 || initialTable.friendCount === 0 ? "people" : "table");
+  // Asked for, or requests waiting, or nobody to show yet (People), or a message waiting.
+  const [tab, setTab] = useState<FriendsTab>(
+    initialTab ??
+      (pendingRequests > 0 || initialTable.friendCount === 0 ? "people" : unreadMessages > 0 ? "messages" : "table"),
+  );
 
   const reloadTable = () => api<FriendsTable>("/api/friends/table").then(setTable).catch(() => {});
 
@@ -40,7 +48,8 @@ export function FriendsPage({ name: initialName, pendingRequests, initialTable }
           {(
             [
               ["table", "Lately"],
-              ["people", pending ? `People · ${pending} new` : "People"],
+              ["people", pending ? `People · ${pending}` : "People"],
+              ["messages", unreadMessages && tab !== "messages" ? `Messages · ${unreadMessages}` : "Messages"],
             ] as const
           ).map(([t, label]) => (
             <button
@@ -65,7 +74,9 @@ export function FriendsPage({ name: initialName, pendingRequests, initialTable }
       </header>
 
       <main className="px-5 pt-3">
-        {tab === "table" ? (
+        {tab === "messages" ? (
+          <MessagesList />
+        ) : tab === "table" ? (
           <>
             <p className="mb-5 text-[15px] text-muted">What your friends are into lately. Your circle comes first.</p>
             <FriendsTableView table={table} onFindFriends={() => setTab("people")} onSampleAdded={reloadTable} />

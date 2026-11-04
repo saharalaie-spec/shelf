@@ -9,6 +9,7 @@ import { suggestEnabled } from "@/lib/suggest";
 import { unseenThanks } from "@/lib/thanks";
 import { todayCandidates } from "@/lib/today";
 import { summarize } from "@/lib/trove";
+import { unreadCount } from "@/lib/messages";
 import { incomingRequests } from "@/lib/social";
 import { Home } from "@/components/Home";
 import { Login } from "@/components/Login";
@@ -23,9 +24,10 @@ export default async function HomePage() {
   await refreshSampleFriendFor(user.id);
   // Anything saved without a cover gets one looked up, after the page is sent.
   after(() => fillCovers(user.id));
-  const [summaries, incoming, destinations, thanks] = await Promise.all([
+  const [summaries, incoming, unread, destinations, thanks] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
     incomingRequests(user),
+    unreadCount(user.id),
     listDestinations(user.id, { includePrivate: true, includeEmpty: true }),
     unseenThanks(user.id),
   ]);
@@ -41,7 +43,7 @@ export default async function HomePage() {
         shareActivity: user.shareActivity,
         photo: user.photo,
       }}
-      pendingRequests={incoming.length}
+      pendingRequests={incoming.length + unread}
       summaries={summaries}
       today={today}
       thanks={thanks}

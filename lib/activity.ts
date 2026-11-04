@@ -16,7 +16,8 @@ export type Action =
   | "friend_trove" // looked through a friend's trove; ref is the friend
   | "next_open" // opened "Stuck on what's next?"; ref is the kind
   | "ideas" // asked for ideas there; ref is the kind
-  | "ask"; // said what they're after, in their own words; ref is the kind
+  | "ask" // said what they're after, in their own words; ref is the kind
+  | "message"; // sent a friend a message; ref is the friend
 
 /** Actions the browser may record itself; the rest are recorded where they happen on the server. */
 export const CLIENT_ACTIONS = new Set<Action>(["invite_share", "next_open"]);

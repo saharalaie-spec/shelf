@@ -4,12 +4,12 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { Icon } from "./ui";
 
-/** The people icon, to the Friends page, with a badge for friend requests waiting on you. */
+/** The people icon, to the Friends page, with a badge for what's waiting on you: friend requests and unread messages. */
 export function FriendsButton({ pending }: { pending: number }) {
   return (
     <Link
       href="/friends"
-      aria-label={pending ? `Friends, ${pending} new ${pending === 1 ? "request" : "requests"}` : "Friends"}
+      aria-label={pending ? `Friends, ${pending} new` : "Friends"}
       className="relative flex h-10 w-10 items-center justify-center rounded-full bg-surface-2 transition-transform active:scale-95"
     >
       <Icon name="people" size={19} />
