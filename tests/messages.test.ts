@@ -68,7 +68,7 @@ describe("messages", () => {
     const thread = await messages.readThread(dee.id, SAMPLE_FRIEND_ID);
     expect(thread).toHaveLength(2);
     expect(thread[1]).toMatchObject({ mine: false });
-    expect(thread[1].body).toMatch(/Time Out Market.*sample friend/);
+    expect(thread[1].body).toBe("Oh, Time Out Market! I loved it, and I think you would too.");
     // A thank-you back gets no canned answer.
     await messages.sendMessage(dee.id, SAMPLE_FRIEND_ID, "Thanks!");
     expect(await messages.readThread(dee.id, SAMPLE_FRIEND_ID)).toHaveLength(3);
