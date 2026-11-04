@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { databaseUrl } from "@/lib/config";
+import { databaseUrl, siteUrl } from "@/lib/config";
 import { inviteToken } from "@/lib/social";
 import { startFrom } from "@/lib/start";
 import { suggestEnabled } from "@/lib/suggest";
@@ -31,6 +31,7 @@ export default async function StartPage({ searchParams }: PageProps<"/start">) {
       mine={own.map((i) => ({ id: i.id, key: i.key, kind: i.kind, title: i.title, status: i.status }))}
       features={{ deck: suggestEnabled() }}
       inviteToken={token}
+      siteUrl={siteUrl()}
     />
   );
 }

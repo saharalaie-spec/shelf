@@ -20,7 +20,8 @@ import { AvatarButton, FriendsButton } from "./HeaderButtons";
 import { Icon, KIND_ICON, Wordmark } from "./ui";
 
 type Props = {
-  user: Profile & { contact: string };
+  /** siteUrl: the address links are shared on (lib/config.ts), when the server knows it. */
+  user: Profile & { contact: string; siteUrl: string | null };
   pendingRequests: number;
   summaries: Record<Kind, Summary>;
   today: TodayCandidates;
@@ -126,6 +127,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         onOpenChange={setAccount}
         profile={profile}
         contact={user.contact}
+        siteUrl={user.siteUrl}
         countLabel={
           KINDS.map((k, i) => (totals[i] ? VOCAB[k].noun(totals[i]) : null))
             .filter(Boolean)

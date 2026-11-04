@@ -23,6 +23,8 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   profile: Profile;
   contact: string;
+  /** The address your profile link is shared on; the one this page is open on if unknown. */
+  siteUrl: string | null;
   /** "46 books": how much is in the collection on screen. */
   countLabel: string;
   privateCount: number;
@@ -145,6 +147,7 @@ const HANDLE_RE = /^[a-z0-9][a-z0-9_.]{1,18}[a-z0-9]$/;
 function AccountBody({
   profile,
   contact,
+  siteUrl,
   countLabel,
   privateCount,
   onProfile,
@@ -189,7 +192,7 @@ function AccountBody({
       />
 
       <p className="mt-7 mb-2 text-[13px] font-medium tracking-wide text-muted uppercase">Who sees your trove</p>
-      <ProfileSettings profile={profile} privateCount={privateCount} onProfile={onProfile} />
+      <ProfileSettings profile={profile} privateCount={privateCount} onProfile={onProfile} siteUrl={siteUrl} />
 
       <Button variant="secondary" className="mt-7 w-full" onClick={onFeedback} icon={<Icon name="mic" size={18} />}>
         Send feedback
@@ -259,10 +262,12 @@ function ProfileSettings({
   profile,
   privateCount,
   onProfile,
+  siteUrl,
 }: {
   profile: Profile;
   privateCount: number;
   onProfile: (patch: Partial<Profile>) => void;
+  siteUrl: string | null;
 }) {
   const hydrated = useHydrated();
   const [saving, setSaving] = useState(false);
@@ -270,8 +275,9 @@ function ProfileSettings({
   const [error, setError] = useState<string>();
   const [copied, setCopied] = useState(false);
   const ref = profile.handle ?? profile.id;
-  const host = hydrated ? window.location.host : "";
-  const url = hydrated ? `${window.location.origin}/u/${ref}` : "";
+  const base = siteUrl ?? (hydrated ? window.location.origin : "");
+  const host = base ? new URL(base).host : "";
+  const url = base ? `${base}/u/${ref}` : "";
 
   const setActivity = async (shareActivity: boolean) => {
     onProfile({ shareActivity });

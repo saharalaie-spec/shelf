@@ -28,6 +28,8 @@ type Props = {
   features: { deck: boolean };
   /** Your invite link's token, for the last step. */
   inviteToken: string;
+  /** The address links are shared on (lib/config.ts), when the server knows it. */
+  siteUrl: string | null;
 };
 
 type Step = "friend" | `loved:${Kind}` | "deck" | "invite";
@@ -49,7 +51,7 @@ const WANT = (kind: Kind) => (kind === "place" ? "Want to go" : "Want it");
  * Getting started without logging everything: two things you loved per collection (each one skippable), a friend's
  * trove (first, when you came in on their invite), then a quick deck.
  */
-export function Start({ name, from, invited, mine, features, inviteToken }: Props) {
+export function Start({ name, from, invited, mine, features, inviteToken, siteUrl }: Props) {
   const router = useRouter();
   const loved = KINDS.map((k) => `loved:${k}` as const);
   const steps: Step[] = [
@@ -176,7 +178,7 @@ export function Start({ name, from, invited, mine, features, inviteToken }: Prop
             />
           )}
           {step === "deck" && <Deck have={have} save={save} />}
-          {step === "invite" && <InviteStep name={name} token={inviteToken} />}
+          {step === "invite" && <InviteStep name={name} token={inviteToken} siteUrl={siteUrl} />}
         </motion.main>
       </AnimatePresence>
 
@@ -592,10 +594,10 @@ function DeckFace({ card }: { card: DeckCard }) {
 }
 
 /** The last step: send your invite link to the people you swap recommendations with. */
-function InviteStep({ name: initialName, token }: { name: string | null; token: string }) {
+function InviteStep({ name: initialName, token, siteUrl }: { name: string | null; token: string; siteUrl: string | null }) {
   const [name, setName] = useState(initialName ?? "");
   const [sent, setSent] = useState<"shared" | "copied" | null>(null);
-  const link = () => `${window.location.origin}/f/${token}`;
+  const link = () => `${siteUrl ?? window.location.origin}/f/${token}`;
   // Friends see your name on the invite: keep it if it's new.
   const keepName = () => {
     const n = name.trim();

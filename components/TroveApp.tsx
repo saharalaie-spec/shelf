@@ -44,7 +44,8 @@ export type TroveActions = Omit<TroveApi, "add"> & {
 
 type Props = {
   kind: Kind;
-  user: Profile & { contact: string };
+  /** siteUrl: the address links are shared on (lib/config.ts), when the server knows it. */
+  user: Profile & { contact: string; siteUrl: string | null };
   /** Friend requests waiting for an answer, for the badge on the Friends button. */
   pendingRequests: number;
   initialItems: Item[];
@@ -652,6 +653,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         onOpenChange={setAccount}
         profile={profile}
         contact={user.contact}
+        siteUrl={user.siteUrl}
         countLabel={v.noun(items.length)}
         privateCount={privateCount}
         onProfile={updateProfile}

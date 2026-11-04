@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { fillCovers } from "@/lib/covers";
-import { databaseUrl, signInChannels } from "@/lib/config";
+import { databaseUrl, signInChannels, siteUrl } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { suggestEnabled } from "@/lib/suggest";
@@ -42,6 +42,7 @@ export default async function HomePage() {
         isPublic: user.isPublic,
         shareActivity: user.shareActivity,
         photo: user.photo,
+        siteUrl: siteUrl(),
       }}
       pendingRequests={incoming.length + unread}
       summaries={summaries}
