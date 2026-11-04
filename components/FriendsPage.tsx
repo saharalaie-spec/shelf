@@ -22,7 +22,7 @@ type Props = {
   initialTab?: FriendsTab | null;
 };
 
-/** The friends section: Lately (what friends are into), People (invites, requests, your circle) and Messages. */
+/** The friends section: Lately (what friends are into), People (invites, requests, your friends) and Messages. */
 export function FriendsPage({ name: initialName, pendingRequests, unreadMessages, initialTable, initialTab = null }: Props) {
   const [name, setName] = useState(initialName);
   const [pending, setPending] = useState(pendingRequests);
@@ -78,7 +78,7 @@ export function FriendsPage({ name: initialName, pendingRequests, unreadMessages
           <MessagesList />
         ) : tab === "table" ? (
           <>
-            <p className="mb-5 text-[15px] text-muted">What your friends are into lately. Your circle comes first.</p>
+            <p className="mb-5 text-[15px] text-muted">What your friends are into lately.</p>
             <FriendsTableView table={table} onFindFriends={() => setTab("people")} onSampleAdded={reloadTable} />
           </>
         ) : (

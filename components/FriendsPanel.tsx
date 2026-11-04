@@ -24,11 +24,11 @@ type Props = {
   onName: (name: string) => void;
   /** Keeps the requests count in step. */
   onPending: (count: number) => void;
-  /** Your circle or your friends changed, so the Table should refresh. */
+  /** Your friends changed, so Lately should refresh. */
   onTableChange: () => void;
 };
 
-/** Inviting people, answering requests, and your friends (with your circle on top). */
+/** Inviting people, answering requests, and your friends. */
 export function FriendsPanel({ name, onName, onPending, onTableChange }: Props) {
   const [data, setData] = useState<Data | null>(null);
 
@@ -68,19 +68,6 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
   const [busy, setBusy] = useState<string | null>(null);
   const [filter, setFilter] = useState("");
 
-  const toggleCircle = async (f: Friend) => {
-    const on = !f.inCircle;
-    setData((d) => d && { ...d, friends: d.friends.map((x) => (x.id === f.id ? { ...x, inCircle: on } : x)) });
-    try {
-      await api("/api/friends/circle", { body: { friendId: f.id, on } });
-      toast(on ? `${f.name ?? "They"} joined your circle` : `${f.name ?? "They"} left your circle`);
-      onTableChange();
-    } catch (err) {
-      setData((d) => d && { ...d, friends: d.friends.map((x) => (x.id === f.id ? { ...x, inCircle: !on } : x)) });
-      toast.error((err as Error).message);
-    }
-  };
-  const circleSize = data?.friends.filter((f) => f.inCircle).length ?? 0;
   const q = filter.trim().toLowerCase();
   const shown = data ? data.friends.filter((f) => !q || (f.name ?? "").toLowerCase().includes(q)) : [];
 
@@ -191,16 +178,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
       ) : (
         hasFriends && (
           <>
-            <Heading
-              first={!data.incoming.length}
-              aside={
-                <span className="flex items-center gap-1 text-[12px] text-muted">
-                  <span className="text-[14px] leading-none text-link">★</span> Circle {circleSize}/15
-                </span>
-              }
-            >
-              Friends · {data.friends.length}
-            </Heading>
+            <Heading first={!data.incoming.length}>Friends · {data.friends.length}</Heading>
             {data.friends.length > 12 && (
               <input
                 value={filter}
@@ -212,8 +190,8 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
             )}
             <ul className="-mx-2">
               {shown.map((f) => (
-                <li key={f.id} className="flex items-center">
-                  <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
+                <li key={f.id}>
+                  <Link href={`/u/${f.handle ?? f.id}`} className="flex min-w-0 items-center gap-3 rounded-2xl px-2 py-2.5 active:bg-surface-2">
                     <Avatar name={f.name} photo={f.photo} size={44} />
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[16px] font-medium">
@@ -225,23 +203,11 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
                       </span>
                       {(f.fromThem > 0 || f.fromMe > 0) && <span className="block truncate text-[13px] text-ink-2">{swapLine(f)}</span>}
                     </span>
+                    <Icon name="chevron" size={16} className="shrink-0 text-muted" />
                   </Link>
-                  <button
-                    onClick={() => toggleCircle(f)}
-                    aria-pressed={f.inCircle}
-                    aria-label={f.inCircle ? `Take ${f.name ?? "them"} out of your circle` : `Add ${f.name ?? "them"} to your circle`}
-                    className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[22px] leading-none transition-transform active:scale-90 ${
-                      f.inCircle ? "text-link" : "text-line"
-                    }`}
-                  >
-                    {f.inCircle ? "★" : "☆"}
-                  </button>
                 </li>
               ))}
             </ul>
-            {circleSize === 0 && (
-              <p className="mt-1 text-[13px] leading-snug text-muted">Star up to 15 people to put their picks first on Lately. Only you see who.</p>
-            )}
 
             <Heading>Add friends</Heading>
             {invite}

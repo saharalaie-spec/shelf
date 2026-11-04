@@ -362,11 +362,21 @@ describe("the Table", () => {
     await trove.addItems(me.id, "book", [book("fx:yours", "On your list", { status: "want" })]);
     await social.setCircle(me.id, c.id, true);
 
-    const t = await table.friendsTable(me.id, now);
-    expect(titles(t.reading)).toEqual(["On your list", "Your pick", "Circle pick", "Popular"]);
-    expect(t.reading[0].mine).toBe("want");
-    expect(t.reading[1].yourPick).toBe(true);
-    expect(t.reading[2].friends[0]).toMatchObject({ name: "Cy", circle: true });
+    // Circles are off for now: a star set earlier changes nothing, and what most friends are into comes next.
+    const off = await table.friendsTable(me.id, now);
+    expect(titles(off.reading)).toEqual(["On your list", "Your pick", "Popular", "Circle pick"]);
+    expect(off.reading[3].friends[0]).toMatchObject({ name: "Cy", circle: false });
+
+    vi.stubEnv("CIRCLES", "on");
+    try {
+      const t = await table.friendsTable(me.id, now);
+      expect(titles(t.reading)).toEqual(["On your list", "Your pick", "Circle pick", "Popular"]);
+      expect(t.reading[0].mine).toBe("want");
+      expect(t.reading[1].yourPick).toBe(true);
+      expect(t.reading[2].friends[0]).toMatchObject({ name: "Cy", circle: true });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it("groups friends' spots under the place they're in", async () => {
@@ -388,6 +398,8 @@ describe("the Table", () => {
 
 describe("your circle", () => {
   it("is for friends only, holds 15, and clears when you unfriend", async () => {
+    // Off for now (lib/social.ts): this is how it works when it's back.
+    vi.stubEnv("CIRCLES", "on");
     const me = await signUp({ phone: "+14155550431" }, "Eve");
     const stranger = await signUp({ phone: "+14155550432" });
     await expect(social.setCircle(me.id, stranger.id, true)).rejects.toThrow(/friends/);
@@ -410,6 +422,7 @@ describe("your circle", () => {
     await social.unfriend(me.id, friends[0].id);
     await social.acceptInvite(friends[0], await social.inviteToken(me.id));
     expect((await social.listFriends(me.id)).find((f) => f.id === friends[0].id)?.inCircle).toBe(false);
+    vi.unstubAllEnvs();
   });
 });
 
