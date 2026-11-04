@@ -21,6 +21,32 @@ export type Choice = TodayPick & { note?: string };
 /** Picking something that isn't on your lists yet: what to save, who it's from, and for a spot, where. */
 export type ChoiceSave = { hit: Hit; friendId: string | null; destinationId: string | null; area?: Area | null };
 
+const KEEP_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * Kept on this device for a while, so leaving doesn't lose it: opening a map and coming back, closing the sheet, or the
+ * phone reloading the page. Sheets only render in the browser, so these are safe to call while rendering.
+ */
+function recall<T>(key: string): T | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const { at, value } = JSON.parse(raw) as { at: number; value: T };
+    return Date.now() - at < KEEP_MS ? value : null;
+  } catch {
+    return null;
+  }
+}
+function keep(key: string, value: unknown) {
+  try {
+    if (value == null) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify({ at: Date.now(), value }));
+  } catch {
+    // Private browsing or storage full: it just won't be kept.
+  }
+}
+const CITY_KEY = "trove:ideas:city";
+
 const TITLE: Record<Kind, string> = {
   podcast: "Something to listen to",
   book: "Something to read",
@@ -66,7 +92,11 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
   const fits = (p: TodayPick) =>
     kind !== "screen" || format === "any" || (screenFormat({ key: p.workKey, categories: p.categories, author: p.author }) ?? format) === format;
   // Places: nothing is picked for you, and looking a city up saves nothing. Spots wait until you say where.
-  const [city, setCity] = useState<AreaHit | null>(null);
+  const [city, setCityState] = useState<AreaHit | null>(() => (isPlace ? recall<AreaHit>(CITY_KEY) : null));
+  const setCity = (c: AreaHit | null) => {
+    setCityState(c);
+    keep(CITY_KEY, c);
+  };
   const there = useFriendsIn(isPlace ? city : null)
     .map((f) => ({ ...f, spots: f.spots.filter((i) => !taken.has(i.key)) }))
     .filter((f) => f.spots.length > 0);
@@ -341,6 +371,8 @@ type Format = "movie" | "tv";
  * and your friends', like the other ideas. Watching asks movie or show first; going out needs the city. Then: three
  * different ones, or explain more and ask again.
  */
+type Asked = { wish: string; area: string | null; picks?: Suggestion[]; destinationId?: string | null; error?: string };
+
 function TellUs({
   kind,
   mood,
@@ -349,17 +381,14 @@ function TellUs({
   onChoose,
   taken,
 }: Pick<Props, "kind" | "onChoose"> & { mood: Mood; area: AreaHit | null; format: Format | null; taken: Set<string> }) {
-  const [text, setText] = useState("");
+  // The last answer is kept until a new ask or Clear (see recall), so the other ideas are still there after looking one up.
+  const keyFor = `trove:ideas:${kind}`;
+  const [kept] = useState(() => recall<{ text: string; watch: Format | "either" | null; asked: Asked }>(keyFor));
+  const [text, setText] = useState(kept?.text ?? "");
   // Movies & TV: which one, asked before anything else (or already picked at the top).
-  const [watch, setWatch] = useState<Format | "either" | null>(format);
+  const [watch, setWatch] = useState<Format | "either" | null>(kept?.watch ?? format);
   const { canTalk, listening, interim, talk, stop } = useDictation();
-  const [asked, setAsked] = useState<{
-    wish: string;
-    area: string | null;
-    picks?: Suggestion[];
-    destinationId?: string | null;
-    error?: string;
-  } | null>(null);
+  const [asked, setAsked] = useState<Asked | null>(kept?.asked ?? null);
   const [more, setMore] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
 
@@ -404,6 +433,20 @@ function TellUs({
   };
 
   const picks = current?.picks?.filter((s) => !taken.has(s.hit.key)) ?? [];
+
+  // Keep answers (minus any already saved or started) on this device; a new ask replaces them, Clear forgets them.
+  useEffect(() => {
+    if (asked?.picks) {
+      const left = asked.picks.filter((s) => !taken.has(s.hit.key));
+      keep(keyFor, left.length ? { text, watch, asked: { ...asked, picks: left } } : null);
+    } else if (asked === null) keep(keyFor, null);
+  }, [asked, taken, text, watch, keyFor]);
+
+  const clear = () => {
+    setAsked(null);
+    setText("");
+    setMore(false);
+  };
   const hint = listening
     ? "Listening… tap the words to edit them"
     : needsCity
@@ -521,6 +564,9 @@ function TellUs({
               Let me explain more
             </Button>
           </div>
+          <button onClick={clear} className="mt-1 h-9 w-full text-[13px] font-medium text-muted active:opacity-60">
+            Clear these
+          </button>
         </>
       )}
     </section>
