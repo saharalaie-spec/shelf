@@ -1,5 +1,6 @@
 import "server-only";
 import { AuthError } from "./auth";
+import { siteUrl } from "./config";
 import { SetupError } from "./db";
 
 /** Wraps a route handler so thrown errors become `{ error }` JSON with a sensible status. */
@@ -24,5 +25,5 @@ export async function readJson<T>(req: Request): Promise<Partial<T>> {
   }
 }
 
-/** The public base URL for links we hand out: APP_URL if set, else whatever host the request came in on. */
-export const origin = (req: Request) => process.env.APP_URL?.replace(/\/$/, "") ?? new URL(req.url).origin;
+/** The public base URL for links we hand out (see siteUrl), else, in development, the host the request came in on. */
+export const origin = (req: Request) => siteUrl() ?? new URL(req.url).origin;

@@ -95,12 +95,19 @@ export const signInChannels = () => ({
   email: emailConfigured() || devCodesEnabled(),
 });
 
+/**
+ * The site's public address, for links people share (invites, lists, profiles): APP_URL, else the project's production
+ * address on Vercel. Never a preview or deployment address, which Vercel puts behind its own login. Null when neither is
+ * known (development), where the address the page was opened on is right.
+ */
+export function siteUrl(): string | null {
+  const url = process.env.APP_URL || (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "");
+  return url ? url.replace(/\/$/, "") : null;
+}
+
 /** Public host name, for the WebOTP line in texts. */
 export function appHost() {
-  const base =
-    process.env.APP_URL ||
-    (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : "") ||
-    "http://localhost:3000";
+  const base = siteUrl() || "http://localhost:3000";
   try {
     return new URL(base).hostname;
   } catch {
