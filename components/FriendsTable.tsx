@@ -198,7 +198,7 @@ function Relevance({ item, mine }: { item: TableItem; mine: Status | null }) {
   return null;
 }
 
-/** "Bo", "Bo and Mia", "Bo, Mia +5". Circle first. */
+/** "Bo", "Bo and Mia", "Bo, Mia +5". */
 function names(friends: TableFriend[]) {
   const n = (f: TableFriend) => f.name ?? "A friend";
   if (friends.length === 1) return n(friends[0]);
@@ -289,7 +289,6 @@ function FriendList({ item }: { item: TableItem }) {
             <span className="min-w-0 flex-1">
               <span className="block truncate text-[15px] font-medium">
                 {f.name ?? "A friend"}
-                {f.circle && <span className="ml-1 text-link">★</span>}
               </span>
               <span className="block truncate text-[13px] text-muted">
                 {f.status === "read" ? DONE[item.kind] : DOING[item.kind]}

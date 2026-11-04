@@ -174,7 +174,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
             EXISTS (SELECT 1 FROM circle c WHERE c.user_id = ?1 AND c.friend_id = u.id) AS in_circle
           FROM friendships f JOIN users u ON u.id = f.friend_id
           WHERE f.user_id = ?1
-          ORDER BY in_circle DESC, lower(coalesce(u.name, '')), f.created_at`,
+          ORDER BY ${circlesOn() ? "in_circle DESC, " : ""}lower(coalesce(u.name, '')), f.created_at`,
     args: [userId],
   });
   return rows.map((r) => {
@@ -187,7 +187,7 @@ export async function listFriends(userId: string): Promise<Friend[]> {
       now: now && isKind(kind) ? { kind, title: now.slice(split + 1) } : null,
       fromThem: Number(r.from_them),
       fromMe: Number(r.from_me),
-      inCircle: Boolean(r.in_circle),
+      inCircle: circlesOn() && Boolean(r.in_circle),
     };
   });
 }
@@ -223,6 +223,13 @@ export async function unfriend(userId: string, friendId: string) {
     args: [userId, friendId],
   });
 }
+
+/**
+ * Circles (a starred few whose picks come first) are off for now: with few friends at the start, there's nothing to
+ * rank. The table, setCircle and /api/friends/circle stay, so CIRCLES=on brings the ordering back as it was (the stars
+ * on the People tab would need adding back too).
+ */
+export const circlesOn = () => process.env.CIRCLES === "on";
 
 /** How many friends a circle holds: small enough to mean something. */
 export const CIRCLE_MAX = 15;

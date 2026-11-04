@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "./db";
+import { circlesOn } from "./social";
 import { photoUrl } from "./photos";
 import { isKind, isStatus, type Area, type BBox, type Kind, type PlaceInfo, type Status } from "./types";
 
@@ -129,7 +130,7 @@ export async function friendsTable(userId: string, now = Date.now()): Promise<Fr
       id: String(r.friend_id),
       name: r.friend_name ? String(r.friend_name) : null,
       photo: photoUrl(String(r.friend_id), r.friend_photo_at),
-      circle: Boolean(r.in_circle),
+      circle: circlesOn() && Boolean(r.in_circle),
       status,
       at,
     };
