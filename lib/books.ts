@@ -106,6 +106,8 @@ export function sameTitle(a: string, b: string) {
 
 /** Free-text search that understands "Title by Author" but falls back to a plain query. */
 export async function searchText(text: string, limit = 8, { typing = false } = {}) {
+  // As they type, "Heart of a Dog by Bulgakov" is the same search as "Heart of a Dog Bulgakov".
+  if (typing) return findBooks({ q: text.trim().replace(/\s+(?:by|—|–|-)\s+/i, " "), typing }, limit);
   const split = splitTitleAuthor(text);
   if (split.q !== undefined) return findBooks({ ...split, typing }, limit);
   const hits = await findBooks(split, limit);
@@ -158,6 +160,8 @@ type OLDoc = {
   author_name?: string[];
   first_publish_year?: number;
   cover_i?: number;
+  /** The edition that best matches the search: a translated classic is often filed under its original title. */
+  editions?: { docs?: { title?: string; cover_i?: number }[] };
   subject?: string[];
   edition_count?: number;
 };
@@ -181,22 +185,30 @@ async function openLibrary(query: Query, limit: number): Promise<Hit[]> {
   for (const list of [plain, partial]) if (list.status === "fulfilled") list.value.forEach((d, i) => order.set(d.key, Math.min(order.get(d.key) ?? i, i)));
 
   return docs
-    .map((d) => ({ d, score: rank(d, order.get(d.key) ?? 0, wanted) }))
+    .map((d) => {
+      // "Sobachʹe serdt︠s︡e", searched as "Heart of a Dog": shown by the edition's title when that's what they typed.
+      const edition = d.editions?.docs?.[0];
+      const authors = d.author_name?.join(" ") ?? null;
+      const title =
+        edition?.title && matchShare(wanted, edition.title, authors) > matchShare(wanted, d.title, authors) ? edition.title : d.title;
+      const cover = d.cover_i ?? edition?.cover_i;
+      return { d, title, cover, score: rank({ ...d, title, cover_i: cover }, order.get(d.key) ?? 0, wanted) };
+    })
     .sort((a, b) => b.score - a.score)
     .slice(0, limit)
-    .map(({ d }) => ({
+    .map(({ d, title, cover }) => ({
       key: `ol:${d.key}`,
-      title: d.title,
+      title,
       author: d.author_name?.slice(0, 2).join(", ") ?? null,
       year: d.first_publish_year ?? null,
-      coverUrl: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg` : null,
+      coverUrl: cover ? `https://covers.openlibrary.org/b/id/${cover}-M.jpg` : null,
       categories: categorize(d.subject ?? []),
     }));
 }
 
 async function openLibraryDocs(query: Query, limit: number): Promise<OLDoc[]> {
   const params = new URLSearchParams({
-    fields: "key,title,author_name,first_publish_year,cover_i,subject,edition_count",
+    fields: "key,title,author_name,first_publish_year,cover_i,subject,edition_count,editions,editions.title,editions.cover_i",
     limit: String(Math.max(limit * 2, 10)),
   });
   if (query.isbn) params.set("q", `isbn:${query.isbn}`);

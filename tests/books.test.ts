@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findBooks, matchCandidates, matchShare, splitTitleAuthor } from "@/lib/books";
+import { findBooks, matchCandidates, matchShare, searchText, splitTitleAuthor } from "@/lib/books";
 
 describe("splitTitleAuthor", () => {
   it("splits on 'by' and spaced dashes only", () => {
@@ -99,6 +99,36 @@ describe("book search", () => {
     hosts.length = 0;
     await findBooks({ q: "Take the lead someone", typing: true }, 5);
     expect(hosts.every((h) => h === "openlibrary.org")).toBe(true);
+  });
+
+  it("finds a translated classic filed under its original title, by the edition you typed", async () => {
+    vi.stubEnv("BOOKS_PROVIDER", "live");
+    const asked: string[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: string | URL | Request) => {
+        const url = new URL(String(input));
+        if (url.hostname !== "openlibrary.org") return Response.json({ items: [] });
+        asked.push(url.searchParams.get("q") ?? "");
+        expect(url.searchParams.get("fields")).toMatch(/editions\.title/);
+        return Response.json({
+          docs: [
+            { key: "/works/OL1W", title: "Dog Heart Healthy Cookbook", author_name: ["Someone"], edition_count: 30 },
+            {
+              key: "/works/OL2W",
+              title: "Sobachʹe serdt︠s︡e",
+              author_name: ["Mikhail Bulgakov"],
+              edition_count: 90,
+              editions: { docs: [{ title: "Heart of a Dog", cover_i: 77 }] },
+            },
+          ],
+        });
+      }),
+    );
+    const hits = await searchText("Heart of a Dog by Bulgakov", 5, { typing: true });
+    // Asked as one search, "by" left out.
+    expect(asked).toContain("Heart of a Dog Bulgakov");
+    expect(hits[0]).toMatchObject({ title: "Heart of a Dog", author: "Mikhail Bulgakov", coverUrl: "https://covers.openlibrary.org/b/id/77-M.jpg" });
   });
 
   it("still answers when the half-word search fails", async () => {
