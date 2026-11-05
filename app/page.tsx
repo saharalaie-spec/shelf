@@ -6,6 +6,7 @@ import { databaseUrl, signInChannels, siteUrl } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { suggestEnabled } from "@/lib/suggest";
+import { unseenNotices } from "@/lib/notices";
 import { unseenThanks } from "@/lib/thanks";
 import { todayCandidates } from "@/lib/today";
 import { summarize } from "@/lib/trove";
@@ -24,12 +25,13 @@ export default async function HomePage() {
   await refreshSampleFriendFor(user.id);
   // Anything saved without a cover gets one looked up, after the page is sent.
   after(() => fillCovers(user.id));
-  const [summaries, incoming, unread, destinations, thanks] = await Promise.all([
+  const [summaries, incoming, unread, destinations, thanks, notices] = await Promise.all([
     summarize(user.id, { includePrivate: true }),
     incomingRequests(user),
     unreadCount(user.id),
     listDestinations(user.id, { includePrivate: true, includeEmpty: true }),
     unseenThanks(user.id),
+    unseenNotices(user.id),
   ]);
   const today = await todayCandidates(user.id, new Map(destinations.map((d) => [d.id, d.name])));
   return (
@@ -48,6 +50,7 @@ export default async function HomePage() {
       summaries={summaries}
       today={today}
       thanks={thanks}
+      notices={notices}
       suggest={suggestEnabled()}
     />
   );

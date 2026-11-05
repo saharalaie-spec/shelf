@@ -361,6 +361,29 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS messages_from ON messages (from_user, created_at)`,
     ],
   },
+  {
+    id: "2026-11-05-notices",
+    statements: [
+      // News for you about your friends (lib/notices.ts): someone you invited joined, or said yes.
+      `CREATE TABLE IF NOT EXISTS notices (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        friend_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at INTEGER NOT NULL,
+        seen_at INTEGER
+      )`,
+      `CREATE INDEX IF NOT EXISTS notices_unseen ON notices (user_id, seen_at)`,
+    ],
+  },
+  {
+    id: "2026-11-05-own-juno",
+    statements: [
+      // Whose Juno this is: each person gets their own imaginary friend (lib/sample-friend.ts).
+      `ALTER TABLE users ADD COLUMN sample_of TEXT`,
+      `CREATE INDEX IF NOT EXISTS users_sample_of ON users (sample_of)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

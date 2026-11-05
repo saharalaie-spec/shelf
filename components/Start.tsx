@@ -48,14 +48,16 @@ const LOVED = (kind: Kind) => (kind === "place" ? "Been" : "Me too");
 const WANT = (kind: Kind) => (kind === "place" ? "Want to go" : "Want it");
 
 /**
- * Getting started without logging everything: two things you loved per collection (each one skippable), a friend's
- * trove (first, when you came in on their invite), then a quick deck.
+ * Getting started without logging everything: two things you loved per collection (each one skippable), the friend's
+ * trove when you came in on their invite (first), then a quick deck. Juno, everyone's imaginary friend, is shaped from
+ * the favorites and the deck once it's done.
  */
 export function Start({ name, from, invited, mine, features, inviteToken, siteUrl }: Props) {
   const router = useRouter();
   const loved = KINDS.map((k) => `loved:${k}` as const);
   const steps: Step[] = [
-    ...(invited ? (["friend", ...loved] as const) : ([...loved, "friend"] as const)),
+    // Invited: the friend's trove first. Otherwise there's only Juno, whose taste grows from what they pick here.
+    ...(invited ? (["friend", ...loved] as const) : loved),
     ...(features.deck ? (["deck"] as const) : []),
     // Last, once there's something on your lists to share: bring your people.
     "invite",
@@ -222,7 +224,7 @@ function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; 
         <section className="mt-6 rounded-3xl bg-surface p-5 shadow-book">
           <p className="font-serif text-[20px] leading-tight font-medium">Start from {SAMPLE_FRIEND_NAME}’s picks</p>
           <p className="mt-1 text-[15px] leading-snug text-muted">
-            {SAMPLE_FRIEND_NAME} is a sample friend with books, podcasts, shows and favorite spots. Tap what you’ve loved too, or want to try.
+            {SAMPLE_FRIEND_NAME} is an imaginary friend with books, podcasts, shows and favorite spots. Tap what you’ve loved too, or want to try.
             When your real friends join, you’ll start from theirs.
           </p>
           <Button onClick={addJuno} loading={adding} className="mt-4 w-full" icon={<Icon name="people" size={18} />}>

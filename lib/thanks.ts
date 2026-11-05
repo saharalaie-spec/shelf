@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { AuthError } from "./auth";
 import { db } from "./db";
-import { SAMPLE_FRIEND_ID } from "./sample";
+import { isSampleId } from "./sample";
 import { areFriends } from "./social";
 import { isKind, type Kind } from "./types";
 
@@ -33,7 +33,7 @@ export async function thanksTarget(userId: string, itemId: string) {
   ).rows[0];
   if (!row) return null;
   const friendId = String(row.rec_user_id);
-  if (friendId === SAMPLE_FRIEND_ID || !(await areFriends(userId, friendId))) return null;
+  if (isSampleId(friendId) || !(await areFriends(userId, friendId))) return null;
   return { item: row, friend: { id: friendId, name: row.name ? String(row.name) : "your friend" } };
 }
 

@@ -5,7 +5,7 @@ import { track } from "./activity";
 import { AuthError } from "./auth";
 import { db } from "./db";
 import { photoUrl } from "./photos";
-import { SAMPLE_FRIEND_ID } from "./sample";
+import { isSampleId } from "./sample";
 import { areFriends } from "./social";
 import { isKind, type Kind } from "./types";
 
@@ -41,7 +41,7 @@ const toMessage = (r: Row, me: string): Message => ({
   at: Number(r.created_at),
 });
 
-/** The sample friend can't write back, so she answers on her own, kindly and briefly. */
+/** Juno, an imaginary friend, can't write back, so she answers on her own, kindly and briefly. */
 const JUNO_REPLY = (item: MessageItem | null) =>
   item
     ? `Oh, ${item.title}! I loved it, and I think you would too.`
@@ -60,7 +60,7 @@ export async function sendMessage(fromId: string, toId: string, body: string, it
   });
   // Juno answers questions about her things, and the first hello; a "thanks" back gets no canned reply.
   const juno =
-    toId === SAMPLE_FRIEND_ID &&
+    isSampleId(toId) &&
     (item !== null ||
       !(await client.execute({ sql: "SELECT 1 FROM messages WHERE from_user = ? AND to_user = ? LIMIT 1", args: [toId, fromId] })).rows.length);
   await client.batch([insert(fromId, toId, text, now, item), ...(juno ? [insert(toId, fromId, JUNO_REPLY(item), now + 1, null)] : [])], "write");

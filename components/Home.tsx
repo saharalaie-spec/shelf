@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { api } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
+import type { Notice } from "@/lib/notices";
 import type { Thanks } from "@/lib/thanks";
 import type { TodayCandidates } from "@/lib/today";
 import type { Summary } from "@/lib/trove";
@@ -17,7 +18,7 @@ import { Cover } from "./Cover";
 import { SpotTile } from "./Spot";
 import { MoodCard } from "./MoodCard";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
-import { Icon, KIND_ICON, Wordmark } from "./ui";
+import { Avatar, Icon, KIND_ICON, Wordmark } from "./ui";
 
 type Props = {
   /** siteUrl: the address links are shared on (lib/config.ts), when the server knows it. */
@@ -27,12 +28,14 @@ type Props = {
   today: TodayCandidates;
   /** Friends who loved something you recommended, not yet put away. */
   thanks: Thanks[];
+  /** News about friends: someone you invited joined, or said yes. */
+  notices: Notice[];
   /** "Something else" ideas are on. */
   suggest: boolean;
 };
 
 /** Where you land after signing in: one card per collection. */
-export function Home({ user, pendingRequests, summaries, today, thanks, suggest }: Props) {
+export function Home({ user, pendingRequests, summaries, today, thanks, notices, suggest }: Props) {
   const router = useRouter();
   const [capturing, setCapturing] = useState(false);
   const [feedback, setFeedback] = useState(false);
@@ -76,6 +79,7 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
         </p>
       </section>
 
+      {notices.length > 0 && <NoticesCard notices={notices} />}
       {thanks.length > 0 && <ThanksCard thanks={thanks} />}
 
       <button
@@ -142,6 +146,58 @@ export function Home({ user, pendingRequests, summaries, today, thanks, suggest 
 }
 
 /** "Sahar loved your pick": friends closing the loop on what you recommended. */
+const NOTICE: Record<Notice["kind"], (name: string) => string> = {
+  joined_invite: (n) => `${n} joined Trove from your invite. You’re friends now.`,
+  added_invite: (n) => `${n} added you with your invite link. You’re friends now.`,
+  joined_waiting: (n) => `${n} joined Trove. Your friend request is waiting for them.`,
+  accepted: (n) => `${n} accepted your friend request.`,
+  juno: (n) => `Meet ${n}, your imaginary friend. Her taste grew from what you love.`,
+};
+
+/** Someone you invited joined, or said yes: until you put it away, or look at their trove. */
+function NoticesCard({ notices }: { notices: Notice[] }) {
+  const [shown, setShown] = useState(notices);
+  const put = (id: string) => {
+    setShown((n) => n.filter((x) => x.id !== id));
+    api("/api/notices/seen", { body: { ids: [id] } }).catch(() => {});
+  };
+  if (!shown.length) return null;
+  return (
+    <section className="mx-5 mb-5 rounded-3xl bg-surface p-4 shadow-book" aria-label="News from friends">
+      <ul className="space-y-3">
+        {shown.map((n) => {
+          const name = n.friend.name ?? "Someone you invited";
+          const friends = n.kind !== "joined_waiting";
+          return (
+            <li key={n.id} className="flex items-center gap-3">
+              <Avatar name={n.friend.name} photo={n.friend.photo} size={44} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-[15px] leading-snug">{NOTICE[n.kind](name)}</span>
+                {friends && (
+                  <Link
+                    href={`/u/${n.friend.handle ?? n.friend.id}`}
+                    onClick={() => put(n.id)}
+                    className="mt-0.5 inline-block text-[14px] font-medium text-link underline underline-offset-2"
+                  >
+                    See {n.friend.name ? `${n.friend.name}’s` : "their"} trove
+                  </Link>
+                )}
+              </span>
+              <button
+                onClick={() => put(n.id)}
+                aria-label="Put away"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-surface-2"
+              >
+                <Icon name="x" size={17} />
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function ThanksCard({ thanks }: { thanks: Thanks[] }) {
   const [shown, setShown] = useState(thanks);
   const dismiss = (ids: string[]) => {

@@ -145,7 +145,7 @@ export function MessageThread({
                 Send
               </Button>
             </div>
-            {sample && <p className="mt-1.5 px-2 text-[12px] text-muted">Juno is a sample friend: she answers by herself.</p>}
+            {sample && <p className="mt-1.5 px-2 text-[12px] text-muted">Juno is an imaginary friend: she answers by herself.</p>}
           </>
         ) : (
           <p className="py-2 text-center text-[14px] text-muted">You’re no longer friends with {name}, so you can’t write back.</p>

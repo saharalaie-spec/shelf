@@ -7,7 +7,7 @@ import { itemLinks } from "@/lib/client";
 import { PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
 import { PLACE_CATEGORIES } from "@/lib/place-categories";
 import { vocab } from "@/lib/kinds";
-import { SAMPLE_FRIEND_ID } from "@/lib/sample";
+import { isSampleId } from "@/lib/sample";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { SpotTile, spotLine } from "./Spot";
@@ -124,7 +124,7 @@ export function ItemSheet({
 
           {kind === "place" && <NoteField key={b.id} note={b.note} onSave={(n) => onNote(b, n)} />}
           <RecField key={`rec:${b.id}:${b.recBy?.id ?? ""}`} recBy={b.recBy} onSave={(n) => onRecBy(b, n)} />
-          {b.status === "read" && b.recBy?.id && b.recBy.id !== SAMPLE_FRIEND_ID && (
+          {b.status === "read" && b.recBy?.id && !isSampleId(b.recBy.id) && (
             <TellField key={`tell:${b.id}`} name={b.recBy.name} told={Boolean(b.thanked)} onSend={(m) => onThank(b, m)} />
           )}
 
