@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { trackSignup, trackVisit } from "./activity";
 import { db } from "./db";
 import { deliverCode } from "./delivery";
+import { noteJoined } from "./notices";
 import { photoUrl } from "./photos";
 import type { Identifier } from "./identifier";
 
@@ -153,7 +154,11 @@ export async function verifyLogin(to: Identifier, code: string) {
     : String((await client.execute({ sql: `SELECT id FROM users WHERE ${column} = ?`, args: [to.value] })).rows[0].id);
 
   await createSession(userId);
-  if (created.rows.length) await trackSignup(userId);
+  if (created.rows.length) {
+    await trackSignup(userId);
+    // Anyone who'd asked them by phone or email hears they're here.
+    await noteJoined(userId).catch((err) => console.warn("Couldn't tell their askers:", (err as Error).message));
+  }
   return { isNew: created.rows.length > 0 };
 }
 

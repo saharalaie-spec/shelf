@@ -5,6 +5,7 @@ import type { Row } from "@libsql/client";
 import { AuthError, type User } from "./auth";
 import { db } from "./db";
 import { parseIdentifier } from "./identifier";
+import { noteAccepted, noteInviteUsed } from "./notices";
 import { photoUrl } from "./photos";
 import { isKind, type Kind } from "./types";
 
@@ -294,6 +295,8 @@ async function createRequest(from: User, identifier: string, display: string, ta
     ).rows[0];
     if (theyAsked) {
       await befriend(from.id, targetId);
+      // They'd asked first: asking back is a yes.
+      await noteAccepted(targetId, from.id);
       return { status: "friends" as const };
     }
   }
@@ -389,6 +392,7 @@ export async function respondToRequest(user: User, requestId: string, action: "a
   if (action === "accept") {
     await befriend(String(req.from_user), user.id);
     await track("friend_added", { userId: user.id, ref: String(req.from_user) });
+    await noteAccepted(String(req.from_user), user.id);
   } else await client.execute({ sql: "DELETE FROM friend_requests WHERE id = ?", args: [requestId] });
 }
 
@@ -418,6 +422,7 @@ export async function acceptInvite(user: User, token: string): Promise<Person> {
   if (!inviter) throw new AuthError("That invite link doesn’t work anymore.", 404);
   await befriend(inviter.id, user.id);
   await track("friend_added", { userId: user.id, ref: inviter.id });
+  await noteInviteUsed(inviter.id, user.id);
   return inviter;
 }
 

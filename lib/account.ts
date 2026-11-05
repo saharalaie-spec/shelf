@@ -38,6 +38,7 @@ export async function deleteAccount(user: { id: string; phone: string | null; em
       mine("DELETE FROM sessions WHERE user_id = ?"),
       mine("DELETE FROM photos WHERE user_id = ?"),
       mine("DELETE FROM messages WHERE from_user = ?1 OR to_user = ?1"),
+      mine("DELETE FROM notices WHERE user_id = ?1 OR friend_id = ?1"),
       mine("DELETE FROM users WHERE id = ?"),
     ],
     "write",
