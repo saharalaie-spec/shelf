@@ -6,7 +6,7 @@ import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 import { api, trackAction } from "@/lib/client";
 import { guessCountry, parseIdentifier } from "@/lib/identifier";
-import { SAMPLE_FRIEND_ID, SAMPLE_FRIEND_NAME } from "@/lib/sample";
+import { isSampleId, SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import { VOCAB } from "@/lib/kinds";
 import type { Friend, IncomingRequest, OutgoingRequest } from "@/lib/social";
 import { KINDS } from "@/lib/types";
@@ -152,7 +152,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
       {!hasFriends && data && (
         <>
           <div className={data.incoming.length ? "mt-7" : ""}>{invite}</div>
-          {!data.friends.some((f) => f.id === SAMPLE_FRIEND_ID) && (
+          {!data.friends.some((f) => isSampleId(f.id)) && (
             <SampleCard
               onAdded={() => {
                 reload().catch(() => {});
@@ -196,7 +196,7 @@ function FriendsBody({ data, setData, name, onName, reload, onPending, onTableCh
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-[16px] font-medium">
                         {f.name ?? "Trove member"}
-                        {f.id === SAMPLE_FRIEND_ID && <span className="ml-1.5 text-[12px] font-normal text-muted">Sample</span>}
+                        {isSampleId(f.id) && <span className="ml-1.5 text-[12px] font-normal text-muted">Imaginary friend</span>}
                       </span>
                       <span className="block truncate text-[13px] text-muted">
                         {f.now ? `${VOCAB[f.now.kind].nowVerb} ${f.now.title}` : summary(f.counts)}
@@ -432,9 +432,9 @@ export function SampleCard({ onAdded, compact }: { onAdded: () => void; compact?
   };
   return (
     <section className={`rounded-3xl border border-dashed border-line p-4 ${compact ? "mt-5 text-left" : "mt-5"}`}>
-      <p className="text-[16px] font-medium">Try it with a sample friend</p>
+      <p className="text-[16px] font-medium">Add {SAMPLE_FRIEND_NAME}, an imaginary friend</p>
       <p className="mt-0.5 text-[14px] leading-snug text-muted">
-        {SAMPLE_FRIEND_NAME} has books, podcasts, shows and favorite spots, so you can see how Trove works with friends.
+        Her books, podcasts, shows and spots grow from your taste, so you can see how Trove works with friends.
         Remove her anytime.
       </p>
       <Button variant="secondary" onClick={add} loading={adding} className="mt-3 w-full">

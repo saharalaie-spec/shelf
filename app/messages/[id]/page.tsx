@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { databaseUrl, signInChannels } from "@/lib/config";
 import { readThread } from "@/lib/messages";
-import { SAMPLE_FRIEND_ID } from "@/lib/sample";
+import { isSampleId } from "@/lib/sample";
 import { areFriends, findPerson } from "@/lib/social";
 import { Login } from "@/components/Login";
 import { MessageThread } from "@/components/MessageThread";
@@ -25,7 +25,7 @@ export default async function Conversation({ params }: PageProps<"/messages/[id]
       friend={{ id: friend.id, name: friend.name, handle: friend.handle, photo: friend.photo }}
       initial={messages}
       canSend={friends}
-      sample={friend.id === SAMPLE_FRIEND_ID}
+      sample={isSampleId(friend.id)}
     />
   );
 }

@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { db } from "./db";
 import { photoUrl } from "./photos";
-import { SAMPLE_FRIEND_ID } from "./sample";
+import { isSampleId } from "./sample";
 
 /**
  * News for you about the people you invited, shown on your home screen until you put it away:
@@ -11,10 +11,11 @@ import { SAMPLE_FRIEND_ID } from "./sample";
  * - added_invite: someone already on Trove used your invite link: you're friends now.
  * - joined_waiting: someone you asked by phone or email joined; your request is waiting for them.
  * - accepted: they said yes to your friend request.
+ * - juno: your imaginary friend's trove now grows from your taste.
  *
  * One at a time per friend: newer news about them replaces what you haven't seen yet.
  */
-export type NoticeKind = "joined_invite" | "added_invite" | "joined_waiting" | "accepted";
+export type NoticeKind = "joined_invite" | "added_invite" | "joined_waiting" | "accepted" | "juno";
 export type Notice = {
   id: string;
   kind: NoticeKind;
@@ -22,12 +23,12 @@ export type Notice = {
   at: number;
 };
 
-const KINDS = new Set<NoticeKind>(["joined_invite", "added_invite", "joined_waiting", "accepted"]);
+const KINDS = new Set<NoticeKind>(["joined_invite", "added_invite", "joined_waiting", "accepted", "juno"]);
 const FRESH_MS = 14 * 24 * 60 * 60 * 1000;
 const NEW_ACCOUNT_MS = 24 * 60 * 60 * 1000;
 
 async function notify(userId: string, kind: NoticeKind, friendId: string) {
-  if (userId === friendId || userId === SAMPLE_FRIEND_ID || friendId === SAMPLE_FRIEND_ID) return;
+  if (userId === friendId || isSampleId(userId) || (isSampleId(friendId) && kind !== "juno")) return;
   const client = await db();
   await client.batch(
     [
@@ -48,6 +49,9 @@ export async function noteInviteUsed(inviterId: string, friendId: string) {
   const isNew = row && Date.now() - Number(row.created_at) < NEW_ACCOUNT_MS;
   await notify(inviterId, isNew ? "joined_invite" : "added_invite", friendId);
 }
+
+/** Juno has been reshaped around what they love. */
+export const noteJunoShaped = (userId: string, junoId: string) => notify(userId, "juno", junoId);
 
 /** They said yes to the request you sent them. */
 export const noteAccepted = (requesterId: string, friendId: string) => notify(requesterId, "accepted", friendId);

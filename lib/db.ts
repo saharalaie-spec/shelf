@@ -376,6 +376,14 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS notices_unseen ON notices (user_id, seen_at)`,
     ],
   },
+  {
+    id: "2026-11-05-own-juno",
+    statements: [
+      // Whose Juno this is: each person gets their own imaginary friend (lib/sample-friend.ts).
+      `ALTER TABLE users ADD COLUMN sample_of TEXT`,
+      `CREATE INDEX IF NOT EXISTS users_sample_of ON users (sample_of)`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

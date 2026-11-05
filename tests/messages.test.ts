@@ -60,10 +60,11 @@ describe("messages", () => {
   });
 
   it("from the sample friend: she answers by herself", async () => {
-    const { SAMPLE_FRIEND_ID } = await import("@/lib/sample");
-    const { addSampleFriend } = await import("@/lib/sample-friend");
+    const { isSampleId } = await import("@/lib/sample");
+    const { giveJuno } = await import("@/lib/sample-friend");
     const dee = await person("Dee");
-    await addSampleFriend(dee.id);
+    await giveJuno(dee.id);
+    const SAMPLE_FRIEND_ID = (await social.listFriends(dee.id)).find((f) => isSampleId(f.id))!.id;
     await messages.sendMessage(dee.id, SAMPLE_FRIEND_ID, "Juno, how was Lisbon?", { ...severance, kind: "place", title: "Time Out Market" });
     const thread = await messages.readThread(dee.id, SAMPLE_FRIEND_ID);
     expect(thread).toHaveLength(2);

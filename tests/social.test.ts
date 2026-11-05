@@ -468,39 +468,104 @@ describe("today", () => {
   });
 });
 
-describe("the sample friend", () => {
-  it("is made once, fills your Table, and stays recent", async () => {
+describe("Juno, everyone's imaginary friend", () => {
+  it("is each person's own: made once, fills Lately, stays recent, and stays gone once removed", async () => {
     const sample = await import("@/lib/sample-friend");
-    const { SAMPLE_FRIEND_ID } = await import("@/lib/sample");
+    const { isSampleId } = await import("@/lib/sample");
     const me = await signUp({ phone: "+14155550701" }, "Kim");
     const you = await signUp({ phone: "+14155550702" }, "Lee");
-    await sample.addSampleFriend(me.id);
-    await sample.addSampleFriend(you.id);
-    await sample.addSampleFriend(me.id); // again: nothing doubles
+    await sample.giveJuno(me.id);
+    await sample.giveJuno(you.id);
+    await sample.giveJuno(me.id); // again: nothing doubles
 
-    expect((await social.listFriends(me.id)).map((f) => f.name)).toContain("Juno");
-    const items = await trove.listItems(SAMPLE_FRIEND_ID, { includePrivate: true });
+    const junoOf = async (id: string) => (await social.listFriends(id)).filter((f) => isSampleId(f.id));
+    const [mine] = await junoOf(me.id);
+    const [yours] = await junoOf(you.id);
+    expect(mine.name).toBe("Juno");
+    expect((await junoOf(me.id)).length).toBe(1);
+    expect(mine.id).not.toBe(yours.id);
+
+    const items = await trove.listItems(mine.id, { includePrivate: true });
     expect(new Set(items.map((i) => i.kind))).toEqual(new Set(["book", "podcast", "screen", "place"]));
-    expect(items.length).toBe(new Set(items.map((i) => i.key)).size);
-
     const t = await table.friendsTable(me.id);
     expect(t.reading.map((i) => i.title)).toContain("Piranesi");
-    expect(t.watching.map((i) => i.title)).toContain("Severance");
     expect(t.finished.map((i) => i.title)).toContain("Klara and the Sun");
     expect(t.places.map((p) => p.name)).toContain("Lisbon");
 
     // A month later she's still "on" things right now.
     const client = await db();
-    await client.execute({ sql: "UPDATE books SET status_at = status_at - ?, added_at = added_at - ? WHERE user_id = ?", args: [30 * 864e5, 30 * 864e5, SAMPLE_FRIEND_ID] });
+    await client.execute({ sql: "UPDATE books SET status_at = status_at - ?, added_at = added_at - ? WHERE user_id = ?", args: [30 * 864e5, 30 * 864e5, mine.id] });
     expect((await table.friendsTable(me.id)).finished.map((i) => i.title)).not.toContain("Klara and the Sun");
     await sample.refreshSampleFriendFor(me.id);
     expect((await table.friendsTable(me.id)).finished.map((i) => i.title)).toContain("Klara and the Sun");
 
-    // She can't be signed into, and leaving works like any friend.
-    const row = (await client.execute({ sql: "SELECT phone, email FROM users WHERE id = ?", args: [SAMPLE_FRIEND_ID] })).rows[0];
+    // She can't be signed into; removing her works like any friend, and she doesn't come back by herself.
+    const row = (await client.execute({ sql: "SELECT phone, email FROM users WHERE id = ?", args: [mine.id] })).rows[0];
     expect([row.phone, row.email]).toEqual([null, null]);
-    await social.unfriend(me.id, SAMPLE_FRIEND_ID);
-    expect(await social.areFriends(me.id, SAMPLE_FRIEND_ID)).toBe(false);
+    await social.unfriend(me.id, mine.id);
+    await sample.giveJuno(me.id);
+    expect(await junoOf(me.id)).toEqual([]);
+    // "Add Juno" brings back the same one.
+    await sample.addSampleFriend(me.id);
+    expect((await junoOf(me.id)).map((f) => f.id)).toEqual([mine.id]);
+  });
+
+  it("takes her taste from theirs: real things near what they love, never what they have", async () => {
+    const sample = await import("@/lib/sample-friend");
+    const { isSampleId } = await import("@/lib/sample");
+    const me = await signUp({ phone: "+14155550703" }, "Max");
+    await sample.giveJuno(me.id);
+    // Their two favorites, and a deck card they loved.
+    await trove.addItems(me.id, "book", [book("fx:sapiens", "Sapiens"), book("fx:cosmos", "Cosmos")]);
+    await trove.addItems(me.id, "podcast", [book("fx:radiolab", "Radiolab")]);
+
+    let sent = "";
+    const ask: import("@/lib/sample-friend").AskJuno = async ({ taste, exclude }) => {
+      sent = taste;
+      expect(exclude).toEqual(expect.arrayContaining(["Sapiens", "Cosmos", "Radiolab"]));
+      return [
+        { kind: "book", title: "Homo Deus", creator: "Yuval Noah Harari", year: 2015, status: "reading", note: "Sapiens, part two.", city: "" },
+        { kind: "book", title: "A Brief History of Time", creator: "Stephen Hawking", year: 1988, status: "read", note: "", city: "" },
+        { kind: "book", title: "The Selfish Gene", creator: "Richard Dawkins", year: 1976, status: "want", note: "", city: "" },
+        // Theirs already, and one that doesn't exist: both left out.
+        { kind: "book", title: "Sapiens", creator: "Yuval Noah Harari", year: 2011, status: "read", note: "", city: "" },
+        { kind: "book", title: "A Book Nobody Wrote", creator: "No One", year: 0, status: "read", note: "", city: "" },
+        { kind: "podcast", title: "Hidden Brain", creator: "Shankar Vedantam", year: 0, status: "reading", note: "", city: "" },
+      ];
+    };
+    const junoId = await sample.shapeJuno(me.id, ask);
+    expect(isSampleId(junoId)).toBe(true);
+    expect(sent).toMatch(/Sapiens/);
+    expect(sent).toMatch(/Radiolab/);
+
+    const hers = await trove.listItems(junoId!, { includePrivate: true });
+    const titles = (kind: string) => hers.filter((i) => i.kind === kind).map((i) => i.title).sort();
+    expect(titles("book")).toEqual(["A Brief History of Time", "Homo Deus", "The Selfish Gene"]);
+    expect(hers.find((i) => i.title === "Homo Deus")).toMatchObject({ status: "reading", note: "Sapiens, part two." });
+    // One podcast came back: thin, so her starting ones stay too.
+    expect(titles("podcast")).toEqual(expect.arrayContaining(["Hidden Brain", "The Daily"]));
+    // Nothing for Movies & TV or places: her starting ones.
+    expect(titles("screen")).toContain("Severance");
+    expect((await table.friendsTable(me.id)).places.map((p) => p.name)).toContain("Lisbon");
+
+    // Nothing to go on, or no Claude: she stays as she is.
+    const other = await signUp({ phone: "+14155550704" }, "Ned");
+    await sample.giveJuno(other.id);
+    expect(await sample.shapeJuno(other.id, ask)).toBeNull();
+    expect(await sample.shapeJuno(me.id, null)).toBeNull();
+  });
+
+  it("replaces the shared Juno for people who had her", async () => {
+    const sample = await import("@/lib/sample-friend");
+    const { SAMPLE_FRIEND_ID, isSampleId } = await import("@/lib/sample");
+    const me = await signUp({ phone: "+14155550705" }, "Oz");
+    const client = await db();
+    await client.execute({ sql: "INSERT INTO users (id, name, created_at) VALUES (?, 'Juno', 1) ON CONFLICT DO NOTHING", args: [SAMPLE_FRIEND_ID] });
+    await social.befriend(me.id, SAMPLE_FRIEND_ID);
+    await sample.refreshSampleFriendFor(me.id);
+    const friends = (await social.listFriends(me.id)).filter((f) => isSampleId(f.id));
+    expect(friends).toHaveLength(1);
+    expect(friends[0].id).not.toBe(SAMPLE_FRIEND_ID);
   });
 });
 

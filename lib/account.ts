@@ -9,6 +9,9 @@ import { db } from "./db";
  */
 export async function deleteAccount(user: { id: string; phone: string | null; email: string | null }) {
   const client = await db();
+  // Your Juno goes with you.
+  const junos = (await client.execute({ sql: "SELECT id FROM users WHERE sample_of = ?", args: [user.id] })).rows;
+  for (const j of junos) await deleteAccount({ id: String(j.id), phone: null, email: null });
   const id = user.id;
   const identifiers = [user.phone, user.email].filter((v): v is string => Boolean(v));
   const mine = (sql: string) => ({ sql, args: [id] });

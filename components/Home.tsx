@@ -151,6 +151,7 @@ const NOTICE: Record<Notice["kind"], (name: string) => string> = {
   added_invite: (n) => `${n} added you with your invite link. You’re friends now.`,
   joined_waiting: (n) => `${n} joined Trove. Your friend request is waiting for them.`,
   accepted: (n) => `${n} accepted your friend request.`,
+  juno: (n) => `Meet ${n}, your imaginary friend. Her taste grew from what you love.`,
 };
 
 /** Someone you invited joined, or said yes: until you put it away, or look at their trove. */

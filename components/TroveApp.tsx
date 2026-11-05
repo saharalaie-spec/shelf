@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
-import { SAMPLE_FRIEND_ID } from "@/lib/sample";
+import { isSampleId } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
@@ -247,7 +247,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             : `${isPlace ? "Marked" : "Moved"} “${book.title}” ${isPlace ? "as" : "to"} ${v.sections[status]}`;
         const undo = { label: "Undo", onClick: () => moveItem({ ...book, status }, book.status).catch(() => {}) };
         // Finished a friend's pick: the moment to close the loop with them.
-        const from = status === "read" && !book.thanked && book.recBy?.id && book.recBy.id !== SAMPLE_FRIEND_ID ? book.recBy : null;
+        const from = status === "read" && !book.thanked && book.recBy?.id && !isSampleId(book.recBy.id) ? book.recBy : null;
         toast(
           moved,
           from
