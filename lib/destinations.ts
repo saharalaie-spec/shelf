@@ -18,7 +18,7 @@ function parseBBox(raw: unknown): BBox | null {
   }
 }
 
-const toDestination = (r: Row): Destination => ({
+export const toDestination = (r: Row): Destination => ({
   id: String(r.id),
   name: String(r.name),
   country: r.country ? String(r.country) : null,

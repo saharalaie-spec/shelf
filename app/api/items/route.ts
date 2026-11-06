@@ -2,6 +2,7 @@ import { after } from "next/server";
 import { AuthError, requireUser } from "@/lib/auth";
 import { readJson, route } from "@/lib/api";
 import { fillCovers } from "@/lib/covers";
+import { fillSpotDetails } from "@/lib/spot-details";
 import { findOrCreateDestination, getDestination, type NewDestination } from "@/lib/destinations";
 import { accessTo, findPerson } from "@/lib/social";
 import { addItems, listItems } from "@/lib/trove";
@@ -84,6 +85,8 @@ export const POST = route(async (req: Request) => {
   );
   // Saved without a cover (typed in, or a catalog with no image): look one up, after answering.
   if (body.kind !== "place" && hits.some((h) => !h.coverUrl)) after(() => fillCovers(user.id));
+  // Spots saved by name only (a Google Maps list's, say): look up their address and neighborhood, after answering.
+  if (body.kind === "place" && hits.some((h) => !h.place)) after(() => fillSpotDetails(user.id));
   return Response.json({ added });
 });
 

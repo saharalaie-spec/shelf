@@ -4,6 +4,7 @@ import { after } from "next/server";
 import { aiEnabled } from "@/lib/ai";
 import { getCurrentUser } from "@/lib/auth";
 import { fillCovers } from "@/lib/covers";
+import { fillSpotDetails } from "@/lib/spot-details";
 import { databaseUrl, signInChannels, siteUrl } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
 import { listDestinations } from "@/lib/destinations";
@@ -28,6 +29,8 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
   if (!user) return <Login channels={signInChannels()} />;
   // Anything saved without a cover gets one looked up, after the page is sent.
   if (kind !== "place") after(() => fillCovers(user.id));
+  // Spots saved by name only get their details filled in the same way.
+  else after(() => fillSpotDetails(user.id));
   const [items, incoming, unread, destinations] = await Promise.all([
     listItems(user.id, { kind, includePrivate: true }),
     incomingRequests(user),
