@@ -51,6 +51,21 @@ export function Wordmark({ size = 20 }: { size?: number }) {
   );
 }
 
+/** A category to filter a list by, with how many are in it. */
+export function FilterChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-[background-color,color,transform] duration-200 active:scale-95 ${
+        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
+      }`}
+    >
+      {label}
+      <span className={`tabular-nums ${active ? "text-paper/60" : "text-muted"}`}>{count}</span>
+    </button>
+  );
+}
+
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} width="18" height="18" viewBox="0 0 24 24" aria-hidden>

@@ -15,7 +15,7 @@ import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
 import { Sheet } from "./Sheet";
-import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+import { Avatar, Button, FilterChip, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -52,7 +52,13 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   // Open on the first collection they've put something in.
   const [focus, setFocus] = useState(() => destinations.find((d) => d.id === focusPlace) ?? null);
   const [kind, setKind] = useState<Kind>(() => (focus ? "place" : (KINDS.find((k) => total(k) > 0) ?? "book")));
-  const [section, setSection] = useState<Status>(() => firstSection(counts[kind]));
+  const [section, setSectionState] = useState<Status>(() => firstSection(counts[kind]));
+  // A category picked from their tags, like on your own lists; cleared when the list changes.
+  const [chosenFilter, setFilter] = useState<string | null>(null);
+  const setSection = (s: Status) => {
+    setSectionState(s);
+    setFilter(null);
+  };
   const v = VOCAB[kind];
   const books = items.filter((b) => b.kind === kind && (!focus || kind !== "place" || b.destinationId === focus.id));
   const showKind = (k: Kind) => {
@@ -74,6 +80,13 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   // Places have no sections: every spot shows, under its destination, marked Been or Want to go.
   const isPlace = kind === "place";
   const inSection = isPlace ? books : books.filter((b) => b.status === section);
+  const categories = (() => {
+    const tally = new Map<string, number>();
+    for (const b of inSection) for (const c of b.categories) tally.set(c, (tally.get(c) ?? 0) + 1);
+    return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  })();
+  const filter = !isPlace && chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
+  const visible = filter ? inSection.filter((b) => b.categories.includes(filter)) : inSection;
 
   const save = async (book: Item, status: Status) => {
     setMine((m) => ({ ...m, [book.key]: status }));
@@ -160,6 +173,14 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         {books.length > 0 && !isPlace && (
           <SectionTabs value={section} labels={v.sections} counts={counts[kind]} onChange={setSection} layoutId="profile-status-pill" />
         )}
+        {!isPlace && categories.length > 1 && (
+          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3">
+            <FilterChip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
+            {categories.map(([c, n]) => (
+              <FilterChip key={c} active={filter === c} onClick={() => setFilter(filter === c ? null : c)} label={c} count={n} />
+            ))}
+          </div>
+        )}
       </div>
 
       {focus && kind === "place" && (
@@ -179,7 +200,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       ) : (
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
-            key={`${kind}:${section}`}
+            key={`${kind}:${section}:${filter ?? ""}`}
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
@@ -190,13 +211,13 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
               <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
-                {inSection.map((b) => (
+                {visible.map((b) => (
                   <ReadingRow key={b.id} v={v} book={b} onOpen={() => (setOpen(b), setLastOpen(b), setAsking(false))} />
                 ))}
               </ul>
             ) : (
               <ul className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5">
-                {inSection.map((b, i) => (
+                {visible.map((b, i) => (
                   <motion.li
                     key={b.id}
                     initial={{ opacity: 0, y: 12 }}

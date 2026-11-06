@@ -19,7 +19,7 @@ import { KindMenu } from "./KindMenu";
 import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
-import { Button, Icon, Logo } from "./ui";
+import { Button, FilterChip, Icon, Logo } from "./ui";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
@@ -480,9 +480,9 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             <SectionTabs value={section} labels={v.sections} counts={counts} onChange={showSection} />
             {categories.length > 0 ? (
               <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
-                <Chip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
+                <FilterChip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
                 {categories.map(([c, n]) => (
-                  <Chip key={c} active={filter === c} onClick={() => setFilter(filter === c ? null : c)} label={c} count={n} />
+                  <FilterChip key={c} active={filter === c} onClick={() => setFilter(filter === c ? null : c)} label={c} count={n} />
                 ))}
               </div>
             ) : (
@@ -750,19 +750,6 @@ function SectionEmpty({ v, section, onAdd }: { v: Vocab; section: Status; onAdd:
   );
 }
 
-function Chip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-[background-color,color,transform] duration-200 active:scale-95 ${
-        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
-      }`}
-    >
-      {label}
-      <span className={`tabular-nums ${active ? "text-paper/60" : "text-muted"}`}>{count}</span>
-    </button>
-  );
-}
 
 function EmptyState({ v, onAdd }: { v: Vocab; onAdd: () => void }) {
   const square = v.shape === "square";
