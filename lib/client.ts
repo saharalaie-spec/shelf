@@ -36,7 +36,8 @@ export function itemLinks(item: Pick<Hit, "key" | "title" | "author" | "place">,
     if (item.place) apple.set("ll", `${item.place.lat},${item.place.lon}`);
     else apple.set("address", where);
     return [
-      { label: "Google Maps", href: `https://www.google.com/maps/search/?${google}` },
+      // From a Google Maps list: straight to that exact place.
+      { label: "Google Maps", href: k.startsWith("gcid:") ? `https://maps.google.com/?cid=${id}` : `https://www.google.com/maps/search/?${google}` },
       { label: "Apple Maps", href: `https://maps.apple.com/?${apple}` },
     ];
   }

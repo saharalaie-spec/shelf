@@ -85,6 +85,8 @@ export type Candidate = {
   year?: number;
   /** Movies & TV imports often say which one it is. */
   format?: "movie" | "tv";
+  /** Spots from Google Maps: the link to that exact place, proof it's real even when our map doesn't know it. */
+  mapUrl?: string;
   status?: Status;
 };
 

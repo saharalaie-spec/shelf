@@ -1,4 +1,5 @@
 import type { Candidate, Hit, Kind } from "@/lib/types";
+import { googleCid } from "@/lib/parse";
 
 export const normalize = (s: string) =>
   s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
@@ -8,8 +9,10 @@ export function typedHit(kind: Kind, c: Candidate): Hit {
   const title = c.title.trim().replace(/^./, (ch) => ch.toUpperCase());
   // Book keys predate other collections, so they keep the original, un-prefixed form.
   const prefix = kind === "book" ? "typed:" : `typed:${kind}:`;
+  // A spot from a Google Maps list keeps the exact place it came from.
+  const cid = kind === "place" ? googleCid(c.mapUrl) : null;
   return {
-    key: `${prefix}${normalize(title)}|${normalize(c.author ?? "")}`,
+    key: cid ? `gcid:${cid}` : `${prefix}${normalize(title)}|${normalize(c.author ?? "")}`,
     title,
     author: c.author?.trim() || null,
     year: c.year ?? null,
