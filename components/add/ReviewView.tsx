@@ -70,7 +70,8 @@ export function ReviewView({ items, trove, onAdded }: Props) {
     const r = results[i];
     if (!r) return false;
     if (alreadyThere(i)) return false;
-    return ticked[i] ?? Boolean(r.match);
+    // A place from a Google Maps list is real even when our map doesn't know it: it comes in by name, with its link.
+    return ticked[i] ?? Boolean(r.match || items[i].mapUrl);
   };
 
   const selected = useMemo(
@@ -149,7 +150,9 @@ export function ReviewView({ items, trove, onAdded }: Props) {
                         : current
                           ? `Moves from ${v.sections[current]} to ${v.sections[statusFor(i)]}`
                           : !r.match && !picked[i]
-                            ? "No match. Tick to add as typed"
+                            ? input.mapUrl
+                              ? "From your Google Maps list"
+                              : "No match. Tick to add as typed"
                             : isTyped
                               ? `Added as you typed it${ownSection}`
                               : `${(kind === "place" ? spotLine(hit) : [hit.author, hit.year].filter(Boolean).join(" · ")) || v.creatorFallback}${ownSection}`}

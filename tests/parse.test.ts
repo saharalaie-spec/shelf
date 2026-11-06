@@ -471,16 +471,30 @@ Casa Montaña,,https://www.google.com/maps/place/dup,,
     const r = parseImport("place", csv)!;
     expect(r.source).toBe("google-maps");
     expect(r.items).toEqual([
-      { title: "Casa Montaña", note: "Get the anchovies" },
-      { title: "Mercado Central", note: "Go early" },
+      { title: "Casa Montaña", note: "Get the anchovies", mapUrl: "https://www.google.com/maps/place/Casa+Monta%C3%B1a/data=x" },
+      { title: "Mercado Central", note: "Go early", mapUrl: "https://www.google.com/maps/place/Mercado+Central/data=y" },
     ]);
+  });
+
+  it("keeps the exact Google Maps place each row links to", async () => {
+    const { googleCid } = await import("@/lib/parse");
+    const { typedHit } = await import("@/components/add/typed");
+    const { itemLinks } = await import("@/lib/client");
+    const url = "https://www.google.com/maps/place/Attaboy/data=!4m2!3m1!1s0x89c25987040cb40d:0x20e5151ff00b2e55";
+    expect(googleCid(url)).toBe(BigInt("0x20e5151ff00b2e55").toString());
+    expect(googleCid("https://maps.google.com/?cid=123456")).toBe("123456");
+    expect(googleCid("https://www.google.com/maps/place/Nowhere")).toBeNull();
+    // Not on our map: it still comes in by name, linked to that very place.
+    const hit = typedHit("place", { title: "Attaboy", mapUrl: url });
+    expect(hit.key).toBe(`gcid:${googleCid(url)}`);
+    expect(itemLinks(hit, "place")[0]).toEqual({ label: "Google Maps", href: `https://maps.google.com/?cid=${googleCid(url)}` });
   });
 
   it("files Google Maps’ Want to go list as Want to go", () => {
     const csv = `Title,Note,URL\nMercado Central,,https://maps.google.com/x\n`;
-    expect(parseImport("place", csv, "Want to go.csv")!.items).toEqual([{ title: "Mercado Central", status: "want" }]);
+    expect(parseImport("place", csv, "Want to go.csv")!.items).toEqual([{ title: "Mercado Central", status: "want", mapUrl: "https://maps.google.com/x" }]);
     expect(parseImport("place", csv, "Want_to_go.csv")!.counts).toMatchObject({ want: 1 });
-    expect(parseImport("place", csv, "Favorite places.csv")!.items).toEqual([{ title: "Mercado Central" }]);
+    expect(parseImport("place", csv, "Favorite places.csv")!.items).toEqual([{ title: "Mercado Central", mapUrl: "https://maps.google.com/x" }]);
   });
 
   it("reads Saved Places.json in both Takeout shapes", () => {

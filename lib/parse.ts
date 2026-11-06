@@ -194,7 +194,8 @@ export function parsePlacesExport(text: string, fileName = ""): ImportResult | n
         continue;
       }
       const note = String(p.comment ?? p.Comment ?? "").trim();
-      out.add({ title, note: note || undefined });
+      const url = String(p.google_maps_url ?? p["Google Maps URL"] ?? "").trim();
+      out.add({ title, note: note || undefined, ...(url ? { mapUrl: url } : {}) });
     }
     return out.result();
   }
@@ -205,11 +206,13 @@ export function parsePlacesExport(text: string, fileName = ""): ImportResult | n
   if (title === -1) return null;
   const note = col("note", "comment", "notes");
   const comment = col("comment");
+  const url = col("url", "link");
   for (const r of rows.slice(1)) {
     const t = cell(r, title);
     if (!t) continue;
     const n = [cell(r, note), comment !== note ? cell(r, comment) : ""].filter(Boolean).join(" · ");
-    out.add({ title: t, note: n || undefined });
+    const u = cell(r, url);
+    out.add({ title: t, note: n || undefined, ...(/^https:\/\/(www\.)?(google\.[a-z.]+\/maps|maps\.google\.|maps\.app\.goo\.gl)/.test(u) ? { mapUrl: u } : {}) });
   }
   return out.result();
 }
@@ -446,4 +449,15 @@ export function parseScreenExport(text: string, fileName = ""): ImportResult | n
 /** EAN-13 barcodes on books start with 978/979 (Bookland). */
 export function isBookBarcode(code: string) {
   return /^97[89]\d{10}$/.test(code);
+}
+
+/**
+ * The place a Google Maps link points at, as its customer id ("cid"): links in Takeout carry it as the second half of
+ * "!1s0x…:0x…" (hex), or as "?cid=…". Null for links without one.
+ */
+export function googleCid(url: string | undefined): string | null {
+  if (!url) return null;
+  const hex = url.match(/!1s0x[0-9a-f]+:0x([0-9a-f]+)/i)?.[1];
+  if (hex) return BigInt(`0x${hex}`).toString();
+  return url.match(/[?&]cid=(\d+)/)?.[1] ?? null;
 }
