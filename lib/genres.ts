@@ -104,6 +104,17 @@ export function categorizePodcast(genres: string[]): string[] {
   ).slice(0, 4);
 }
 
+const FORMATS = ["Movies", "TV"];
+
+/**
+ * A movie or a TV show, never both: of "Movies" and "TV", only the one chosen last stays (the later in the list), and
+ * it leads the tags.
+ */
+export function oneFormat(categories: string[]): string[] {
+  const format = [...categories].reverse().find((c) => FORMATS.includes(c));
+  return format ? [format, ...categories.filter((c) => !FORMATS.includes(c))] : categories;
+}
+
 /** The format ("Movies" or "TV") first, then up to three genres mapped from Apple, TMDB or TVmaze names. */
 export function categorizeScreen(genres: string[], format: "movie" | "tv"): string[] {
   return [format === "tv" ? "TV" : "Movies", ...mapGenres(genres, SCREEN_RULES).slice(0, 3)];
