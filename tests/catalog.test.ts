@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { lookupIsbn, matchCandidates, searchCatalog } from "@/lib/catalog";
-import { categorizePodcast, categorizeScreen, PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
+import { categorizePodcast, categorizeScreen, oneFormat, PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
 import { searchScreen } from "@/lib/screen";
 
 const titles = (hits: { title: string }[]) => hits.map((h) => h.title);
@@ -100,6 +100,10 @@ describe("genre mapping", () => {
       "History & War",
     ]);
     expect(categorizeScreen(["TV Movie", "Talk"], "movie")).toEqual(["Movies"]);
+    // A movie or a show, never both: the one chosen last stays, first.
+    expect(oneFormat(["TV", "Drama", "Movies"])).toEqual(["Movies", "Drama"]);
+    expect(oneFormat(["Movies", "Drama", "TV"])).toEqual(["TV", "Drama"]);
+    expect(oneFormat(["Drama"])).toEqual(["Drama"]);
   });
 
   it("maps TVmaze genres and dedupes", () => {

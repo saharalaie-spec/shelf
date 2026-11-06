@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { CATEGORIES } from "@/lib/categories";
 import { itemLinks } from "@/lib/client";
-import { PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
+import { oneFormat, PODCAST_CATEGORIES, SCREEN_CATEGORIES } from "@/lib/genres";
 import { PLACE_CATEGORIES } from "@/lib/place-categories";
 import { vocab } from "@/lib/kinds";
 import { isSampleId } from "@/lib/sample";
@@ -77,7 +77,9 @@ export function ItemSheet({
   const toggle = (c: string) => {
     if (!b) return;
     const has = b.categories.includes(c);
-    onCategories(b, has ? b.categories.filter((x) => x !== c) : [...b.categories, c]);
+    const next = has ? b.categories.filter((x) => x !== c) : [...b.categories, c];
+    // Movies & TV: choosing TV un-chooses Movies, and the other way round.
+    onCategories(b, b.kind === "screen" ? oneFormat(next) : next);
   };
 
   const addCustom = (e: React.FormEvent) => {

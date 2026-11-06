@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
 import { db } from "./db";
+import { oneFormat } from "./genres";
 import { getDestination, listDestinations } from "./destinations";
 import { isKind, isShareStatus, isStatus, KINDS, type Destination, type Hit, type Item, type Kind, type PlaceInfo, type RecBy, type ShareStatus, type Status } from "./types";
 
@@ -197,7 +198,9 @@ export async function updateItem(
     args.push(saved.recName);
   }
   if (patch.categories) {
-    saved.categories = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))].slice(0, 8);
+    const clean = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))];
+    // Never both Movies and TV: the one chosen last stays.
+    saved.categories = (clean.includes("Movies") && clean.includes("TV") ? oneFormat(clean) : clean).slice(0, 8);
     sets.push("categories = ?");
     args.push(JSON.stringify(saved.categories));
   }
