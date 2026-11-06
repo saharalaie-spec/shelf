@@ -43,6 +43,8 @@ export function SpotTile({
 }
 
 /** "Restaurant · Ruzafa": what it is and where, for list rows. */
-export function spotLine(spot: Pick<Hit, "author" | "place" | "categories">) {
-  return [spot.place?.type ?? spot.categories[0], spot.author].filter(Boolean).join(" · ");
+export function spotLine(spot: Pick<Hit, "author" | "place" | "categories"> & { key?: string }) {
+  const line = [spot.place?.type ?? spot.categories[0], spot.author].filter(Boolean).join(" · ");
+  // Saved from a Google Maps list, details not found yet: say where it came from rather than just "Spot".
+  return line || (spot.key?.startsWith("gcid:") ? "From Google Maps" : "");
 }
