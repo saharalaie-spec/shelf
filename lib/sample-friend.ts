@@ -105,7 +105,7 @@ function later(fn: () => Promise<unknown>) {
 }
 
 /** Their Juno, if they have one (even one they've since removed). */
-async function junoOf(userId: string): Promise<string | null> {
+export async function junoOf(userId: string): Promise<string | null> {
   const client = await db();
   const row = (await client.execute({ sql: "SELECT id FROM users WHERE sample_of = ? LIMIT 1", args: [userId] })).rows[0];
   return row ? String(row.id) : null;
@@ -263,7 +263,8 @@ const DAYS: Record<Status, (i: number) => number> = { reading: (i) => 1 + i * 4,
 /**
  * Reshapes their Juno around what they love: things near their taste (checked against the catalogs, so every one is
  * real and has its cover), spots in the cities they've saved places in. Collections Claude couldn't fill keep her
- * starting picks. Does nothing without Claude, or before they've added anything.
+ * starting picks. Once is enough: does nothing if she's been shaped already, without Claude, or before they've added
+ * anything. Returns her id when she was shaped just now.
  */
 export async function shapeJuno(
   userId: string,
@@ -272,6 +273,11 @@ export async function shapeJuno(
 ): Promise<string | null> {
   const junoId = await junoOf(userId);
   if (!junoId || !ask) return null;
+  // Shaped already: her starting things all have "sample:" keys; anything else came from shaping.
+  const client = await db();
+  const shaped = (await client.execute({ sql: "SELECT 1 FROM books WHERE user_id = ? AND work_key NOT LIKE 'sample:%' LIMIT 1", args: [junoId] }))
+    .rows[0];
+  if (shaped) return null;
   const [items, destinations] = await Promise.all([
     listItems(userId, { includePrivate: false }),
     listDestinations(userId, { includePrivate: false, includeEmpty: false }),
@@ -311,7 +317,6 @@ export async function shapeJuno(
   if (!picked.length) return null;
 
   // Her new trove: what was found, and her starting picks for any collection that came back thin.
-  const client = await db();
   await client.batch(
     [
       { sql: "DELETE FROM item_events WHERE user_id = ?", args: [junoId] },

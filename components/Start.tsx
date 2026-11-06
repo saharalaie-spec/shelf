@@ -32,7 +32,7 @@ type Props = {
   siteUrl: string | null;
 };
 
-type Step = "friend" | `loved:${Kind}` | "deck" | "invite";
+type Step = "friend" | `loved:${Kind}` | "deck" | "juno" | "invite";
 const lovedKind = (s: Step) => (s.startsWith("loved:") ? (s.slice(6) as Kind) : null);
 
 /** Something saved here, by work key. `id` starts "tmp:" until the server answers. */
@@ -49,16 +49,18 @@ const WANT = (kind: Kind) => (kind === "place" ? "Want to go" : "Want it");
 
 /**
  * Getting started without logging everything: two things you loved per collection (each one skippable), the friend's
- * trove when you came in on their invite (first), then a quick deck. Juno, everyone's imaginary friend, is shaped from
- * the favorites and the deck once it's done.
+ * trove when you came in on their invite (first), a quick deck, then Juno, everyone's imaginary friend, shaped by the
+ * favorites and the deck.
  */
 export function Start({ name, from, invited, mine, features, inviteToken, siteUrl }: Props) {
   const router = useRouter();
   const loved = KINDS.map((k) => `loved:${k}` as const);
   const steps: Step[] = [
-    // Invited: the friend's trove first. Otherwise there's only Juno, whose taste grows from what they pick here.
+    // Invited: the friend's trove first.
     ...(invited ? (["friend", ...loved] as const) : loved),
     ...(features.deck ? (["deck"] as const) : []),
+    // Then Juno, their imaginary friend, shaped by the favorites and the deck they just went through.
+    "juno",
     // Last, once there's something on your lists to share: bring your people.
     "invite",
   ];
@@ -180,6 +182,7 @@ export function Start({ name, from, invited, mine, features, inviteToken, siteUr
             />
           )}
           {step === "deck" && <Deck have={have} save={save} />}
+          {step === "juno" && <MeetJuno have={have} save={save} />}
           {step === "invite" && <InviteStep name={name} token={inviteToken} siteUrl={siteUrl} />}
         </motion.main>
       </AnimatePresence>
@@ -201,8 +204,35 @@ export function Start({ name, from, invited, mine, features, inviteToken, siteUr
   );
 }
 
+/** After the deck: Juno, shaped by everything picked so far, her trove a tap from your lists. */
+function MeetJuno({ have, save }: { have: Have; save: Save }) {
+  const [from, setFrom] = useState<StartFrom | null | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    api<{ from: StartFrom | null }>("/api/start/juno", { method: "POST" })
+      .then((r) => !cancelled && setFrom(r.from))
+      .catch(() => !cancelled && setFrom(null));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (from === undefined) {
+    return (
+      <div className="flex flex-col items-center pt-16 text-center" aria-label="Getting Juno ready">
+        <span className="flex h-16 w-16 animate-pulse items-center justify-center rounded-full bg-surface-2 font-serif text-[26px] text-muted">
+          {SAMPLE_FRIEND_NAME[0]}
+        </span>
+        <p className="mt-5 font-serif text-[22px] font-medium">{SAMPLE_FRIEND_NAME} is getting to know your taste…</p>
+        <p className="mt-1 max-w-xs text-[15px] text-muted">An imaginary friend, with books, podcasts, shows and spots near what you love.</p>
+      </div>
+    );
+  }
+  if (!from) return <Title title="Almost done" sub="Next, bring the people you swap recommendations with." />;
+  return <FromFriend from={from} have={have} save={save} juno />;
+}
+
 /** Step one: a friend's trove, their picks for you up top, each thing a tap from your lists. */
-function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; save: Save }) {
+function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null; have: Have; save: Save; juno?: boolean }) {
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Partial<Record<Kind, boolean>>>({});
@@ -255,12 +285,15 @@ function FromFriend({ from, have, save }: { from: StartFrom | null; have: Have; 
       <div className="flex items-center gap-4 pt-2">
         <Avatar name={from.friend.name} photo={from.friend.photo} size={56} />
         <div className="min-w-0">
-          <h1 className="font-serif text-[30px] leading-[1.05] font-medium tracking-tight text-balance">Start from {who}’s trove</h1>
+          <h1 className="font-serif text-[30px] leading-[1.05] font-medium tracking-tight text-balance">
+            {juno ? `Meet ${who}, your imaginary friend` : `Start from ${who}’s trove`}
+          </h1>
         </div>
       </div>
       <p className="mt-3 text-[16px] leading-snug text-muted">
+        {juno && `Her taste grew from what you just picked. `}
         Tap <b className="font-medium text-ink">{LOVED("book")}</b> for what you’ve loved too, <b className="font-medium text-ink">{WANT("book")}</b> for
-        what you’d try. A minute here and your trove isn’t empty anymore.
+        what you’d try.{juno ? "" : " A minute here and your trove isn’t empty anymore."}
       </p>
 
       {from.picks.length > 0 && (

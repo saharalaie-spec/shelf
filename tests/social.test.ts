@@ -548,6 +548,14 @@ describe("Juno, everyone's imaginary friend", () => {
     expect(titles("screen")).toContain("Severance");
     expect((await table.friendsTable(me.id)).places.map((p) => p.name)).toContain("Lisbon");
 
+    // Once is enough: meeting her in getting started and finishing it don't shape her twice.
+    expect(await sample.shapeJuno(me.id, ask)).toBeNull();
+    expect((await trove.listItems(junoId!, { includePrivate: true })).filter((i) => i.kind === "book").map((i) => i.title).sort()).toEqual([
+      "A Brief History of Time",
+      "Homo Deus",
+      "The Selfish Gene",
+    ]);
+
     // Nothing to go on, or no Claude: she stays as she is.
     const other = await signUp({ phone: "+14155550704" }, "Ned");
     await sample.giveJuno(other.id);
