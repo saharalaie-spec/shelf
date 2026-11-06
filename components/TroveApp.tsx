@@ -19,7 +19,7 @@ import { KindMenu } from "./KindMenu";
 import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
-import { Button, FilterChip, Icon, Logo } from "./ui";
+import { Button, FilterChips, Icon, Logo } from "./ui";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
@@ -479,12 +479,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
           <>
             <SectionTabs value={section} labels={v.sections} counts={counts} onChange={showSection} />
             {categories.length > 0 ? (
-              <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3 pb-3">
-                <FilterChip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
-                {categories.map(([c, n]) => (
-                  <FilterChip key={c} active={filter === c} onClick={() => setFilter(filter === c ? null : c)} label={c} count={n} />
-                ))}
-              </div>
+              <FilterChips key={section} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="pt-3 pb-3" />
             ) : (
               <div className="h-3" />
             )}

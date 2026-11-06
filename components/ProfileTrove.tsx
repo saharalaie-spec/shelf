@@ -15,7 +15,7 @@ import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
 import { Sheet } from "./Sheet";
-import { Avatar, Button, FilterChip, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+import { Avatar, Button, FilterChips, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -174,12 +174,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
           <SectionTabs value={section} labels={v.sections} counts={counts[kind]} onChange={setSection} layoutId="profile-status-pill" />
         )}
         {!isPlace && categories.length > 1 && (
-          <div className="no-scrollbar -mx-5 flex gap-2 overflow-x-auto px-5 pt-3">
-            <FilterChip active={!filter} onClick={() => setFilter(null)} label="All" count={inSection.length} />
-            {categories.map(([c, n]) => (
-              <FilterChip key={c} active={filter === c} onClick={() => setFilter(filter === c ? null : c)} label={c} count={n} />
-            ))}
-          </div>
+          <FilterChips key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="pt-3" />
         )}
       </div>
 

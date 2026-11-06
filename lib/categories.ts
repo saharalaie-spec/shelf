@@ -41,7 +41,8 @@ const RULES: [string, RegExp][] = [
   ["Business", /business|management|leadership|entrepreneur|marketing|startups|success in business/],
   ["Self-Help", /self-help|self-actualization|personal development|habits|motivation|conduct of life|productivity/],
   ["Politics & Society", /politic|sociology|society|social|government|democracy|feminism|race relations/],
-  ["Religion & Spirituality", /religio|spiritual|buddhis|christian|theology|bible|meditation|islam|judaism|tao/],
+  // Whole words: "tao" or "bible" inside a longer word isn't about faith.
+  ["Religion & Spirituality", /\breligio|\bspiritual|\bbuddhis|\bchristian(?:ity)?\b|\btheolog|\bbibl(?:e|ical)\b|\bmeditation|\bislam|\bjudaism|\btao(?:ism|ist)?\b|\bhindu|\bprayers?\b/],
   ["Art & Design", /\bart\b|design|architecture|photography|painting|music/],
   ["Technology", /technolog|computer|software|programming|internet|artificial intelligence/],
   ["Health", /health|nutrition|medicine|fitness|diet|sleep/],
@@ -62,7 +63,11 @@ export function categorize(subjects: string[]): string[] {
   }
   // "Fiction" matches almost everything a genre book is tagged with; let the genre win.
   if ([...scores.keys()].some((c) => FICTION_GENRES.has(c))) scores.delete("Fiction");
+  // Long subject lists collect strays: a tag needs real weight next to the strongest one, so one odd subject among a
+  // dozen children's ones doesn't make Fox in Socks a book about religion.
+  const top = Math.max(0, ...scores.values());
   return [...scores.entries()]
+    .filter(([, n]) => n * 3 >= top)
     .sort((a, b) => b[1] - a[1] || order(a[0]) - order(b[0]))
     .slice(0, 2)
     .map(([c]) => c);
