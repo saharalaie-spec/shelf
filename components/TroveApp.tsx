@@ -108,6 +108,12 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
   const [adding, setAdding] = useState(initialItems.length === 0 && initialDestinations.length === 0);
+  // Each opening of the add sheet starts it fresh, so "New place" reliably opens on "Where?".
+  const [addRound, setAddRound] = useState(0);
+  const openAdd = () => {
+    setAddRound((n) => n + 1);
+    setAdding(true);
+  };
   const [sharing, setSharing] = useState(false);
   const [account, setAccount] = useState(false);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -435,7 +441,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   // Adding from the list of places starts by asking where.
   const startAdding = () => {
     if (isPlace && !dest) setPickingDest(true);
-    setAdding(true);
+    openAdd();
   };
   const isEmpty = items.length === 0 && (!isPlace || destinations.length === 0);
 
@@ -507,7 +513,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                     destination={dest}
                     items={visible}
                     onBack={() => showDest(null)}
-                    onAdd={() => setAdding(true)}
+                    onAdd={openAdd}
                     onShare={() => setSharing(true)}
                     onEdit={() => setEditingDest(dest)}
                   />
@@ -551,7 +557,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             >
               <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
               {visible.length === 0 ? (
-                <SectionEmpty v={v} section={section} onAdd={() => setAdding(true)} />
+                <SectionEmpty v={v} section={section} onAdd={openAdd} />
               ) : section === "reading" ? (
                 <ul className="space-y-3">
                   <AnimatePresence initial={false} mode="popLayout">
@@ -606,6 +612,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
       </AnimatePresence>
 
       <AddSheet
+        key={addRound}
         open={adding}
         onOpenChange={onAddSheet}
         section={isPlace ? "read" : section}
