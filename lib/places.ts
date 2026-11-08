@@ -1,5 +1,6 @@
 import "server-only";
 import { categorizeSpot, placeCategory, type PlaceCategory } from "./place-categories";
+import { matchCountries } from "./countries";
 import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from "./types";
 
 // The map: Photon (photon.komoot.io, OpenStreetMap data, free, no key, built for search-as-you-type) for
@@ -52,10 +53,71 @@ async function spotSource(google: (apiKey: string) => Promise<Hit[]>, photon: ()
 export async function searchAreas(text: string, limit = 8): Promise<AreaHit[]> {
   const term = text.trim();
   if (!term) return [];
-  return cached(JSON.stringify(["areas", term.toLowerCase(), limit]), async () => ({
-    value: await photonAreas(term, limit),
-    complete: true,
-  }));
+  return cached(JSON.stringify(["areas", term.toLowerCase(), limit]), async () => {
+    // Photon first; if it's down or finds nothing, OpenStreetMap's own search. Only a full answer is kept.
+    let hits: AreaHit[] = [];
+    let complete = true;
+    try {
+      hits = await photonAreas(term, limit);
+    } catch (err) {
+      complete = false;
+      console.warn("Photon areas failed, trying Nominatim:", (err as Error).message);
+    }
+    if (!hits.length) {
+      try {
+        hits = await nominatimAreas(term, limit);
+      } catch (err) {
+        complete = false;
+        console.warn("Nominatim areas failed too:", (err as Error).message);
+      }
+    }
+    // A country can always be found, from the built-in list, even with both down.
+    const have = new Set(hits.filter((h) => h.label === "Country").map((h) => norm(h.name)));
+    const countries = matchCountries(term).filter((c) => !have.has(norm(c.name)));
+    // Nothing at all because the map couldn't be reached: say so, rather than "no such place".
+    if (!complete && !hits.length && !countries.length) throw new Error("The map couldn't be reached");
+    return { value: rankAreas([...hits, ...countries], term, limit), complete };
+  });
+}
+
+const NOMINATIM = "https://nominatim.openstreetmap.org/search";
+
+type NominatimPlace = {
+  osm_type?: string;
+  osm_id?: number;
+  name?: string;
+  addresstype?: string;
+  lat?: string;
+  lon?: string;
+  boundingbox?: string[];
+  address?: { country?: string };
+};
+
+/** Cities, regions and countries from OpenStreetMap's own search: slower than Photon, used when Photon fails. */
+export async function nominatimAreas(text: string, limit: number): Promise<AreaHit[]> {
+  const params = new URLSearchParams({ q: text, format: "jsonv2", addressdetails: "1", limit: String(fetchLimit(limit, 2)), "accept-language": LANG });
+  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Nominatim ${res.status}`);
+  const rows = (await res.json()) as NominatimPlace[];
+  return (Array.isArray(rows) ? rows : []).flatMap((r) => {
+    const label = own(PLACE_LABELS, r.addresstype);
+    const lat = Number(r.lat);
+    const lon = Number(r.lon);
+    if (!label || !r.name || !r.osm_type || r.osm_id == null || !Number.isFinite(lat) || !Number.isFinite(lon)) return [];
+    const [south, north, west, east] = (r.boundingbox ?? []).map(Number);
+    const bbox: BBox | null = [west, south, east, north].every(Number.isFinite) ? [west, south, east, north] : null;
+    return [
+      {
+        key: `osm:${r.osm_type[0].toUpperCase()}${r.osm_id}`,
+        name: r.name,
+        country: label === "Country" ? null : (r.address?.country ?? null),
+        label,
+        lat,
+        lon,
+        bbox,
+      },
+    ];
+  });
 }
 
 export async function photonAreas(text: string, limit: number): Promise<AreaHit[]> {
@@ -342,14 +404,22 @@ const GOOGLE_BROWSE: Record<PlaceCategory, string> = {
   "Activities": "things to do",
 };
 
+/** One Photon search; a hiccup (it's a free, shared service) gets one more try. */
 async function photon(params: URLSearchParams): Promise<PhotonFeature[]> {
-  const res = await fetch(`${PHOTON}?${params}`, {
-    headers: { "User-Agent": USER_AGENT },
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  });
-  if (!res.ok) throw new Error(`Photon ${res.status}`);
-  const data = (await res.json()) as { features?: PhotonFeature[] };
-  return Array.isArray(data.features) ? data.features : [];
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const res = await fetch(`${PHOTON}?${params}`, {
+        headers: { "User-Agent": USER_AGENT },
+        signal: AbortSignal.timeout(TIMEOUT_MS),
+      });
+      if (!res.ok) throw new Error(`Photon ${res.status}`);
+      const data = (await res.json()) as { features?: PhotonFeature[] };
+      return Array.isArray(data.features) ? data.features : [];
+    } catch (err) {
+      if (attempt >= 1) throw err;
+      await new Promise((r) => setTimeout(r, 300));
+    }
+  }
 }
 
 // Only these values of these keys are spots: national parks, pedestrian streets, waterfalls, grand stations.

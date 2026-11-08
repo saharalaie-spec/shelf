@@ -29,6 +29,9 @@ export function DestinationPicker({
   const [q, setQ] = useState("");
   const [results, setResults] = useState<AreaHit[]>([]);
   const [resultsFor, setResultsFor] = useState("");
+  // The map didn't answer for this search; "Try again" asks once more.
+  const [failedFor, setFailedFor] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const [saving, setSaving] = useState<string | null>(null);
   const query = q.trim();
 
@@ -40,10 +43,12 @@ export function DestinationPicker({
         const data = await api<{ results: AreaHit[] }>(`/api/search?kind=area&q=${encodeURIComponent(query)}`, { signal: ac.signal });
         setResults(data.results);
         setResultsFor(query);
+        setFailedFor(null);
       } catch {
         if (!ac.signal.aborted) {
           setResults([]);
           setResultsFor(query);
+          setFailedFor(query);
         }
       }
     }, 200);
@@ -51,7 +56,8 @@ export function DestinationPicker({
       clearTimeout(t);
       ac.abort();
     };
-  }, [query]);
+  }, [query, attempt]);
+  const failed = failedFor === query;
 
   const mine = destinations.filter((d) => !query || d.name.toLowerCase().includes(query.toLowerCase()));
   const loading = query.length >= 2 && resultsFor !== query;
@@ -126,6 +132,20 @@ export function DestinationPicker({
             <p className="px-3 pb-1 text-[13px] font-medium tracking-wide text-muted uppercase">On the map</p>
             <ul>
               {loading && !results.length && <li className="px-3 py-3 text-[15px] text-muted">Looking…</li>}
+              {failed && !loading && (
+                <li className="flex items-center justify-between gap-3 px-3 py-3 text-[15px] text-muted">
+                  The map didn’t answer just now.
+                  <button
+                    onClick={() => {
+                      setResultsFor("");
+                      setAttempt((n) => n + 1);
+                    }}
+                    className="h-9 shrink-0 rounded-full bg-surface-2 px-4 text-[14px] font-medium text-ink active:scale-95"
+                  >
+                    Try again
+                  </button>
+                </li>
+              )}
               {results.map((a) => (
                 <li key={a.key}>
                   <button
