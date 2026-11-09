@@ -37,6 +37,8 @@ Pick one or both.
 - [ ] **Places API (New)** (needs billing turned on; Google gives a monthly free allowance, then charges per search):
   enable it, create a second key restricted to it. Set `GOOGLE_PLACES_API_KEY`. Makes spot search and Go out's ideas
   use Google Maps. Set a budget alert (Billing → Budgets & alerts) so a surprise can't happen.
+- [ ] **To build first:** city search ("Where?" in Go out, New place) on Google too. Today it uses the free map,
+  with built-in cities and countries as backup, even when the key is set; ask for this change before adding the key.
 
 ## 4. Claude (paid by use)
 
