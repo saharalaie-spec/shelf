@@ -513,7 +513,8 @@ describe("live sources", () => {
 
   it("throws when Photon is down, and matching turns that into match: null", async () => {
     stubFetch({ photon: 503 });
-    await expect(searchAreas("nowhere at all")).rejects.toThrow(/Photon 503/);
+    // Cities and countries try OpenStreetMap's own search too before giving up.
+    await expect(searchAreas("nowhere at all")).rejects.toThrow(/couldn't be reached/);
     await expect(searchSpots("nothing works", VALENCIA)).rejects.toThrow(/Photon 503/);
     const [result] = await matchCandidates("place", [{ title: "Still nothing" }], VALENCIA);
     expect(result).toEqual({ input: { title: "Still nothing" }, match: null, alternatives: [] });

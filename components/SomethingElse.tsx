@@ -371,6 +371,89 @@ type Format = "movie" | "tv";
  * and your friends', like the other ideas. Watching asks movie or show first; going out needs the city. Then: three
  * different ones, or explain more and ask again.
  */
+/**
+ * Writing what you're after, in a panel pinned near the top of the screen, so the phone's keyboard opens below it
+ * instead of covering the words or making the sheet jump. It sits over the sheet (positioned against it), cursor at
+ * the end of what's there.
+ */
+function Writing({
+  text,
+  placeholder,
+  canFind,
+  dictation: { canTalk, listening, interim, talk, stop },
+  onText,
+  onCancel,
+  onFind,
+}: {
+  text: string;
+  placeholder: string;
+  canFind: boolean;
+  dictation: { canTalk: boolean; listening: boolean; interim: string; talk: () => void; stop: () => void };
+  onText: (t: string) => void;
+  onCancel: () => void;
+  onFind: () => void;
+}) {
+  const box = useRef<HTMLTextAreaElement>(null);
+  const shown = interim ? `${text}${text ? " " : ""}${interim}` : text;
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    el.setSelectionRange(el.value.length, el.value.length);
+  }, []);
+  return (
+    <div
+      data-vaul-no-drag=""
+      className="absolute inset-x-0 bottom-0 z-30 flex h-[92dvh] flex-col rounded-t-[28px] bg-surface px-5 pt-4 shadow-float"
+    >
+      <div className="flex items-center justify-between gap-3">
+        <button onClick={onCancel} className="h-10 px-1 text-[16px] font-medium text-ink-2 active:opacity-60">
+          Cancel
+        </button>
+        <p className="font-serif text-[18px] font-medium">What are you after?</p>
+        <Button onClick={onFind} disabled={!shown.trim() || !canFind} className="h-10 px-4 text-[15px]" icon={<Icon name="sparkle" size={15} />}>
+          Find
+        </Button>
+      </div>
+      <textarea
+        ref={box}
+        aria-label="What you’re after"
+        value={shown}
+        onChange={(e) => {
+          if (listening) stop();
+          onText(e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey && canFind && shown.trim()) {
+            e.preventDefault();
+            onFind();
+          }
+        }}
+        placeholder={placeholder}
+        rows={5}
+        maxLength={300}
+        enterKeyHint="search"
+        className="mt-4 w-full resize-none rounded-2xl border border-line bg-paper px-4 py-3 text-[17px] leading-snug outline-none placeholder:text-muted focus:border-ink"
+      />
+      <div className="mt-3 flex items-center gap-3">
+        {canTalk && (
+          <button
+            onClick={listening ? stop : talk}
+            aria-pressed={listening}
+            aria-label={listening ? "Stop listening" : "Talk"}
+            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent text-accent-ink active:scale-95 ${listening ? "animate-pulse" : ""}`}
+          >
+            <Icon name={listening ? "x" : "mic"} size={20} />
+          </button>
+        )}
+        <p className="text-[13px] leading-snug text-muted">
+          {listening ? "Listening… type to fix any word." : canFind ? "Say it however you like: who it’s for, the mood, the budget." : "Pick the city first, then Find."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 type Asked = { wish: string; area: string | null; picks?: Suggestion[]; destinationId?: string | null; error?: string };
 
 function TellUs({
@@ -390,7 +473,12 @@ function TellUs({
   const { canTalk, listening, interim, talk, stop } = useDictation();
   const [asked, setAsked] = useState<Asked | null>(kept?.asked ?? null);
   const [more, setMore] = useState(false);
-  const box = useRef<HTMLTextAreaElement>(null);
+  // Typing happens in a panel at the top of the screen, clear of the phone's keyboard (see Writing).
+  const [writing, setWriting] = useState(false);
+  const write = () => {
+    if (listening) stop();
+    setWriting(true);
+  };
 
   const needsWatch = kind === "screen" && watch === null;
   const needsCity = kind === "place" && !area;
@@ -423,13 +511,7 @@ function TellUs({
     setMore(true);
     const t = text.trim();
     setText(t ? `${t.replace(/[.!?]$/, "")}, ` : "");
-    // After the text updates, put the cursor at the end.
-    requestAnimationFrame(() => {
-      const el = box.current;
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(el.value.length, el.value.length);
-    });
+    write();
   };
 
   const picks = current?.picks?.filter((s) => !taken.has(s.hit.key)) ?? [];
@@ -449,6 +531,10 @@ function TellUs({
   };
   const hint = listening
     ? "Listening… tap the words to edit them"
+    : !writing && !shown.trim()
+      ? canTalk
+        ? "Tap to type, or the mic to talk. You’ll get three."
+        : "Tap to type. You’ll get three."
     : needsCity
       ? "Pick the city above, then Find."
       : more
@@ -485,25 +571,16 @@ function TellUs({
       {!needsWatch && (
         <>
           <div className="mt-2 flex items-end gap-2">
-            <textarea
-              ref={box}
+            {/* Tapping the words opens the writing panel (and stops listening, keeping everything heard so far). */}
+            <button
+              onClick={write}
               aria-label="What you’re after"
-              value={shown}
-              onChange={(e) => !listening && setText(e.target.value)}
-              // Tapping the words to fix one stops listening, keeping everything heard so far.
-              onFocus={() => listening && stop()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  send();
-                }
-              }}
-              placeholder={EXAMPLE[kind]}
-              rows={2}
-              maxLength={300}
-              enterKeyHint="search"
-              className="min-w-0 flex-1 resize-none rounded-xl border border-line bg-surface px-3 py-2 text-[16px] leading-snug outline-none placeholder:text-muted focus:border-ink"
-            />
+              className={`min-h-[64px] min-w-0 flex-1 rounded-xl border border-line bg-surface px-3 py-2 text-left text-[16px] leading-snug whitespace-pre-wrap ${
+                shown ? "text-ink" : "text-muted"
+              }`}
+            >
+              {shown || EXAMPLE[kind]}
+            </button>
             {canTalk && (
               <button
                 onClick={listening ? () => stop() : () => talk((said) => setText((t) => appendSaid(t, said)))}
@@ -528,6 +605,23 @@ function TellUs({
             </Button>
           </div>
         </>
+      )}
+      {writing && (
+        <Writing
+          text={text}
+          placeholder={EXAMPLE[kind] ?? ""}
+          canFind={!needsCity}
+          dictation={{ canTalk, listening, interim, talk: () => talk((said) => setText((t) => appendSaid(t, said))), stop }}
+          onText={setText}
+          onCancel={() => {
+            stop();
+            setWriting(false);
+          }}
+          onFind={() => {
+            setWriting(false);
+            send();
+          }}
+        />
       )}
       {thinking && <Thinking label={kind === "place" ? "Searching the web for places that fit…" : undefined} />}
       {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
