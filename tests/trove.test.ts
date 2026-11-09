@@ -170,6 +170,20 @@ describe("places", () => {
     expect((await trove.summarize(USER)).place).toMatchObject({ counts: { read: 1, reading: 0, want: 0 }, areas: 1 });
   });
 
+  it("moves a spot filed under the wrong place, but only to a place of yours", async () => {
+    const places = await import("@/lib/destinations");
+    const lisbon = await places.findOrCreateDestination(USER, { name: "Lisbon", country: "Portugal", lat: null, lon: null, bbox: null });
+    const porto = await places.findOrCreateDestination(USER, { name: "Porto", country: "Portugal", lat: null, lon: null, bbox: null });
+    const [cafe] = await trove.addItems(USER, "place", [spot("fx:spot:majestic", "Majestic Café")], { destinationId: lisbon.id });
+    expect(await trove.updateItem(USER, cafe.id, { destinationId: porto.id })).toMatchObject({ destinationId: porto.id });
+    expect((await trove.listItems(USER, { kind: "place", destinationId: porto.id })).map((s) => s.title)).toContain("Majestic Café");
+    expect((await trove.listItems(USER, { kind: "place", destinationId: lisbon.id })).map((s) => s.title)).not.toContain("Majestic Café");
+    // A place that isn't theirs (or isn't there): nothing moves.
+    expect(await trove.updateItem(USER, cafe.id, { destinationId: "not-one-of-yours" })).toBeNull();
+    expect((await trove.listItems(USER, { kind: "place", destinationId: porto.id })).map((s) => s.title)).toContain("Majestic Café");
+    await trove.removeItem(USER, cafe.id);
+  });
+
   it("marks each spot Been or Want to go, never in progress", async () => {
     const places = await import("@/lib/destinations");
     const valencia = await places.findOrCreateDestination(USER, { name: "Valencia", country: null, lat: null, lon: null, bbox: null });

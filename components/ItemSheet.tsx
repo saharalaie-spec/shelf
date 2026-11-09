@@ -10,6 +10,7 @@ import { vocab } from "@/lib/kinds";
 import { isSampleId } from "@/lib/sample";
 import type { Destination, Item, Kind, Status } from "@/lib/types";
 import { Cover } from "./Cover";
+import { DestinationPicker, type Dest } from "./Destinations";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { Sheet } from "./Sheet";
@@ -27,6 +28,9 @@ type Props = {
   book: Item | null;
   /** Spots: the destination it's in. */
   destination?: Destination | null;
+  /** Spots: every place of yours, to move one filed under the wrong one. */
+  destinations?: Dest[];
+  onMove?: (book: Item, to: Dest, created: boolean) => void;
   onNote: (book: Item, note: string) => void;
   /** A typed name, or null to clear. */
   onRecBy: (book: Item, name: string | null) => void;
@@ -48,6 +52,8 @@ export function ItemSheet({
   kind,
   book,
   destination,
+  destinations = [],
+  onMove,
   onNote,
   onRecBy,
   onThank,
@@ -67,6 +73,8 @@ export function ItemSheet({
   const [custom, setCustom] = useState("");
   const [typing, setTyping] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  // Moving a spot to another place: the sheet shows the place picker instead (and goes back after).
+  const [moving, setMoving] = useState<string | null>(null);
 
   const b = book ?? shown;
   // The item's own categories and ones already in this collection first; the full list on request.
@@ -92,7 +100,24 @@ export function ItemSheet({
 
   return (
     <Sheet open={Boolean(book)} onOpenChange={(o) => !o && onClose()} title={b?.title ?? "Details"} hideTitle>
-      {b && (
+      {b && moving === b.id && onMove ? (
+        <div className="flex h-[70dvh] flex-col" data-vaul-no-drag="">
+          <div className="flex items-center gap-2 px-3 pt-1 pb-2">
+            <button onClick={() => setMoving(null)} aria-label="Back" className="flex h-10 w-10 items-center justify-center rounded-full active:bg-surface-2">
+              <Icon name="back" size={20} />
+            </button>
+            <p className="min-w-0 flex-1 truncate font-serif text-[20px] font-medium tracking-tight">Move {b.title} to…</p>
+          </div>
+          <DestinationPicker
+            destinations={destinations}
+            current={b.destinationId}
+            onPicked={(d, created) => {
+              if (d.id !== b.destinationId) onMove(b, d, created);
+              setMoving(null);
+            }}
+          />
+        </div>
+      ) : b && (
         <div className="overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
           {kind === "place" ? (
             <div className="flex items-center gap-4 pt-2">
@@ -100,7 +125,17 @@ export function ItemSheet({
               <div className="min-w-0 flex-1">
                 <h2 className="font-serif text-[24px] leading-tight font-medium tracking-tight">{b.title}</h2>
                 <p className="mt-0.5 text-[15px] text-ink-2">{spotLine(b) || "Spot"}</p>
-                {destination && <p className="text-[14px] text-muted">In {destination.name}</p>}
+                <p className="flex items-center gap-1.5 text-[14px] text-muted">
+                  <span className="truncate">{destination ? `In ${destination.name}` : "Not in a place yet"}</span>
+                  {onMove && (
+                    <button
+                      onClick={() => setMoving(b.id)}
+                      className="shrink-0 font-medium text-ink-2 underline underline-offset-2 active:opacity-60"
+                    >
+                      Move
+                    </button>
+                  )}
+                </p>
               </div>
             </div>
           ) : (

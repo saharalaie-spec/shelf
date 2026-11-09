@@ -13,6 +13,7 @@ export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/items/[i
     quiet: boolean;
     note: string | null;
     recName: string | null;
+    destinationId: string;
   }>(req);
   if (body.categories !== undefined && !Array.isArray(body.categories)) throw new AuthError("categories must be a list.");
   if (body.status !== undefined && !isStatus(body.status)) throw new AuthError("Unknown status.");
@@ -20,6 +21,7 @@ export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/items/[i
   if (body.quiet !== undefined && typeof body.quiet !== "boolean") throw new AuthError("quiet must be true or false.");
   if (body.note !== undefined && body.note !== null && typeof body.note !== "string") throw new AuthError("Notes are text.");
   if (body.recName !== undefined && body.recName !== null && typeof body.recName !== "string") throw new AuthError("Names are text.");
+  if (body.destinationId !== undefined && typeof body.destinationId !== "string") throw new AuthError("Pick a place to move it to.");
   const saved = await updateItem(user.id, id, {
     categories: body.categories?.map(String),
     status: body.status,
@@ -27,6 +29,7 @@ export const PATCH = route(async (req: Request, ctx: RouteContext<"/api/items/[i
     quiet: body.quiet,
     note: body.note,
     recName: body.recName,
+    destinationId: body.destinationId,
   });
   if (!saved) throw new AuthError("Not found.", 404);
   return Response.json(saved);

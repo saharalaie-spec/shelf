@@ -394,6 +394,22 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
     [patchItem],
   );
 
+  // A spot filed under the wrong place (an import's guess, a slip): it moves, and the lists follow.
+  const move = useCallback(
+    async (book: Item, to: Dest, created: boolean) => {
+      if (created) setDestinations((ds) => [to, ...ds.filter((x) => x.id !== to.id)]);
+      patchItem(book.id, { destinationId: to.id });
+      try {
+        await api(`/api/items/${book.id}`, { method: "PATCH", body: { destinationId: to.id } });
+        toast(`Moved to ${to.name}`);
+      } catch (err) {
+        patchItem(book.id, { destinationId: book.destinationId });
+        toast.error((err as Error).message);
+      }
+    },
+    [patchItem],
+  );
+
   const setNote = useCallback(
     async (book: Item, note: string) => {
       const next = note.trim() || null;
@@ -627,6 +643,8 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
         kind={kind}
         book={openItem}
         destination={destinations.find((d) => d.id === openItem?.destinationId) ?? null}
+        destinations={destinations}
+        onMove={isPlace ? move : undefined}
         onNote={setNote}
         onRecBy={setRecBy}
         onThank={thank}

@@ -162,6 +162,8 @@ type ItemPatch = {
   quiet?: boolean;
   note?: string | null;
   recName?: string | null;
+  /** Spots: the place it belongs to (one of yours), when it was filed under the wrong one. */
+  destinationId?: string;
 };
 
 /**
@@ -210,6 +212,13 @@ export async function updateItem(
     // Only restamp when the section actually changes, so re-saving doesn't reorder a list.
     sets.push(`status_at = CASE WHEN status = ${next} THEN status_at ELSE ? END`, `status = ${next}`);
     args.push(patch.status, patch.status, Date.now(), patch.status, patch.status);
+  }
+  if (patch.destinationId !== undefined) {
+    // Only to a place of yours, and only for spots.
+    if (!(await getDestination(userId, patch.destinationId))) return null;
+    saved.destinationId = patch.destinationId;
+    sets.push("destination_id = CASE WHEN kind = 'place' THEN ? ELSE destination_id END");
+    args.push(patch.destinationId);
   }
   if (!sets.length) return saved;
   const res = await client.execute({

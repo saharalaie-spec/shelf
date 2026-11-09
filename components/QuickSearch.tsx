@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
+import { matchCountries } from "@/lib/countries";
 import type { AreaHit } from "@/lib/types";
 import { Icon } from "./ui";
 
@@ -46,6 +47,11 @@ export function AreaSearch({ onArea, prompt, disabled }: { onArea: (a: AreaHit) 
           </>
         )}
         onPick={onArea}
+        // Countries are built in: they show as you type, without waiting on the map.
+        instant={(text, found) => {
+          const have = new Set(found.map((a) => a.name.toLowerCase()));
+          return matchCountries(text).filter((c) => !have.has(c.name.toLowerCase()));
+        }}
         typed={(name) => ({ key: `typed:${name.toLowerCase()}`, name, country: null, label: null, lat: null, lon: null, bbox: null })}
       />
     </div>
@@ -61,6 +67,7 @@ export function Search<T extends { key: string }>({
   onPick,
   disabled,
   typed,
+  instant,
 }: {
   url: (q: string) => string;
   placeholder: string;
@@ -70,6 +77,8 @@ export function Search<T extends { key: string }>({
   disabled?: boolean;
   /** When set, what was typed can be used as it is ("Use “Lisbon”", or Go on the keyboard with nothing found). */
   typed?: (text: string) => T;
+  /** Results known right away, shown while the search runs and after it (minus any it found). */
+  instant?: (text: string, found: T[]) => T[];
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<{ q: string; items: T[] } | null>(null);
@@ -78,21 +87,27 @@ export function Search<T extends { key: string }>({
   useEffect(() => {
     if (text.length < 2) return;
     let live = true;
+    // A newer word cancels the older search, so slow answers don't pile up behind it.
+    const ac = new AbortController();
     const t = setTimeout(() => {
-      api<{ results: T[] }>(url(text))
+      api<{ results: T[] }>(url(text), { signal: ac.signal })
         .then((r) => live && setResults({ q: text, items: r.results.slice(0, 4) }))
         .catch(() => live && setResults({ q: text, items: [] }));
     }, 280);
     return () => {
       live = false;
       clearTimeout(t);
+      ac.abort();
     };
     // The url builder is a fresh function each render; what it depends on is in the component's key.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text]);
 
-  const shown = text.length >= 2 && results ? results.items : [];
   const looked = text.length >= 2 && results?.q === text;
+  const found = text.length >= 2 && results ? results.items : [];
+  const quick = instant && text.length >= 2 ? instant(text, looked ? found : []) : [];
+  // While a search runs, what's known right away leads; once it's back, its answers do.
+  const shown = (looked ? [...found, ...quick] : quick.length ? quick : found).slice(0, 5);
   const pick = (r: T) => {
     onPick(r);
     setQ("");
@@ -139,7 +154,7 @@ export function Search<T extends { key: string }>({
           ))}
         </ul>
       )}
-      {text.length >= 2 && !looked && !shown.length && <p className="mt-2 px-1 text-[14px] text-muted">Looking…</p>}
+      {text.length >= 2 && !looked && <p className="mt-2 px-1 text-[14px] text-muted">{shown.length ? "Looking on the map…" : "Looking…"}</p>}
       {looked && !shown.length && !typed && <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact name?</p>}
       {looked && typed && (
         <button

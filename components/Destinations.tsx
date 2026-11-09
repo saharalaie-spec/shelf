@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
+import { matchCountries } from "@/lib/countries";
 import type { AreaHit, Destination } from "@/lib/types";
 import { Sheet } from "./Sheet";
 import { Button, Icon } from "./ui";
@@ -61,6 +62,10 @@ export function DestinationPicker({
 
   const mine = destinations.filter((d) => !query || d.name.toLowerCase().includes(query.toLowerCase()));
   const loading = query.length >= 2 && resultsFor !== query;
+  // Countries are built in: they show as you type, without waiting on the map (and stay if it never answers).
+  const found = loading ? [] : results;
+  const quick = matchCountries(query).filter((c) => !found.some((r) => r.name.toLowerCase() === c.name.toLowerCase()));
+  const areas = loading ? (quick.length ? quick : results) : [...results, ...quick];
 
   const create = async (area: Omit<AreaHit, "key"> & { key?: string }) => {
     setSaving(area.key ?? "typed");
@@ -89,8 +94,8 @@ export function DestinationPicker({
             onKeyDown={(e) => {
               if (e.key !== "Enter" || query.length < 2) return;
               e.preventDefault();
-              const top = results[0];
-              if (top && resultsFor === query) create(top);
+              const top = areas[0];
+              if (top && (resultsFor === query || top.label === "Country")) create(top);
               else create({ name: query, country: null, label: null, lat: null, lon: null, bbox: null });
             }}
             enterKeyHint="go"
@@ -131,7 +136,7 @@ export function DestinationPicker({
           <>
             <p className="px-3 pb-1 text-[13px] font-medium tracking-wide text-muted uppercase">On the map</p>
             <ul>
-              {loading && !results.length && <li className="px-3 py-3 text-[15px] text-muted">Looking…</li>}
+              {loading && !areas.length && <li className="px-3 py-3 text-[15px] text-muted">Looking…</li>}
               {failed && !loading && (
                 <li className="flex items-center justify-between gap-3 px-3 py-3 text-[15px] text-muted">
                   The map didn’t answer just now.
@@ -146,7 +151,7 @@ export function DestinationPicker({
                   </button>
                 </li>
               )}
-              {results.map((a) => (
+              {areas.map((a) => (
                 <li key={a.key}>
                   <button
                     onClick={() => create(a)}
@@ -162,6 +167,7 @@ export function DestinationPicker({
                   </button>
                 </li>
               ))}
+              {loading && areas.length > 0 && <li className="px-3 py-2 text-[14px] text-muted">Looking on the map…</li>}
               {!loading && (
                 <li>
                   <button

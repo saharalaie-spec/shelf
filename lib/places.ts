@@ -1,5 +1,6 @@
 import "server-only";
 import { categorizeSpot, placeCategory, type PlaceCategory } from "./place-categories";
+import { matchCities } from "./cities";
 import { matchCountries } from "./countries";
 import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from "./types";
 
@@ -8,6 +9,13 @@ import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from
 // instead, falling back to Photon if Google fails. Areas always come from Photon.
 
 const TIMEOUT_MS = 7000;
+/**
+ * Area search runs as someone types, so it's kept short: one quick try at Photon, then one at Nominatim. Past that,
+ * the built-in countries (and "Use what I typed") answer instead of a long "Looking…".
+ */
+const AREA_TIMEOUT_MS = 3500;
+/** How long an area search waits on the map before answering with the built-in cities and countries alone. */
+const AREA_WAIT_MS = 2500;
 const USER_AGENT = "Trove/0.1 (favorites list prototype)";
 const PHOTON = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
@@ -50,35 +58,46 @@ async function spotSource(google: (apiKey: string) => Promise<Hit[]>, photon: ()
 
 // ---------- Destinations ----------
 
-/** Cities, regions, islands and countries matching `text`, best first. Throws if Photon can't be reached. */
+/**
+ * Cities, regions, islands and countries matching `text`, best first. Built-in cities and countries answer at once;
+ * the map (Photon, then OpenStreetMap's own search) adds the rest when it answers within a moment. Throws only if
+ * nothing at all was found and the map couldn't be reached.
+ */
 export async function searchAreas(text: string, limit = 8): Promise<AreaHit[]> {
   const term = text.trim();
   if (!term) return [];
   return cached(JSON.stringify(["areas", term.toLowerCase(), limit]), async () => {
-    // Photon first; if it's down or finds nothing, OpenStreetMap's own search. Only a full answer is kept.
-    let hits: AreaHit[] = [];
-    let complete = true;
-    try {
-      hits = await photonAreas(term, limit);
-    } catch (err) {
-      complete = false;
-      console.warn("Photon areas failed, trying Nominatim:", (err as Error).message);
-    }
-    if (!hits.length) {
-      try {
-        hits = await nominatimAreas(term, limit);
-      } catch (err) {
-        complete = false;
-        console.warn("Nominatim areas failed too:", (err as Error).message);
-      }
-    }
-    // A country can always be found, from the built-in list, even with both down.
-    const have = new Set(hits.filter((h) => h.label === "Country").map((h) => norm(h.name)));
-    const countries = matchCountries(term).filter((c) => !have.has(norm(c.name)));
+    const fromMap = mapAreas(term, limit);
+    // Waiting longer than a moment leaves "Looking…" on screen: past it, what's built in answers alone.
+    const map = await Promise.race([fromMap, new Promise<null>((done) => setTimeout(() => done(null), AREA_WAIT_MS))]);
+    if (!map) fromMap.catch(() => {});
+    const hits = map?.hits ?? [];
+    const complete = Boolean(map?.complete);
+    // Countries always (the map often leaves them out); cities only when the map was slow, down or found none.
+    const builtIn = [...(hits.length ? [] : matchCities(term)), ...matchCountries(term)];
     // Nothing at all because the map couldn't be reached: say so, rather than "no such place".
-    if (!complete && !hits.length && !countries.length) throw new Error("The map couldn't be reached");
-    return { value: rankAreas([...hits, ...countries], term, limit), complete };
+    if (!complete && !hits.length && !builtIn.length) throw new Error("The map couldn't be reached");
+    // The map's own answers first (they carry bounds and smaller places); built-in ones fill in and stand in.
+    return { value: rankAreas([...hits, ...builtIn], term, limit), complete };
   });
+}
+
+/** The map's areas: Photon first; if it's down or finds nothing, OpenStreetMap's own search. */
+async function mapAreas(term: string, limit: number): Promise<{ hits: AreaHit[]; complete: boolean }> {
+  let complete = true;
+  try {
+    const hits = await photonAreas(term, limit);
+    if (hits.length) return { hits, complete };
+  } catch (err) {
+    complete = false;
+    console.warn("Photon areas failed, trying Nominatim:", (err as Error).message);
+  }
+  try {
+    return { hits: await nominatimAreas(term, limit), complete };
+  } catch (err) {
+    console.warn("Nominatim areas failed too:", (err as Error).message);
+    return { hits: [], complete: false };
+  }
 }
 
 const NOMINATIM = "https://nominatim.openstreetmap.org/search";
@@ -97,7 +116,7 @@ type NominatimPlace = {
 /** Cities, regions and countries from OpenStreetMap's own search: slower than Photon, used when Photon fails. */
 export async function nominatimAreas(text: string, limit: number): Promise<AreaHit[]> {
   const params = new URLSearchParams({ q: text, format: "jsonv2", addressdetails: "1", limit: String(fetchLimit(limit, 2)), "accept-language": LANG });
-  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(AREA_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Nominatim ${res.status}`);
   const rows = (await res.json()) as NominatimPlace[];
   return (Array.isArray(rows) ? rows : []).flatMap((r) => {
@@ -127,7 +146,7 @@ export async function photonAreas(text: string, limit: number): Promise<AreaHit[
   // administrative boundary that has no place tag of its own (many municipalities and regions).
   params.append("osm_tag", "place");
   params.append("osm_tag", "boundary:administrative");
-  const features = await photon(params);
+  const features = await photon(params, { timeoutMs: AREA_TIMEOUT_MS, retry: false });
   return rankAreas(
     features.flatMap((f) => photonArea(f) ?? []),
     text,
@@ -423,18 +442,18 @@ export async function nearestArea(lat: number, lon: number): Promise<AreaHit | n
 }
 
 /** One Photon search; a hiccup (it's a free, shared service) gets one more try. */
-async function photon(params: URLSearchParams): Promise<PhotonFeature[]> {
+async function photon(params: URLSearchParams, { timeoutMs = TIMEOUT_MS, retry = true } = {}): Promise<PhotonFeature[]> {
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch(`${PHOTON}?${params}`, {
         headers: { "User-Agent": USER_AGENT },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) throw new Error(`Photon ${res.status}`);
       const data = (await res.json()) as { features?: PhotonFeature[] };
       return Array.isArray(data.features) ? data.features : [];
     } catch (err) {
-      if (attempt >= 1) throw err;
+      if (attempt >= 1 || !retry) throw err;
       await new Promise((r) => setTimeout(r, 300));
     }
   }
