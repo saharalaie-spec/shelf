@@ -43,7 +43,7 @@ Pick one or both.
 - [ ] `ANTHROPIC_API_KEY` from console.anthropic.com: reading photos and screenshots, ideas, "say what you're after",
   and researching places on the web.
 - [ ] In the Console, check Settings → Capabilities: web search is on (it is unless someone turned it off).
-- [ ] Set a monthly spend limit (Settings → Limits). Web search costs extra per search (Go out's research uses up to 5
+- [ ] Set a monthly spend limit (Settings → Limits). Web search costs extra per search (Go out's research uses up to 3
   per request).
 
 ## 5. Free extras

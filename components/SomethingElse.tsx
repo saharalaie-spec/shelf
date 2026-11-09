@@ -359,6 +359,31 @@ function Thinking({ rows = 3, label }: { rows?: number; label?: string }) {
   );
 }
 
+/** Past this, the request is given up on in the app (the server stops itself at 60 seconds). */
+const GIVE_UP_MS = 70_000;
+
+/** What's happening while places are looked up on the web, so a longer wait never looks stuck. */
+const STEPS: [number, string][] = [
+  [0, "Searching city guides for places that fit…"],
+  [8, "Reading what they say about each one…"],
+  [20, "Checking they’re open and on the map…"],
+  [38, "Taking a little longer than usual. Almost there…"],
+];
+
+function Searching() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSeconds((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const label = STEPS.filter(([at]) => seconds >= at).at(-1)![1];
+  return (
+    <div aria-live="polite">
+      <Thinking label={label} />
+    </div>
+  );
+}
+
 const EXAMPLE: Partial<Record<Kind, string>> = {
   screen: "“Something funny to watch with my parents, under two hours”",
   place: "“A cozy spot for a first date, not too loud, good wine”",
@@ -497,13 +522,20 @@ function TellUs({
     setMore(false);
     const at = area?.key ?? null;
     setAsked({ wish, area: at });
+    // The server answers within a minute; past that something hung, so say so rather than wait forever.
+    const ac = new AbortController();
+    const late = setTimeout(() => ac.abort(), GIVE_UP_MS);
     try {
       const r = await api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", {
         body: { kind, mood, area, format: kind === "screen" && watch !== "either" ? watch : null, wish, fresh },
+        signal: ac.signal,
       });
       setAsked({ wish, area: at, ...r });
     } catch (err) {
-      setAsked({ wish, area: at, error: (err as Error).message });
+      const error = ac.signal.aborted ? "That took too long. Try again, or say it in fewer words." : (err as Error).message;
+      setAsked({ wish, area: at, error });
+    } finally {
+      clearTimeout(late);
     }
   };
 
@@ -623,7 +655,7 @@ function TellUs({
           }}
         />
       )}
-      {thinking && <Thinking label={kind === "place" ? "Searching the web for places that fit…" : undefined} />}
+      {thinking && (kind === "place" ? <Searching /> : <Thinking />)}
       {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
       {current?.picks && !picks.length && (
         <p className="px-1 pt-2 text-[14px] text-muted">

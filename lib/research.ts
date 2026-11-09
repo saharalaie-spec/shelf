@@ -1,5 +1,5 @@
 import "server-only";
-import type Anthropic from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import { aiProblem, anthropic } from "./ai";
 import type { Area } from "./types";
 
@@ -67,7 +67,12 @@ ${exclude.slice(0, 150).join("\n")}
 - Then call submit_places once with up to ${count}, best first, each with the URL of a search result that supports it. If fewer fit, submit fewer. If none do, submit an empty list.`;
 }
 
-const MAX_CONTINUATIONS = 4;
+const MAX_CONTINUATIONS = 2;
+/**
+ * How long the web research may take in all. Past it, lib/suggest.ts falls back to its quicker way (naming places and
+ * checking them on the map), so the whole answer still arrives well inside the route's 60 seconds.
+ */
+export const RESEARCH_BUDGET_MS = 35_000;
 
 /** URLs of every web search result in a response. */
 export function searchedUrls(content: Anthropic.Beta.BetaContentBlock[]): string[] {
@@ -100,24 +105,37 @@ export const researchPlaces: Research = async (input) => {
   const client = anthropic();
   const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: prompt(input) }];
   const seen = new Set<string>();
+  const until = Date.now() + RESEARCH_BUDGET_MS;
   for (let turn = 0; turn <= MAX_CONTINUATIONS; turn++) {
+    const left = until - Date.now();
+    if (left < 3000) break;
     const response = await client.beta.messages
-      .create({
-        model: "claude-opus-5-5",
-        max_tokens: 16000,
-        // If the request is declined, retry on Anthropic's recommended fallback model.
-        betas: ["server-side-fallback-2026-07-01"],
-        fallbacks: "default",
-        output_config: { effort: "medium" },
-        tools: [
-          { type: "web_search_20260209", name: "web_search", max_uses: 5, user_location: { type: "approximate", city: input.area.name } },
-          SUBMIT,
-        ],
-        messages,
-      })
+      .create(
+        {
+          model: "claude-opus-5-5",
+          max_tokens: 16000,
+          // If the request is declined, retry on Anthropic's recommended fallback model.
+          betas: ["server-side-fallback-2026-07-01"],
+          fallbacks: "default",
+          // Low effort and three searches: quick enough to wait for on a phone, and still grounded in real pages.
+          output_config: { effort: "low" },
+          tools: [
+            { type: "web_search_20260209", name: "web_search", max_uses: 3, user_location: { type: "approximate", city: input.area.name } },
+            SUBMIT,
+          ],
+          messages,
+        },
+        // Running out of time isn't a failure to report: the quicker way takes over.
+        { timeout: left, maxRetries: 0 },
+      )
       .catch((err) => {
+        if (err instanceof Anthropic.APIConnectionTimeoutError) return null;
         throw aiProblem(err);
       });
+    if (!response) {
+      console.warn(`Researching places ran past ${RESEARCH_BUDGET_MS / 1000}s; using the quicker way.`);
+      break;
+    }
     for (const url of searchedUrls(response.content)) seen.add(url);
     const places = submitted(response.content);
     if (places.length || response.content.some((b) => b.type === "tool_use" && b.name === SUBMIT.name)) return { places, seen };
