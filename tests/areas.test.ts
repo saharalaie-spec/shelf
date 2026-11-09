@@ -12,7 +12,7 @@ describe("finding a city or country to group spots under", () => {
     expect(matchCountries("x")).toEqual([]);
   });
 
-  it("tries Photon again, then OpenStreetMap's own search, when Photon fails", async () => {
+  it("as you type, tries Photon once, then OpenStreetMap's own search, when Photon fails", async () => {
     const hosts: string[] = [];
     vi.stubGlobal(
       "fetch",
@@ -35,7 +35,8 @@ describe("finding a city or country to group spots under", () => {
       }),
     );
     const hits = await searchAreas("Baku test 1");
-    expect(hosts).toEqual(["photon.komoot.io", "photon.komoot.io", "nominatim.openstreetmap.org"]);
+    // One quick try each: a long wait would leave "Looking…" on screen (the built-in countries show meanwhile).
+    expect(hosts).toEqual(["photon.komoot.io", "nominatim.openstreetmap.org"]);
     expect(hits[0]).toMatchObject({ name: "Baku", label: "City", country: "Azerbaijan", bbox: [49.5, 40.0, 50.4, 40.6] });
   });
 

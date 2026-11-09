@@ -8,6 +8,11 @@ import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from
 // instead, falling back to Photon if Google fails. Areas always come from Photon.
 
 const TIMEOUT_MS = 7000;
+/**
+ * Area search runs as someone types, so it's kept short: one quick try at Photon, then one at Nominatim. Past that,
+ * the built-in countries (and "Use what I typed") answer instead of a long "Looking…".
+ */
+const AREA_TIMEOUT_MS = 3500;
 const USER_AGENT = "Trove/0.1 (favorites list prototype)";
 const PHOTON = "https://photon.komoot.io/api/";
 const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
@@ -97,7 +102,7 @@ type NominatimPlace = {
 /** Cities, regions and countries from OpenStreetMap's own search: slower than Photon, used when Photon fails. */
 export async function nominatimAreas(text: string, limit: number): Promise<AreaHit[]> {
   const params = new URLSearchParams({ q: text, format: "jsonv2", addressdetails: "1", limit: String(fetchLimit(limit, 2)), "accept-language": LANG });
-  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  const res = await fetch(`${NOMINATIM}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(AREA_TIMEOUT_MS) });
   if (!res.ok) throw new Error(`Nominatim ${res.status}`);
   const rows = (await res.json()) as NominatimPlace[];
   return (Array.isArray(rows) ? rows : []).flatMap((r) => {
@@ -127,7 +132,7 @@ export async function photonAreas(text: string, limit: number): Promise<AreaHit[
   // administrative boundary that has no place tag of its own (many municipalities and regions).
   params.append("osm_tag", "place");
   params.append("osm_tag", "boundary:administrative");
-  const features = await photon(params);
+  const features = await photon(params, { timeoutMs: AREA_TIMEOUT_MS, retry: false });
   return rankAreas(
     features.flatMap((f) => photonArea(f) ?? []),
     text,
@@ -423,18 +428,18 @@ export async function nearestArea(lat: number, lon: number): Promise<AreaHit | n
 }
 
 /** One Photon search; a hiccup (it's a free, shared service) gets one more try. */
-async function photon(params: URLSearchParams): Promise<PhotonFeature[]> {
+async function photon(params: URLSearchParams, { timeoutMs = TIMEOUT_MS, retry = true } = {}): Promise<PhotonFeature[]> {
   for (let attempt = 0; ; attempt++) {
     try {
       const res = await fetch(`${PHOTON}?${params}`, {
         headers: { "User-Agent": USER_AGENT },
-        signal: AbortSignal.timeout(TIMEOUT_MS),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) throw new Error(`Photon ${res.status}`);
       const data = (await res.json()) as { features?: PhotonFeature[] };
       return Array.isArray(data.features) ? data.features : [];
     } catch (err) {
-      if (attempt >= 1) throw err;
+      if (attempt >= 1 || !retry) throw err;
       await new Promise((r) => setTimeout(r, 300));
     }
   }
