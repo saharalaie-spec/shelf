@@ -1,13 +1,14 @@
 import { AuthError, requireUser } from "@/lib/auth";
 import { route } from "@/lib/api";
-import { browseCatalog, lookupIsbn, searchAreasCatalog, searchCatalog } from "@/lib/catalog";
+import { browseCatalog, lookupIsbn, nearestAreaCatalog, searchAreasCatalog, searchCatalog } from "@/lib/catalog";
 import { getDestination } from "@/lib/destinations";
 import { vocab } from "@/lib/kinds";
 import { isKind } from "@/lib/types";
 
 /**
  * `?kind=book|podcast|screen&q=` searches a catalog; `?kind=place&dest=<id>&q=` (or `&browse=<category>`)
- * finds spots inside one of your destinations; `?kind=area&q=` finds cities, regions and countries.
+ * finds spots inside one of your destinations; `?kind=area&q=` finds cities, regions and countries; `?kind=near&lat=&lon=`
+ * names the city around a point (Go out's "Near me").
  */
 export const GET = route(async (req: Request) => {
   const user = await requireUser();
@@ -15,6 +16,12 @@ export const GET = route(async (req: Request) => {
   const kindParam = params.get("kind");
   const q = (params.get("q") ?? "").trim().slice(0, 200);
   try {
+    if (kindParam === "near") {
+      const lat = Number(params.get("lat"));
+      const lon = Number(params.get("lon"));
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new AuthError("Where are you?");
+      return Response.json({ area: await nearestAreaCatalog(lat, lon) });
+    }
     if (kindParam === "area") {
       return Response.json({ results: q.length < 2 ? [] : await searchAreasCatalog(q, 8) });
     }
@@ -32,7 +39,7 @@ export const GET = route(async (req: Request) => {
   } catch (err) {
     if (err instanceof AuthError) throw err;
     console.warn(`${kindParam} search failed:`, (err as Error).message);
-    const where = kindParam === "area" || kindParam === "place" ? "the map" : vocab(isKind(kindParam) ? kindParam : "book").catalog;
+    const where = kindParam === "area" || kindParam === "near" || kindParam === "place" ? "the map" : vocab(isKind(kindParam) ? kindParam : "book").catalog;
     throw new AuthError(`Couldn’t reach ${where}.`, 502);
   }
 });

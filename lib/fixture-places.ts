@@ -263,3 +263,13 @@ export function fixtureBrowse(category: string, area: Area, limit: number): Hit[
     .filter((h) => h.categories.includes(known))
     .slice(0, limit);
 }
+
+/** The fixture city nearest a point (for "Near me" in tests and offline). */
+export function fixtureNearest(lat: number, lon: number): AreaHit | null {
+  const cities = AREA_HITS.filter((a) => a.country && a.lat != null && a.lon != null);
+  const far = (a: FixtureArea) => (a.lat! - lat) ** 2 + (a.lon! - lon) ** 2;
+  const best = cities.sort((a, b) => far(a) - far(b))[0];
+  if (!best) return null;
+  const { names: _names, ...hit } = best;
+  return hit;
+}

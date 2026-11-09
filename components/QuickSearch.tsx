@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import type { AreaHit } from "@/lib/types";
@@ -46,6 +46,7 @@ export function AreaSearch({ onArea, prompt, disabled }: { onArea: (a: AreaHit) 
           </>
         )}
         onPick={onArea}
+        typed={(name) => ({ key: `typed:${name.toLowerCase()}`, name, country: null, label: null, lat: null, lon: null, bbox: null })}
       />
     </div>
   );
@@ -59,6 +60,7 @@ export function Search<T extends { key: string }>({
   render,
   onPick,
   disabled,
+  typed,
 }: {
   url: (q: string) => string;
   placeholder: string;
@@ -66,6 +68,8 @@ export function Search<T extends { key: string }>({
   render: (r: T) => React.ReactNode;
   onPick: (r: T) => void;
   disabled?: boolean;
+  /** When set, what was typed can be used as it is ("Use “Lisbon”", or Go on the keyboard with nothing found). */
+  typed?: (text: string) => T;
 }) {
   const [q, setQ] = useState("");
   const [results, setResults] = useState<{ q: string; items: T[] } | null>(null);
@@ -88,6 +92,17 @@ export function Search<T extends { key: string }>({
   }, [text]);
 
   const shown = text.length >= 2 && results ? results.items : [];
+  const looked = text.length >= 2 && results?.q === text;
+  const pick = (r: T) => {
+    onPick(r);
+    setQ("");
+    setResults(null);
+  };
+  // With the keyboard up there's little room: bring what was found into view under the box.
+  const end = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (looked) end.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [looked, shown.length]);
   return (
     <>
       <div className="relative">
@@ -95,6 +110,14 @@ export function Search<T extends { key: string }>({
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter" || text.length < 2 || disabled) return;
+            e.preventDefault();
+            const top = looked ? shown[0] : undefined;
+            if (top) pick(top);
+            else if (typed) pick(typed(text));
+          }}
+          enterKeyHint="go"
           placeholder={placeholder}
           aria-label={label}
           autoComplete="off"
@@ -107,11 +130,7 @@ export function Search<T extends { key: string }>({
             <li key={r.key}>
               <button
                 disabled={disabled}
-                onClick={() => {
-                  onPick(r);
-                  setQ("");
-                  setResults(null);
-                }}
+                onClick={() => pick(r)}
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left active:bg-surface-2 disabled:opacity-50"
               >
                 {render(r)}
@@ -120,9 +139,21 @@ export function Search<T extends { key: string }>({
           ))}
         </ul>
       )}
-      {text.length >= 2 && results?.q === text && !results.items.length && (
-        <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact name?</p>
+      {text.length >= 2 && !looked && !shown.length && <p className="mt-2 px-1 text-[14px] text-muted">Looking…</p>}
+      {looked && !shown.length && !typed && <p className="mt-2 px-1 text-[14px] text-muted">Nothing found. Try the exact name?</p>}
+      {looked && typed && (
+        <button
+          disabled={disabled}
+          onClick={() => pick(typed(text))}
+          className="mt-1 flex w-full items-center gap-3 rounded-xl px-3 py-2 text-left text-[15px] text-ink-2 active:bg-surface-2 disabled:opacity-50"
+        >
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-dashed border-line">
+            <Icon name="plus" size={15} />
+          </span>
+          {shown.length ? `Use “${text}”` : `Not on the map. Use “${text}”`}
+        </button>
       )}
+      <div ref={end} />
     </>
   );
 }

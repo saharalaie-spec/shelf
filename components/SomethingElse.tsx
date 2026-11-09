@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { normalize } from "./add/typed";
 import { screenFormat, VOCAB } from "@/lib/kinds";
@@ -9,7 +10,7 @@ import { moodsFor, type Mood } from "@/lib/moods";
 import type { FriendPlace } from "@/lib/friend-places";
 import type { Suggestion } from "@/lib/suggest";
 import type { TodayPick } from "@/lib/today";
-import type { Area, AreaHit, Hit, Kind } from "@/lib/types";
+import type { Area, AreaHit, Destination, Hit, Kind } from "@/lib/types";
 import { Cover } from "./Cover";
 import { AreaSearch } from "./QuickSearch";
 import { SpotTile } from "./Spot";
@@ -27,12 +28,12 @@ const KEEP_MS = 12 * 60 * 60 * 1000;
  * Kept on this device for a while, so leaving doesn't lose it: opening a map and coming back, closing the sheet, or the
  * phone reloading the page. Sheets only render in the browser, so these are safe to call while rendering.
  */
-function recall<T>(key: string): T | null {
+function recall<T>(key: string, maxAge = KEEP_MS): T | null {
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
     const { at, value } = JSON.parse(raw) as { at: number; value: T };
-    return Date.now() - at < KEEP_MS ? value : null;
+    return Date.now() - at < maxAge ? value : null;
   } catch {
     return null;
   }
@@ -46,6 +47,8 @@ function keep(key: string, value: unknown) {
   }
 }
 const CITY_KEY = "trove:ideas:city";
+/** The city you went out in last is where Go out starts next time, for a few months. */
+const CITY_MS = 90 * 24 * 60 * 60 * 1000;
 
 const TITLE: Record<Kind, string> = {
   podcast: "Something to listen to",
@@ -92,11 +95,25 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
   const fits = (p: TodayPick) =>
     kind !== "screen" || format === "any" || (screenFormat({ key: p.workKey, categories: p.categories, author: p.author }) ?? format) === format;
   // Places: nothing is picked for you, and looking a city up saves nothing. Spots wait until you say where.
-  const [city, setCityState] = useState<AreaHit | null>(() => (isPlace ? recall<AreaHit>(CITY_KEY) : null));
+  // Places start somewhere already: the city you used last, else the one where you've saved the most spots.
+  const [city, setCityState] = useState<AreaHit | null>(() => (isPlace ? recall<AreaHit>(CITY_KEY, CITY_MS) : null));
   const setCity = (c: AreaHit | null) => {
     setCityState(c);
     keep(CITY_KEY, c);
   };
+  useEffect(() => {
+    if (!isPlace || city) return;
+    let live = true;
+    api<{ destinations: (Destination & { count: number })[] }>("/api/destinations")
+      .then(({ destinations }) => {
+        const most = [...destinations].sort((a, b) => b.count - a.count)[0];
+        if (live && most) setCityState({ key: `dest:${most.id}`, name: most.name, country: most.country, label: most.label, lat: most.lat, lon: most.lon, bbox: most.bbox });
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [isPlace, city]);
   const there = useFriendsIn(isPlace ? city : null)
     .map((f) => ({ ...f, spots: f.spots.filter((i) => !taken.has(i.key)) }))
     .filter((f) => f.spots.length > 0);
@@ -128,28 +145,16 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
       {kind === "screen" && suggest && (
         <TellUs kind={kind} mood={mood} area={null} format={format !== "any" ? format : null} onChoose={onChoose} taken={taken} />
       )}
-      {/* Places: the occasion, then the city; everything below is for that city. */}
-      {isPlace && (
-        <>
-          <p className="mt-4 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">What for?</p>
-          {chips}
-          <p className="mt-3 mb-1 text-[13px] font-medium tracking-wide text-muted uppercase">Where?</p>
-          {city ? (
-            <div className="flex items-center gap-2 pt-1">
-              <span className="flex h-8 items-center gap-1 rounded-full bg-accent px-3.5 text-[13px] font-medium text-accent-ink">
-                <Icon name="pin" size={13} />
-                {[city.name, city.country].filter(Boolean).join(", ")}
-              </span>
-              <button onClick={() => setCity(null)} className="h-8 px-1 text-[13px] font-medium text-ink-2 underline underline-offset-2">
-                Change
-              </button>
-            </div>
-          ) : (
-            <AreaSearch onArea={setCity} />
-          )}
-          {suggest && <TellUs kind={kind} mood={mood} area={city} format={null} onChoose={onChoose} taken={taken} />}
-        </>
-      )}
+      {/* Places: say what you're after first; the city is already filled in, or read from what you say. */}
+      {isPlace &&
+        (suggest ? (
+          <TellUs kind={kind} mood={mood} area={city} format={null} onChoose={onChoose} taken={taken} place={{ onCity: setCity, onMood: setMood }} />
+        ) : (
+          <>
+            <Where city={city} onCity={setCity} />
+            <div className="mt-3">{chips}</div>
+          </>
+        ))}
       {mine.length > 0 && (
         <Group title={isPlace ? `Your Want to go in ${city?.name ?? "this place"}` : `From your ${v.sections.want}`}>
           {mine.map((p) => (
@@ -179,7 +184,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
       {isPlace && city && there.length > 0 && (
         <FriendsThere there={there} city={city} onChoose={onChoose} reasonOf={reasonOf} />
       )}
-      {isPlace && !city && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Pick a city, and spots for it show up here.</p>}
+      {isPlace && !city && <p className="mt-6 mb-6 px-1 text-[15px] text-muted">Say what you’re after, or pick a city, and spots for it show up here.</p>}
       {suggest && (!isPlace || city) && (
         <Ideas
           key={`${city?.key ?? kind}|${format}`}
@@ -359,9 +364,118 @@ function Thinking({ rows = 3, label }: { rows?: number; label?: string }) {
   );
 }
 
+/** Past this, the request is given up on in the app (the server stops itself at 60 seconds). */
+const GIVE_UP_MS = 70_000;
+
+/** What's happening while places are looked up on the web, so a longer wait never looks stuck. */
+const STEPS: [number, string][] = [
+  [0, "Searching city guides for places that fit…"],
+  [8, "Reading what they say about each one…"],
+  [20, "Checking they’re open and on the map…"],
+  [38, "Taking a little longer than usual. Almost there…"],
+];
+
+function Searching() {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => setSeconds((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const label = STEPS.filter(([at]) => seconds >= at).at(-1)![1];
+  return (
+    <div aria-live="polite">
+      <Thinking label={label} />
+    </div>
+  );
+}
+
+const STARTERS = new Set(Object.values(MOOD_LABEL));
+
+/** The occasions, as a quick way to start the sentence; they also steer "Picked for you" below. */
+function Starters({ mood, onMood }: { mood: Mood; onMood: (m: Mood) => void }) {
+  return (
+    <div className="mt-3">
+      <MoodChips kind="place" mood={mood} onMood={onMood} />
+    </div>
+  );
+}
+
+/**
+ * Where the spots are: already filled in (the city you used last, or where you've saved the most), changed with a
+ * search or "Near me". Naming a place in what you say changes it too.
+ */
+function Where({ city, onCity }: { city: AreaHit | null; onCity: (a: AreaHit) => void }) {
+  const [changing, setChanging] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const canLocate = typeof navigator !== "undefined" && "geolocation" in navigator;
+  const pick = (a: AreaHit) => {
+    onCity(a);
+    setChanging(false);
+  };
+  const nearMe = () => {
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const { area } = await api<{ area: AreaHit | null }>(`/api/search?kind=near&lat=${coords.latitude}&lon=${coords.longitude}`);
+          if (area) pick(area);
+          else toast("Couldn’t tell which city you’re in. Search for it instead.");
+        } catch (err) {
+          toast.error((err as Error).message);
+        } finally {
+          setLocating(false);
+        }
+      },
+      () => {
+        setLocating(false);
+        toast("Location is off for Trove. Search for the city instead.");
+      },
+      { maximumAge: 10 * 60 * 1000, timeout: 15000 },
+    );
+  };
+
+  if (city && !changing) {
+    return (
+      <div className="mt-3 flex items-center gap-2 px-1">
+        <span className="flex h-8 min-w-0 items-center gap-1 rounded-full bg-surface-2 px-3 text-[13px] font-medium text-ink-2">
+          <Icon name="pin" size={13} className="shrink-0" />
+          <span className="truncate">Near {city.name}</span>
+        </span>
+        <button onClick={() => setChanging(true)} className="h-8 shrink-0 px-1 text-[13px] font-medium text-ink-2 underline underline-offset-2">
+          Change
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div className="mt-2">
+      <AreaSearch onArea={pick} />
+      <div className="mt-2 flex items-center gap-2 px-1">
+        {canLocate && (
+          <button
+            onClick={nearMe}
+            disabled={locating}
+            className="flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-surface-2 px-3 text-[13px] font-medium whitespace-nowrap text-ink-2 active:scale-95 disabled:opacity-60"
+          >
+            <Icon name="near" size={13} />
+            {locating ? "Finding you…" : "Near me"}
+          </button>
+        )}
+        {city ? (
+          <button onClick={() => setChanging(false)} className="h-8 px-1 text-[13px] font-medium text-muted">
+            Keep {city.name}
+          </button>
+        ) : (
+          <span className="text-[13px] text-muted">or just name the place as you say it</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 const EXAMPLE: Partial<Record<Kind, string>> = {
   screen: "“Something funny to watch with my parents, under two hours”",
-  place: "“A cozy spot for a first date, not too loud, good wine”",
+  place: "“Brunch in the West Village, outside if it’s nice”",
 };
 
 type Format = "movie" | "tv";
@@ -454,7 +568,8 @@ function Writing({
   );
 }
 
-type Asked = { wish: string; area: string | null; picks?: Suggestion[]; destinationId?: string | null; error?: string };
+type Asked = { wish: string; area: string | null; picks?: Suggestion[]; destinationId?: string | null; error?: string; needCity?: boolean };
+type Answer = { picks: Suggestion[]; destinationId: string | null; area?: AreaHit; needCity?: boolean };
 
 function TellUs({
   kind,
@@ -463,7 +578,15 @@ function TellUs({
   format,
   onChoose,
   taken,
-}: Pick<Props, "kind" | "onChoose"> & { mood: Mood; area: AreaHit | null; format: Format | null; taken: Set<string> }) {
+  place,
+}: Pick<Props, "kind" | "onChoose"> & {
+  mood: Mood;
+  area: AreaHit | null;
+  format: Format | null;
+  taken: Set<string>;
+  /** Going out: the city (filled in, or read from what's said) and the occasion live here, under the words. */
+  place?: { onCity: (a: AreaHit) => void; onMood: (m: Mood) => void };
+}) {
   // The last answer is kept until a new ask or Clear (see recall), so the other ideas are still there after looking one up.
   const keyFor = `trove:ideas:${kind}`;
   const [kept] = useState(() => recall<{ text: string; watch: Format | "either" | null; asked: Asked }>(keyFor));
@@ -481,7 +604,6 @@ function TellUs({
   };
 
   const needsWatch = kind === "screen" && watch === null;
-  const needsCity = kind === "place" && !area;
   const thinking = asked !== null && !asked.picks && !asked.error;
   const shown = interim ? `${text}${text ? " " : ""}${interim}` : text;
   // Answers for another city don't belong under this one.
@@ -491,19 +613,28 @@ function TellUs({
     const wish = shown.trim();
     stop(false);
     setText(wish);
-    if (!wish || thinking || needsWatch || needsCity) return;
+    if (!wish || thinking || needsWatch) return;
     // "None of these", or explaining more after seeing three: never the ones already shown.
     const fresh = others || more;
     setMore(false);
     const at = area?.key ?? null;
     setAsked({ wish, area: at });
+    // The server answers within a minute; past that something hung, so say so rather than wait forever.
+    const ac = new AbortController();
+    const late = setTimeout(() => ac.abort(), GIVE_UP_MS);
     try {
-      const r = await api<{ picks: Suggestion[]; destinationId: string | null }>("/api/suggest", {
+      const r = await api<Answer>("/api/suggest", {
         body: { kind, mood, area, format: kind === "screen" && watch !== "either" ? watch : null, wish, fresh },
+        signal: ac.signal,
       });
-      setAsked({ wish, area: at, ...r });
+      // They named somewhere else ("…in Lisbon"): that's where these are, and where the screen now is.
+      if (r.area) place?.onCity(r.area);
+      setAsked({ wish, picks: r.picks, destinationId: r.destinationId, needCity: r.needCity, area: r.area?.key ?? at });
     } catch (err) {
-      setAsked({ wish, area: at, error: (err as Error).message });
+      const error = ac.signal.aborted ? "That took too long. Try again, or say it in fewer words." : (err as Error).message;
+      setAsked({ wish, area: at, error });
+    } finally {
+      clearTimeout(late);
     }
   };
 
@@ -535,9 +666,7 @@ function TellUs({
       ? canTalk
         ? "Tap to type, or the mic to talk. You’ll get three."
         : "Tap to type. You’ll get three."
-    : needsCity
-      ? "Pick the city above, then Find."
-      : more
+    : more
         ? canTalk
           ? "Keep going: type or tap the mic to add to what you said, like “but lighter”."
           : "Keep going: add to what you said, like “but lighter”."
@@ -547,7 +676,7 @@ function TellUs({
 
   return (
     <section className="mt-5 rounded-2xl bg-paper p-3">
-      <p className="px-1 text-[15px] font-medium">Or say what you’re after</p>
+      <p className={`px-1 font-medium ${place ? "text-[17px]" : "text-[15px]"}`}>{place ? "What are you in the mood for?" : "Or say what you’re after"}</p>
       {kind === "screen" && (
         <div className="mt-2 px-1">
           {needsWatch && <p className="mb-1.5 text-[14px] text-ink-2">First: a movie or a TV show?</p>}
@@ -597,20 +726,38 @@ function TellUs({
             <Button
               onClick={() => send()}
               loading={thinking}
-              disabled={!shown.trim() || needsCity}
+              disabled={!shown.trim()}
               className="h-9 shrink-0 px-4 text-[14px]"
               icon={<Icon name="sparkle" size={15} />}
             >
               Find
             </Button>
           </div>
+          {place && (
+            <>
+              <Where city={area} onCity={place.onCity} />
+              {/* Once three are showing, the occasions step aside. */}
+              {!picks.length && (
+                <Starters
+                  mood={mood}
+                  onMood={(m) => {
+                    place.onMood(m);
+                    // An occasion starts the sentence, if there isn't one yet (or it's still just another occasion).
+                    const t = text.trim();
+                    if (m !== "any" && (!t || STARTERS.has(t))) setText(MOOD_LABEL[m]);
+                    if (m === "any" && STARTERS.has(t)) setText("");
+                  }}
+                />
+              )}
+            </>
+          )}
         </>
       )}
       {writing && (
         <Writing
           text={text}
           placeholder={EXAMPLE[kind] ?? ""}
-          canFind={!needsCity}
+          canFind
           dictation={{ canTalk, listening, interim, talk: () => talk((said) => setText((t) => appendSaid(t, said))), stop }}
           onText={setText}
           onCancel={() => {
@@ -623,9 +770,12 @@ function TellUs({
           }}
         />
       )}
-      {thinking && <Thinking label={kind === "place" ? "Searching the web for places that fit…" : undefined} />}
+      {thinking && (kind === "place" ? <Searching /> : <Thinking />)}
       {current?.error && <p className="px-1 pt-2 text-[14px] text-muted">{current.error}</p>}
-      {current?.picks && !picks.length && (
+      {current?.needCity && (
+        <p className="px-1 pt-2 text-[14px] text-muted">Which city? Pick one above, or name it, like “…in Lisbon”.</p>
+      )}
+      {current?.picks && !picks.length && !current.needCity && (
         <p className="px-1 pt-2 text-[14px] text-muted">
           {kind === "place"
             ? "No spots we could find on the map for that. Try saying it another way."
