@@ -1,8 +1,8 @@
 import "server-only";
 import { findBooks, matchCandidates as matchBooks, searchText } from "./books";
 import { fixturePodcasts, fixtureScreen } from "./fixture-media";
-import { fixtureAreas, fixtureBrowse, fixtureSpots } from "./fixture-places";
-import { browseSpots, matchSpots, searchAreas, searchSpots } from "./places";
+import { fixtureAreas, fixtureBrowse, fixtureNearest, fixtureSpots } from "./fixture-places";
+import { browseSpots, matchSpots, nearestArea, searchAreas, searchSpots } from "./places";
 import { searchPodcasts } from "./podcasts";
 import { searchScreen, type ScreenOpts } from "./screen";
 import type { Area, AreaHit, Candidate, Hit, Kind, MatchResult } from "./types";
@@ -42,6 +42,11 @@ export async function searchCatalog(kind: Kind, text: string, limit = 8, area?: 
 /** Cities, regions, islands and countries to group spots under. Throws if the map can't be reached. */
 export async function searchAreasCatalog(text: string, limit = 8): Promise<AreaHit[]> {
   return offline() ? fixtureAreas(text, limit) : searchAreas(text, limit);
+}
+
+/** The city around a point ("Near me"), or null if the map can't tell. */
+export async function nearestAreaCatalog(lat: number, lon: number): Promise<AreaHit | null> {
+  return offline() ? fixtureNearest(lat, lon) : nearestArea(lat, lon);
 }
 
 /**

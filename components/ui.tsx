@@ -171,6 +171,7 @@ const ICONS = {
   x: <path d="M6 6l12 12M18 6L6 18" />,
   chat: <path d="M20 11.5a7.5 7.5 0 0 1-10.9 6.7L4.5 19.5l1.3-4.2A7.5 7.5 0 1 1 20 11.5Z" />,
   back: <path d="M15 5l-7 7 7 7" />,
+  near: <path d="M20 4 3.5 10.8l7 2.7 2.7 7L20 4Z" />,
   search: (
     <>
       <circle cx="11" cy="11" r="6.5" />

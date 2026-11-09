@@ -1018,3 +1018,38 @@ describe("feedback", () => {
     expect([after.name, after.contact]).toEqual([null, null]);
   });
 });
+
+describe("Go out: the place in what you say", () => {
+  const nyc = { name: "New York", country: "United States", lat: 40.71, lon: -74.0, bbox: null };
+  const idea = (title: string) => async () => [{ title, creator: "", year: 0, why: "Fits." }];
+
+  it("a city named in the request wins over the one on screen, and comes back so the screen can show it", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550831" }, "Noa");
+    const asked: (string | undefined)[] = [];
+    const ask = async (input: { area: { name: string } | null }) => (asked.push(input.area?.name), [{ title: "Nishiki Market", creator: "", year: 0, why: "Fits." }]);
+    const r = await suggest(me.id, "place", "any", { place: nyc, wish: "a market for lunch in Kyoto" }, ask, undefined, null, async () => ({ city: "Kyoto", country: "Japan" }));
+    expect(asked).toEqual(["Kyoto"]);
+    expect([r.area?.name, r.area?.country]).toEqual(["Kyoto", "Japan"]);
+    expect(r.picks.map((p) => p.hit.title)).toEqual(["Nishiki Market"]);
+  });
+
+  it("the same city, or none named, keeps the one on screen", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550832" }, "Noa");
+    const same = await suggest(me.id, "place", "any", { place: nyc, wish: "brunch in the West Village" }, idea("x"), undefined, null, async () => ({ city: "New York City", country: "United States" }));
+    expect(same.area).toBeUndefined();
+    const none = await suggest(me.id, "place", "any", { place: nyc, wish: "somewhere quiet" }, idea("x"), undefined, null, async () => null);
+    expect(none.area).toBeUndefined();
+  });
+
+  it("with no city anywhere, it asks which one", async () => {
+    const { suggest } = await import("@/lib/suggest");
+    const me = await signUp({ phone: "+14155550833" }, "Noa");
+    expect(await suggest(me.id, "place", "any", { wish: "somewhere quiet" }, idea("x"), undefined, null, async () => null)).toEqual({
+      picks: [],
+      destinationId: null,
+      needCity: true,
+    });
+  });
+});

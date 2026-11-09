@@ -10,6 +10,7 @@ import type { Area, AreaHit, BBox, Candidate, Hit, MatchResult, PlaceInfo } from
 const TIMEOUT_MS = 7000;
 const USER_AGENT = "Trove/0.1 (favorites list prototype)";
 const PHOTON = "https://photon.komoot.io/api/";
+const PHOTON_REVERSE = "https://photon.komoot.io/reverse";
 const GOOGLE_SEARCH = "https://places.googleapis.com/v1/places:searchText";
 const GOOGLE_FIELDS =
   "places.id,places.displayName,places.formattedAddress,places.shortFormattedAddress,places.location,places.primaryType,places.primaryTypeDisplayName,places.types";
@@ -403,6 +404,23 @@ const GOOGLE_BROWSE: Record<PlaceCategory, string> = {
   "Stays": "hotels",
   "Activities": "things to do",
 };
+
+/**
+ * The city (or town) around a point, for "Near me": Photon names what's at the point, then the area search finds that
+ * city as an area, preferring the one in the same country and closest to the point.
+ */
+export async function nearestArea(lat: number, lon: number): Promise<AreaHit | null> {
+  const params = new URLSearchParams({ lat: String(lat), lon: String(lon), limit: "1" });
+  const res = await fetch(`${PHOTON_REVERSE}?${params}`, { headers: { "User-Agent": USER_AGENT }, signal: AbortSignal.timeout(TIMEOUT_MS) });
+  if (!res.ok) throw new Error(`Photon reverse ${res.status}`);
+  const p = ((await res.json()) as { features?: PhotonFeature[] }).features?.[0]?.properties;
+  const city = p?.city ?? p?.locality ?? p?.county ?? p?.state;
+  if (!p || !city) return null;
+  const far = (a: AreaHit) => (a.lat == null || a.lon == null ? Infinity : (a.lat - lat) ** 2 + (a.lon - lon) ** 2);
+  const hits = (await searchAreas(city, 6)).filter((a) => a.label !== "Country" && (!p.country || a.country === p.country));
+  const best = hits.sort((a, b) => far(a) - far(b))[0];
+  return best ?? { key: `near:${lat.toFixed(2)},${lon.toFixed(2)}`, name: city, country: p.country ?? null, label: "City", lat, lon, bbox: null };
+}
 
 /** One Photon search; a hiccup (it's a free, shared service) gets one more try. */
 async function photon(params: URLSearchParams): Promise<PhotonFeature[]> {

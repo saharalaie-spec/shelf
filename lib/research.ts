@@ -70,9 +70,9 @@ ${exclude.slice(0, 150).join("\n")}
 const MAX_CONTINUATIONS = 2;
 /**
  * How long the web research may take in all. Past it, lib/suggest.ts falls back to its quicker way (naming places and
- * checking them on the map), so the whole answer still arrives well inside the route's 60 seconds.
+ * checking them on the map), so the whole answer, place reading included, still arrives inside the route's 60 seconds.
  */
-export const RESEARCH_BUDGET_MS = 35_000;
+export const RESEARCH_BUDGET_MS = 30_000;
 
 /** URLs of every web search result in a response. */
 export function searchedUrls(content: Anthropic.Beta.BetaContentBlock[]): string[] {
