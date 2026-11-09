@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { matchCities } from "@/lib/cities";
 import { matchCountries } from "@/lib/countries";
 import { searchAreas } from "@/lib/places";
 
@@ -50,4 +51,42 @@ describe("finding a city or country to group spots under", () => {
     expect((await searchAreas("Azerbai")).map((h) => [h.name, h.label])).toEqual([["Azerbaijan", "Country"]]);
     await expect(searchAreas("Qwzx Nowhere")).rejects.toThrow(/couldn't be reached/);
   });
+
+  it("knows the world's cities, accents or not, bigger ones first", () => {
+    expect(matchCities("munich")[0]).toMatchObject({ name: "Munich", country: "Germany", label: "City" });
+    expect(matchCities("zurich")[0]).toMatchObject({ name: "Zürich", country: "Switzerland" });
+    expect(matchCities("monaco")[0]).toMatchObject({ name: "Monaco", country: "Monaco" });
+    expect(matchCities("valencia").map((c) => c.country)).toEqual(expect.arrayContaining(["Spain", "Venezuela"]));
+    expect(matchCities("x")).toEqual([]);
+  });
+
+  it("finds a city with both maps down", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("network down");
+      }),
+    );
+    expect((await searchAreas("Heidelberg"))[0]).toMatchObject({ name: "Heidelberg", country: "Germany", label: "City" });
+  });
+
+  it("doesn't wait long on a slow map: what's built in answers, and the map's answer isn't kept as the last word", async () => {
+    let calls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: unknown, init?: RequestInit) => {
+        calls++;
+        // Never answers until the request's own time limit cancels it.
+        return new Promise((_resolve, reject) => init?.signal?.addEventListener("abort", () => reject(new Error("timed out"))));
+      }),
+    );
+    const started = Date.now();
+    const hits = await searchAreas("Bremen");
+    expect(Date.now() - started).toBeLessThan(4000);
+    expect(hits[0]).toMatchObject({ name: "Bremen", country: "Germany" });
+    // Not kept: the next search asks the map again.
+    const before = calls;
+    await searchAreas("Bremen");
+    expect(calls).toBeGreaterThan(before);
+  }, 10_000);
 });
