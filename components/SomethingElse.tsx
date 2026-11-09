@@ -404,7 +404,7 @@ function Writing({
   return (
     <div
       data-vaul-no-drag=""
-      className="absolute inset-x-0 bottom-0 z-30 flex h-[92dvh] flex-col rounded-t-[28px] bg-surface px-5 pt-4 shadow-float"
+      className="absolute inset-x-0 bottom-0 z-30 flex h-[92dvh] max-h-[var(--room,92dvh)] flex-col rounded-t-[28px] bg-surface px-5 pt-4 shadow-float"
     >
       <div className="flex items-center justify-between gap-3">
         <button onClick={onCancel} className="h-10 px-1 text-[16px] font-medium text-ink-2 active:opacity-60">
