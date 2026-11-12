@@ -8,10 +8,17 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "dev:offline": "BOOKS_PROVIDER=fixture next dev"
+    "dev:offline": "BOOKS_PROVIDER=fixture next dev",
+    "app:sync": "cap sync ios",
+    "app:open": "cap open ios"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.2",
+    "@capacitor/keyboard": "8.0.6",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
     "@libsql/client": "^0.18.0",
     "barcode-detector": "^3.2.2",
     "libphonenumber-js": "^1.13.15",
@@ -23,6 +30,8 @@
     "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.2",
+    "@capacitor/ios": "8.6.2",
     "@tailwindcss/turbopack": "^4",
     "@types/node": "^22.20.5",
     "@types/react": "^19",

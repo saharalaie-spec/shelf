@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { Drawer } from "vaul";
+import { inApp } from "@/lib/native";
 
 type Props = {
   open: boolean;
@@ -30,7 +31,8 @@ function useAboveKeyboard(open: boolean, tall: boolean | undefined): CSSProperti
   const [keyboard, setKeyboard] = useState<{ below: number; room: number } | null>(null);
   useEffect(() => {
     const vv = window.visualViewport;
-    if (!open || !vv) return;
+    // In the app, the keyboard resizes the app itself: nothing to fit.
+    if (!open || !vv || inApp()) return;
     const fit = () => {
       const below = Math.max(0, window.innerHeight - vv.offsetTop - vv.height);
       const typing = below > KEYBOARD && vv.scale < 1.01;
@@ -107,7 +109,8 @@ function unpinPage() {
 
 function useStillPage(open: boolean) {
   useEffect(() => {
-    if (!open || !isIOS()) return;
+    // In the app, the keyboard resizes the app itself, and nothing scrolls to fight.
+    if (!open || !isIOS() || inApp()) return;
     pinPage();
     // Focusing from far above: Safari finds the box already in view, so it doesn't scroll.
     const lift = (field: HTMLElement) => {
