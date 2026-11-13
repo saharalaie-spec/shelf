@@ -55,6 +55,14 @@
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>Trove uses the camera when you take a photo of a book, a shelf or a screen, or scan a barcode, to add what's in it.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Trove opens your photos when you pick a picture or screenshot to add what's in it, or a profile photo.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Trove uses the microphone when you tap the mic to say what you're after or what to add.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Trove turns what you say into text when you tap the mic.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
