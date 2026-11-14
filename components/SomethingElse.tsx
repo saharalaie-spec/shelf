@@ -128,7 +128,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
     <div className="max-h-[78dvh] overflow-y-auto px-5 pb-safe" data-vaul-no-drag="">
       <h2 className="font-serif text-[24px] font-medium tracking-tight">{TITLE[kind]}</h2>
       {kind === "screen" && (
-        <div className="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Movie or TV show">
+        <div className="mt-4 grid grid-cols-3 gap-1 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Film or TV show">
           {(["any", "movie", "tv"] as const).map((f) => (
             <button
               key={f}
@@ -137,7 +137,7 @@ export function SomethingElse({ kind, list, taken = NONE, suggest, reasonOf, onC
               onClick={() => setFormat(f)}
               className={`h-9 rounded-full text-[14px] font-medium transition-colors ${format === f ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
             >
-              {{ any: "Either", movie: "Movie", tv: "TV show" }[f]}
+              {{ any: "Either", movie: "Film", tv: "TV show" }[f]}
             </button>
           ))}
         </div>
@@ -679,8 +679,8 @@ function TellUs({
       <p className={`px-1 font-medium ${place ? "text-[17px]" : "text-[15px]"}`}>{place ? "What are you in the mood for?" : "Or say what you’re after"}</p>
       {kind === "screen" && (
         <div className="mt-2 px-1">
-          {needsWatch && <p className="mb-1.5 text-[14px] text-ink-2">First: a movie or a TV show?</p>}
-          <div className="flex gap-2" role="radiogroup" aria-label="What to watch: movie or TV show">
+          {needsWatch && <p className="mb-1.5 text-[14px] text-ink-2">First: a film or a TV show?</p>}
+          <div className="flex gap-2" role="radiogroup" aria-label="What to watch: film or TV show">
             {(["movie", "tv", "either"] as const).map((f) => (
               <button
                 key={f}
@@ -691,7 +691,7 @@ function TellUs({
                   watch === f ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
                 }`}
               >
-                {{ movie: "Movie", tv: "TV show", either: "Either" }[f]}
+                {{ movie: "Film", tv: "TV show", either: "Either" }[f]}
               </button>
             ))}
           </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { shareLink } from "@/lib/share";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -26,7 +27,7 @@ type Props = {
   onName: (name: string | null) => void;
 };
 
-const SHARE_NOUN: Record<Kind, string> = { book: "books", podcast: "podcasts", screen: "movies & TV", place: "places" };
+const SHARE_NOUN: Record<Kind, string> = { book: "books", podcast: "podcasts", screen: "film & TV", place: "places" };
 
 export function ShareSheet({ open, onOpenChange, ...rest }: Props) {
   // Links are stable per section and category; remember them across opens.
@@ -108,14 +109,7 @@ function ShareBody({ kind, items: all, destinations = [], initialStatus, initial
   const share = async () => {
     if (!url) return;
     saveName();
-    if (navigator.share) {
-      try {
-        await navigator.share({ title, text: `${title}: ${countLine}`, url });
-        return;
-      } catch (err) {
-        if ((err as DOMException).name === "AbortError") return;
-      }
-    }
+    if (await shareLink({ title, text: `${title}: ${countLine}`, url })) return;
     copy();
   };
 

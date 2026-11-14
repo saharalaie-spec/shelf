@@ -384,6 +384,15 @@ const MIGRATIONS: { id: string; statements: string[] }[] = [
       `CREATE INDEX IF NOT EXISTS users_sample_of ON users (sample_of)`,
     ],
   },
+  {
+    id: "2026-11-14-film-tag",
+    statements: [
+      // "Movies" is now "Film", on saved titles and on ideas kept for the day.
+      `UPDATE books SET categories = REPLACE(categories, '"Movies"', '"Film"') WHERE kind = 'screen' AND categories LIKE '%"Movies"%'`,
+      `UPDATE suggestions SET items = REPLACE(items, '"Movies"', '"Film"') WHERE items LIKE '%"Movies"%'`,
+      `UPDATE books SET author = REPLACE(author, 'Movie · ', 'Film · ') WHERE kind = 'screen' AND author LIKE 'Movie · %'`,
+    ],
+  },
 ];
 
 async function migrate(client: Client) {

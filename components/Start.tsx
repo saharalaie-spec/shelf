@@ -1,5 +1,6 @@
 "use client";
 
+import { emailLink, shareLink } from "@/lib/share";
 import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -392,11 +393,11 @@ function Toggle({ on, onClick, label, children }: { on: boolean; onClick: () => 
 const ASK: Record<Kind, { title: string; placeholder: string }> = {
   book: { title: "Two books you loved", placeholder: "Search books" },
   podcast: { title: "Two podcasts you love", placeholder: "Search podcasts" },
-  screen: { title: "Two movies or shows you loved", placeholder: "Search movies and shows" },
+  screen: { title: "Two films or shows you loved", placeholder: "Search films and shows" },
   place: { title: "Two places you loved", placeholder: "Search spots" },
 };
 const ASK_COUNT = 2;
-const SKIP: Record<Kind, string> = { book: "Skip books", podcast: "Skip podcasts", screen: "Skip movies & TV", place: "Skip places" };
+const SKIP: Record<Kind, string> = { book: "Skip books", podcast: "Skip podcasts", screen: "Skip film & TV", place: "Skip places" };
 
 /** One collection at a time: two things you loved, or skip. Picking the second moves on by itself. */
 function LovedKind({
@@ -639,21 +640,13 @@ function InviteStep({ name: initialName, token, siteUrl }: { name: string | null
     if (n && n !== initialName) api("/api/me", { method: "PATCH", body: { name: n } }).catch(() => {});
     return n || null;
   };
+  const inviteText = (who: string | null) => `${who ? `${who} here. ` : ""}Let’s swap books, podcasts, films, shows and places on Trove:`;
   const share = async () => {
     const who = keepName();
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Be my friend on Trove",
-          text: `${who ? `${who} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
-          url: link(),
-        });
-        trackAction("invite_share", "share");
-        setSent("shared");
-        return;
-      } catch (err) {
-        if ((err as DOMException).name === "AbortError") return;
-      }
+    if (await shareLink({ text: inviteText(who), url: link() })) {
+      trackAction("invite_share", "share");
+      setSent("shared");
+      return;
     }
     copy();
   };
@@ -682,10 +675,23 @@ function InviteStep({ name: initialName, token, siteUrl }: { name: string | null
           className="mt-6 h-12 w-full rounded-2xl border border-line bg-surface px-4 text-[16px] outline-none focus:border-ink"
         />
       )}
-      <div className={`${initialName ? "mt-6" : "mt-3"} grid grid-cols-[1fr_auto] gap-2`}>
-        <Button onClick={share} icon={<Icon name="share" size={18} />}>
-          Send invite link
+      <div className={`${initialName ? "mt-6" : "mt-3"} grid grid-cols-[1fr_auto_auto] gap-2`}>
+        <Button onClick={share} icon={<Icon name="share" size={18} />} className="px-4 whitespace-nowrap">
+          Send invite
         </Button>
+        {/* Email with the subject filled in ("Trove"), which the share sheet's Mail can leave empty. */}
+        <button
+          onClick={() => {
+            const who = keepName();
+            trackAction("invite_share", "email");
+            setSent("shared");
+            window.location.href = emailLink({ text: inviteText(who), url: link() });
+          }}
+          aria-label="Email the invite"
+          className="inline-flex h-12 items-center justify-center rounded-full bg-surface-2 px-4 text-ink active:scale-[0.97]"
+        >
+          <Icon name="mail" size={17} />
+        </button>
         <Button variant="secondary" onClick={copy} icon={<Icon name={sent === "copied" ? "check" : "copy"} size={17} />}>
           {sent === "copied" ? "Copied" : "Copy"}
         </Button>

@@ -46,7 +46,7 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
         <Login
           channels={signInChannels()}
           heading={`${inviter.name ?? "A friend"} invited you to Trove`}
-          subheading="Sign in to be friends and see each other’s books."
+          subheading="Sign in to be friends and see each other’s books, podcasts, films, shows and places."
         />
       </>
     );

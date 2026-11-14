@@ -136,7 +136,7 @@ function WhatPick({ onPick, onPlace }: { onPick: (p: Picked) => void; onPlace: (
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="A book, podcast, movie or show"
+          placeholder="A book, podcast, film or show"
           aria-label="What did they recommend?"
           autoComplete="off"
           className="h-12 w-full rounded-2xl border border-line bg-surface pr-4 pl-11 text-[16px] outline-none focus:border-ink"
@@ -314,7 +314,7 @@ function KindTag({ kind }: { kind: Kind }) {
   return (
     <span className="flex h-7 shrink-0 items-center gap-1 rounded-full px-2 text-[12px] font-medium text-ink" style={{ background: VOCAB[kind].tint }}>
       <Icon name={KIND_ICON[kind]} size={13} />
-      {VOCAB[kind].label === "Movies & TV" ? "Watch" : VOCAB[kind].label.replace(/s$/, "")}
+      {kind === "screen" ? "Watch" : VOCAB[kind].label.replace(/s$/, "")}
     </span>
   );
 }

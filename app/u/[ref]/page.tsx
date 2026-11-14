@@ -29,7 +29,7 @@ export async function generateMetadata({ params }: PageProps<"/u/[ref]">): Promi
   const robots = { index: false, follow: false };
   if (!person || access === "none") return { title: "Private profile · Trove", robots };
   const title = `${person.name ?? "Someone"} on Trove`;
-  const description = `Books, podcasts, movies, shows and places ${person.name ?? "this person"} loves.`;
+  const description = `Books, podcasts, films, shows and places ${person.name ?? "this person"} loves.`;
   return { title, description, robots, openGraph: { title, description, siteName: "Trove" } };
 }
 

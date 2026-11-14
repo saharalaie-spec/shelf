@@ -202,7 +202,7 @@ export async function updateItem(
   if (patch.categories) {
     const clean = [...new Set(patch.categories.map((c) => c.trim()).filter(Boolean))];
     // Never both Movies and TV: the one chosen last stays.
-    saved.categories = (clean.includes("Movies") && clean.includes("TV") ? oneFormat(clean) : clean).slice(0, 8);
+    saved.categories = ((clean.includes("Film") || clean.includes("Movies")) && clean.includes("TV") ? oneFormat(clean) : clean).slice(0, 8);
     sets.push("categories = ?");
     args.push(JSON.stringify(saved.categories));
   }

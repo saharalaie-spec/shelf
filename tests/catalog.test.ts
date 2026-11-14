@@ -21,7 +21,7 @@ describe("searchCatalog (offline catalogs)", () => {
     const hits = await searchCatalog("screen", "dune");
     expect(titles(hits)).toEqual(expect.arrayContaining(["Dune", "Dune: Part Two"]));
     expect(hits[0]).toMatchObject({ title: "Dune", year: 2021, author: "Denis Villeneuve" });
-    for (const h of hits) expect(h.categories[0]).toBe("Movies");
+    for (const h of hits) expect(h.categories[0]).toBe("Film");
     expect(hits[0].categories).toContain("Sci-Fi & Fantasy");
   });
 
@@ -92,17 +92,17 @@ describe("matchCandidates (offline catalogs)", () => {
 
 describe("genre mapping", () => {
   it("maps TMDB movie and TV genres", () => {
-    expect(categorizeScreen(["Science Fiction", "Adventure"], "movie")).toEqual(["Movies", "Sci-Fi & Fantasy", "Action & Adventure"]);
+    expect(categorizeScreen(["Science Fiction", "Adventure"], "movie")).toEqual(["Film", "Sci-Fi & Fantasy", "Action & Adventure"]);
     expect(categorizeScreen(["Sci-Fi & Fantasy", "Action & Adventure", "War & Politics", "Drama"], "tv")).toEqual([
       "TV",
       "Sci-Fi & Fantasy",
       "Action & Adventure",
       "History & War",
     ]);
-    expect(categorizeScreen(["TV Movie", "Talk"], "movie")).toEqual(["Movies"]);
+    expect(categorizeScreen(["TV Movie", "Talk"], "movie")).toEqual(["Film"]);
     // A movie or a show, never both: the one chosen last stays, first.
-    expect(oneFormat(["TV", "Drama", "Movies"])).toEqual(["Movies", "Drama"]);
-    expect(oneFormat(["Movies", "Drama", "TV"])).toEqual(["TV", "Drama"]);
+    expect(oneFormat(["TV", "Drama", "Film"])).toEqual(["Film", "Drama"]);
+    expect(oneFormat(["Film", "Drama", "TV"])).toEqual(["TV", "Drama"]);
     expect(oneFormat(["Drama"])).toEqual(["Drama"]);
   });
 
@@ -113,9 +113,9 @@ describe("genre mapping", () => {
   });
 
   it("maps Apple movie genres", () => {
-    expect(categorizeScreen(["Kids & Family"], "movie")).toEqual(["Movies", "Family"]);
-    expect(categorizeScreen(["Music Documentaries"], "movie")).toEqual(["Movies", "Documentary", "Music"]);
-    expect(categorizeScreen(["Anime"], "movie")).toEqual(["Movies", "Animation"]);
+    expect(categorizeScreen(["Kids & Family"], "movie")).toEqual(["Film", "Family"]);
+    expect(categorizeScreen(["Music Documentaries"], "movie")).toEqual(["Film", "Documentary", "Music"]);
+    expect(categorizeScreen(["Anime"], "movie")).toEqual(["Film", "Animation"]);
   });
 
   it("maps Apple podcast genres and drops 'Podcasts'", () => {
@@ -335,7 +335,7 @@ describe("live sources", () => {
       author: "Timothée Chalamet, Rebecca Ferguson",
       year: 2021,
       coverUrl: "https://m.media-amazon.com/images/M/MV5Bdune1._V1_UX500_.jpg",
-      categories: ["Movies"],
+      categories: ["Film"],
     });
     expect(hits[3]).toMatchObject({ title: "Dune: Prophecy", coverUrl: null, categories: ["TV"] });
     // The year still picks the right one.
@@ -364,7 +364,7 @@ describe("live sources", () => {
       author: "Denis Villeneuve",
       year: 2021,
       coverUrl: "https://is1-ssl.mzstatic.com/image/thumb/Video/dune/600x600bb.jpg",
-      categories: ["Movies", "Sci-Fi & Fantasy"],
+      categories: ["Film", "Sci-Fi & Fantasy"],
     });
     expect(hits[1]).toEqual({
       key: "tvmaze:61186",
@@ -433,10 +433,10 @@ describe("live sources", () => {
       author: null,
       year: 2021,
       coverUrl: "https://image.tmdb.org/t/p/w500/d5NXSklXo0qyIYkgV94XAgMIckC.jpg",
-      categories: ["Movies", "Sci-Fi & Fantasy", "Action & Adventure"],
+      categories: ["Film", "Sci-Fi & Fantasy", "Action & Adventure"],
     });
     expect(hits[2]).toMatchObject({ title: "Dune: Prophecy", year: 2024, categories: ["TV", "Sci-Fi & Fantasy", "Drama"] });
-    expect(hits[3]).toMatchObject({ title: "Dune Drifter", year: null, coverUrl: null, categories: ["Movies"] });
+    expect(hits[3]).toMatchObject({ title: "Dune Drifter", year: null, coverUrl: null, categories: ["Film"] });
   });
 
   it("sends a v4 token as a Bearer header", async () => {
