@@ -15,7 +15,7 @@ import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
 import { Sheet } from "./Sheet";
-import { Avatar, Button, FilterChips, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -40,6 +40,9 @@ type Props = {
   focusPlace?: string | null;
 };
 
+/** Short names, so all four fit in one row. */
+const SHORT: Record<Kind, string> = { book: "Books", podcast: "Podcasts", screen: "Watch", place: "Places" };
+
 const firstSection = (counts: Record<Status, number>) => STATUSES.find((s) => counts[s] > 0) ?? "read";
 
 export function ProfileTrove({ person, items, destinations, relation, mine: initialMine, channels, focusPlace = null }: Props) {
@@ -49,6 +52,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
     return c;
   }, [items]);
   const total = (k: Kind) => counts[k].read + counts[k].reading + counts[k].want;
+  // Only the collections with something in them (all four if there's nothing yet).
+  const kinds = KINDS.some((k) => total(k) > 0) ? KINDS.filter((k) => total(k) > 0) : [...KINDS];
   // Open on the first collection they've put something in.
   const [focus, setFocus] = useState(() => destinations.find((d) => d.id === focusPlace) ?? null);
   const [kind, setKind] = useState<Kind>(() => (focus ? "place" : (KINDS.find((k) => total(k) > 0) ?? "book")));
@@ -122,17 +127,20 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         <Link href="/" className="flex items-center gap-2">
           <Wordmark size={24} />
         </Link>
-        {/* Previewing your own: the banner below already leads back. */}
-        {signedIn && relation.kind !== "self" && (
-          <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
-            Your trove
+        {relation.kind === "self" ? (
+          <Link href="/" className="flex h-9 items-center rounded-full bg-accent px-4 text-[14px] font-medium text-accent-ink active:scale-95">
+            Done
           </Link>
+        ) : (
+          signedIn && (
+            <Link href="/" className="flex h-9 items-center rounded-full bg-surface-2 px-4 text-[14px] font-medium">
+              Your trove
+            </Link>
+          )
         )}
       </header>
 
-      {relation.kind === "self" && <SelfBanner hidden={relation.hiddenCount} isPublic={person.isPublic} />}
-
-      <section className="px-5 pt-5 pb-6">
+      <section className="px-5 pt-3 pb-5">
         <div className="flex items-center gap-4">
           <Avatar name={person.name} photo={person.photo} size={64} />
           <div className="min-w-0">
@@ -145,6 +153,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             </p>
           </div>
         </div>
+        {relation.kind === "self" && <SelfNote hidden={relation.hiddenCount} isPublic={person.isPublic} />}
         {relation.kind !== "self" && (
           <div className="mt-5">
             <RelationButton person={person} relation={relation} onSignIn={() => setSigningIn(true)} />
@@ -152,31 +161,36 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         )}
       </section>
 
-      <div className="sticky top-0 z-20 bg-paper/85 px-5 pt-2 pb-4 backdrop-blur-xl">
-        <div className="grid grid-cols-4 gap-2 pb-3" role="tablist" aria-label="Collections">
-          {KINDS.map((k) => (
-            <button
-              key={k}
-              role="tab"
-              aria-selected={k === kind}
-              aria-label={`${VOCAB[k].label}, ${total(k)}`}
-              onClick={() => showKind(k)}
-              className={`flex h-[58px] min-w-0 flex-col items-center justify-center gap-1 rounded-2xl px-1 text-[12px] font-medium transition-colors active:scale-95 ${
-                k === kind ? "bg-ink text-paper shadow-book" : "bg-surface-2 text-ink-2"
-              }`}
-            >
-              <Icon name={KIND_ICON[k]} size={19} className="shrink-0" />
-              <span className="max-w-full truncate">{VOCAB[k].label}</span>
-            </button>
-          ))}
-        </div>
+      {/* Pinned while scrolling: which collection, and which part of it. Kept slim so the list has the room. */}
+      <div className="sticky top-0 z-20 space-y-2.5 bg-paper/85 px-5 pt-2 pb-3 backdrop-blur-xl">
+        {kinds.length > 1 && (
+          <div className={`grid gap-1.5 ${kinds.length === 4 ? "grid-cols-4" : kinds.length === 3 ? "grid-cols-3" : "grid-cols-2"}`} role="tablist" aria-label="Collections">
+            {kinds.map((k) => (
+              <button
+                key={k}
+                role="tab"
+                aria-selected={k === kind}
+                aria-label={`${VOCAB[k].label}, ${total(k)}`}
+                onClick={() => showKind(k)}
+                className={`flex h-10 min-w-0 items-center justify-center gap-1.5 rounded-full px-2 text-[13px] font-medium transition-colors active:scale-95 ${
+                  k === kind ? "bg-ink text-paper" : "bg-surface-2 text-ink-2"
+                }`}
+              >
+                {/* Four across leaves no room for icons: the names alone fit. */}
+                {kinds.length < 4 && <Icon name={KIND_ICON[k]} size={16} className="shrink-0" />}
+                <span className="truncate">{kinds.length === 4 ? SHORT[k] : VOCAB[k].label}</span>
+              </button>
+            ))}
+          </div>
+        )}
         {books.length > 0 && !isPlace && (
           <SectionTabs value={section} labels={v.sections} counts={counts[kind]} onChange={setSection} layoutId="profile-status-pill" />
         )}
-        {!isPlace && categories.length > 1 && (
-          <FilterChips key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="pt-3" />
-        )}
       </div>
+      {/* Their tags, on one line; the rest are a tap away. Scrolls away with the list. */}
+      {!isPlace && categories.length > 1 && (
+        <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} />
+      )}
 
       {focus && kind === "place" && (
         <div className="mx-5 mb-3 flex items-center justify-between gap-3">
@@ -340,18 +354,95 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   );
 }
 
-function SelfBanner({ hidden, isPublic }: { hidden: number; isPublic: boolean }) {
+/** Previewing your own: one quiet line under your name. */
+function SelfNote({ hidden, isPublic }: { hidden: number; isPublic: boolean }) {
   return (
-    <div className="mx-5 mt-1 flex items-start gap-3 rounded-2xl bg-surface-2 px-4 py-3">
-      <Icon name="eye" size={19} className="mt-0.5 shrink-0 text-ink-2" />
-      <p className="min-w-0 flex-1 text-[14px] leading-snug text-ink-2">
-        This is what {isPublic ? "friends and anyone with your link" : "your friends"} see.
-        {hidden > 0 && ` ${hidden === 1 ? "Your private item is" : `Your ${hidden} private items are`} hidden.`}{" "}
-        <Link href="/" className="font-medium text-ink underline underline-offset-2">
-          Back to your trove
-        </Link>
-      </p>
-    </div>
+    <p className="mt-4 flex items-center gap-2 text-[13px] leading-snug text-muted">
+      <Icon name="eye" size={15} className="shrink-0" />
+      <span>
+        What {isPublic ? "friends and anyone with your link" : "your friends"} see
+        {hidden > 0 ? ` · ${hidden.toLocaleString()} private hidden` : ""}
+      </span>
+    </p>
+  );
+}
+
+/**
+ * Tags to filter by, on a single line: All, the most common few that fit, and "More" for the full list in a sheet.
+ * The one picked always shows on the line.
+ */
+function TagRow({
+  tags,
+  total,
+  value,
+  onChange,
+}: {
+  tags: [string, number][];
+  total: number;
+  value: string | null;
+  onChange: (tag: string | null) => void;
+}) {
+  const [all, setAll] = useState(false);
+  const FEW = 2;
+  const shown = tags.slice(0, FEW);
+  if (value && !shown.some(([t]) => t === value)) shown.splice(FEW - 1, 1, tags.find(([t]) => t === value)!);
+  const rest = tags.length - shown.length;
+  const pick = (t: string | null) => {
+    onChange(t);
+    setAll(false);
+  };
+  return (
+    <>
+      <div className="flex items-center gap-2 overflow-hidden px-5 pt-1 pb-4">
+        <TagChip active={!value} label="All" count={total} onClick={() => pick(null)} />
+        {shown.map(([t, n]) => (
+          <TagChip key={t} active={value === t} label={t} count={n} onClick={() => pick(value === t ? null : t)} />
+        ))}
+        {rest > 0 && (
+          <button
+            onClick={() => setAll(true)}
+            className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap text-link active:scale-95"
+          >
+            More <span className="tabular-nums">({rest})</span>
+          </button>
+        )}
+      </div>
+      <Sheet open={all} onOpenChange={setAll} title="Tags">
+        <ul className="max-h-[60dvh] overflow-y-auto px-3 pb-safe" data-vaul-no-drag="">
+          {[["All", total] as [string, number], ...tags].map(([t, n], i) => {
+            const on = i === 0 ? !value : value === t;
+            return (
+              <li key={t}>
+                <button
+                  onClick={() => pick(i === 0 ? null : t)}
+                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-[16px] active:bg-surface-2 ${on ? "font-semibold" : ""}`}
+                >
+                  <span className="truncate">{t}</span>
+                  <span className="flex shrink-0 items-center gap-2 text-[14px] text-muted tabular-nums">
+                    {n}
+                    {on && <Icon name="check" size={16} className="text-ink" />}
+                  </span>
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </Sheet>
+    </>
+  );
+}
+
+function TagChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`flex h-8 max-w-[42%] min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors active:scale-95 ${
+        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
+      }`}
+    >
+      <span className="truncate">{label}</span>
+      <span className={`shrink-0 tabular-nums ${active ? "text-paper/60" : "text-muted"}`}>{count}</span>
+    </button>
   );
 }
 
