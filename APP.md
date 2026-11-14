@@ -45,8 +45,22 @@ doesn't have that limit.
 
 Each new shell build: raise the build number (Xcode → App → General → Build), archive, upload.
 
+## Invite links that send people to the app
+
+Two settings in Vercel (Environment Variables), then redeploy:
+
+- `IOS_APP_URL`: where to get the app (the TestFlight public link, later the App Store link). With it set, an
+  invite link or the sign-in page opened in an iPhone's browser first offers **Get the app**, with **Continue on
+  the website** one tap away. Unset, nothing changes.
+- `APPLE_TEAM_ID`: the Team ID from developer.apple.com → Account → Membership (10 letters and digits). It turns on
+  https://mytrove.me/.well-known/apple-app-site-association, which tells iPhones that invites (`/f/…`), friends'
+  pages (`/u/…`) and shared lists (`/s/…`) open in the app when it's installed.
+
+And once in Xcode, with the paid Developer team picked (a free Personal Team can't do this): App → Signing &
+Capabilities → **+ Capability** → **Associated Domains** → add `applinks:mytrove.me`. Build and upload as usual.
+
+Then someone invited taps the link → gets the app → taps the same link again → it opens in the app, on the invite.
+
 ## Not yet built
 
 - Push notifications (messages, new friends, invitees joining): needs an APNs key from the Developer account.
-- Invite links opening the app (universal links): needs the Team ID from the Developer account.
-- The iPhone share sheet for invites.

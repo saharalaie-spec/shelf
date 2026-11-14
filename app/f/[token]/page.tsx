@@ -3,9 +3,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 import { getCurrentUser } from "@/lib/auth";
-import { databaseUrl, signInChannels } from "@/lib/config";
+import { databaseUrl, iosAppUrl, signInChannels } from "@/lib/config";
 import { areFriends, findInviter, profileRef } from "@/lib/social";
 import { CameVia } from "@/components/CameVia";
+import { GetTheApp } from "@/components/GetTheApp";
 import { Invite } from "@/components/Invite";
 import { Login } from "@/components/Login";
 import { SetupNeeded } from "@/components/SetupNeeded";
@@ -43,11 +44,13 @@ export default async function InvitePage({ params }: PageProps<"/f/[token]">) {
     return (
       <>
         <CameVia via={`invite:${token}`} />
-        <Login
-          channels={signInChannels()}
-          heading={`${inviter.name ?? "A friend"} invited you to Trove`}
-          subheading="Sign in to be friends and see each other’s books, podcasts, films, shows and places."
-        />
+        <GetTheApp appUrl={iosAppUrl()} invitedBy={inviter.name ?? "Your friend"}>
+          <Login
+            channels={signInChannels()}
+            heading={`${inviter.name ?? "A friend"} invited you to Trove`}
+            subheading="Sign in to be friends and see each other’s books, podcasts, films, shows and places."
+          />
+        </GetTheApp>
       </>
     );
   }
