@@ -5,7 +5,7 @@ import { AnimatePresence, motion, type PanInfo } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { api, trackAction } from "@/lib/client";
+import { api, itemLinks, trackAction } from "@/lib/client";
 import { VOCAB } from "@/lib/kinds";
 import { SAMPLE_FRIEND_NAME } from "@/lib/sample";
 import type { StartFrom } from "@/lib/start";
@@ -13,6 +13,7 @@ import type { DeckCard } from "@/lib/suggest";
 import { KINDS, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { Cover } from "./Cover";
 import { CitySearch, Search } from "./QuickSearch";
+import { Sheet } from "./Sheet";
 import { SpotTile, spotLine } from "./Spot";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark } from "./ui";
 
@@ -237,6 +238,10 @@ function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null
   const router = useRouter();
   const [adding, setAdding] = useState(false);
   const [expanded, setExpanded] = useState<Partial<Record<Kind, boolean>>>({});
+  // One of theirs, opened: the whole note, where it is, and links out (Google Maps for a spot).
+  const [open, setOpen] = useState<Item | null>(null);
+  const [lastOpen, setLastOpen] = useState<Item | null>(null);
+  const shownItem = open ?? lastOpen;
 
   if (!from) {
     const addJuno = async () => {
@@ -277,9 +282,13 @@ function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null
       destination: i.kind === "place" && d ? { name: d.name, country: d.country, label: d.label, lat: d.lat, lon: d.lon, bbox: d.bbox } : undefined,
     });
   };
+  // Their latest favorites lead each collection, rather than sitting in a box of their own above.
   const top = new Set(from.picks.map((p) => p.id));
-  const rest = from.items.filter((i) => !top.has(i.id));
-  const addAll = () => from.picks.filter((p) => !have.has(p.key)).forEach((p) => pick(p, "want"));
+  const ordered = [...from.items].sort((a, b) => Number(top.has(b.id)) - Number(top.has(a.id)));
+  const openItem = (i: Item) => {
+    setOpen(i);
+    setLastOpen(i);
+  };
 
   return (
     <>
@@ -297,26 +306,8 @@ function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null
         what you’d try.{juno ? "" : " A minute here and your trove isn’t empty anymore."}
       </p>
 
-      {from.picks.length > 0 && (
-        <section className="mt-6 rounded-3xl bg-surface p-4 shadow-book">
-          <div className="mb-1 flex items-baseline justify-between gap-2 px-1">
-            <p className="font-serif text-[19px] font-medium">{from.chosen ? `${who} picked these for you` : `${who}’s favorites lately`}</p>
-            {from.picks.some((p) => !have.has(p.key)) && (
-              <button onClick={addAll} className="shrink-0 text-[14px] font-medium text-link active:opacity-60">
-                Want all {from.picks.length}
-              </button>
-            )}
-          </div>
-          <ul>
-            {from.picks.map((i) => (
-              <PickRow key={i.id} item={i} by={who} state={have.get(i.key)?.status} onPick={(s) => pick(i, s)} />
-            ))}
-          </ul>
-        </section>
-      )}
-
       {KINDS.map((kind) => {
-        const items = rest.filter((i) => i.kind === kind);
+        const items = ordered.filter((i) => i.kind === kind);
         if (!items.length) return null;
         const shown = expanded[kind] ? items : items.slice(0, 5);
         return (
@@ -324,7 +315,7 @@ function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null
             <h2 className="mb-1 px-1 text-[13px] font-medium tracking-wide text-muted uppercase">{VOCAB[kind].label}</h2>
             <ul>
               {shown.map((i) => (
-                <PickRow key={i.id} item={i} by={who} state={have.get(i.key)?.status} onPick={(s) => pick(i, s)} />
+                <PickRow key={i.id} item={i} by={who} state={have.get(i.key)?.status} onPick={(s) => pick(i, s)} onOpen={() => openItem(i)} />
               ))}
             </ul>
             {items.length > shown.length && (
@@ -338,39 +329,107 @@ function FromFriend({ from, have, save, juno = false }: { from: StartFrom | null
           </section>
         );
       })}
+
+      <Sheet open={Boolean(open)} onOpenChange={(o) => !o && setOpen(null)} title={shownItem?.title ?? "Details"} hideTitle>
+        {shownItem && (
+          <div className="px-5 pb-safe">
+            <div className="flex items-center gap-4 pt-2">
+              {shownItem.kind === "place" ? (
+                <SpotTile spot={shownItem} size={64} />
+              ) : (
+                <Cover book={shownItem} shape={VOCAB[shownItem.kind].shape} className="w-16 shrink-0" rounded="rounded-[4px]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <h2 className="font-serif text-[22px] leading-tight font-medium tracking-tight">{shownItem.title}</h2>
+                <p className="mt-0.5 text-[15px] text-ink-2">
+                  {(shownItem.kind === "place" ? spotLine(shownItem) : shownItem.author) || VOCAB[shownItem.kind].one}
+                </p>
+                {shownItem.kind === "place" && destOf(shownItem) && <p className="text-[14px] text-muted">In {destOf(shownItem)!.name}</p>}
+              </div>
+            </div>
+            {shownItem.note && (
+              <p className="mt-4 rounded-2xl bg-surface-2 px-4 py-3 text-[15px] leading-snug text-ink-2">
+                <span className="font-medium text-ink">{who}:</span> “{shownItem.note}”
+              </p>
+            )}
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              {(["read", "want"] as const).map((st) => {
+                const now = have.get(shownItem.key)?.status;
+                const on = st === "read" ? now === "read" : now === "want" || now === "reading";
+                return (
+                  <Button key={st} variant={on ? "primary" : "secondary"} onClick={() => pick(shownItem, st)} icon={on ? <Icon name="check" size={16} /> : undefined}>
+                    {st === "read" ? LOVED(shownItem.kind) : WANT(shownItem.kind)}
+                  </Button>
+                );
+              })}
+            </div>
+            <div className="mt-2 mb-2 flex flex-wrap gap-2">
+              {itemLinks(shownItem, shownItem.kind).map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-[15px] font-medium whitespace-nowrap text-ink-2 active:bg-surface-2"
+                >
+                  {shownItem.kind === "place" && <Icon name="pin" size={15} />}
+                  {shownItem.kind === "place" ? `Open in ${l.label}` : l.label}
+                </a>
+              ))}
+            </div>
+          </div>
+        )}
+      </Sheet>
     </>
   );
 }
 
-function PickRow({ item, by, state, onPick }: { item: Item; by: string; state: Status | undefined; onPick: (s: Status) => void }) {
+function PickRow({
+  item,
+  by,
+  state,
+  onPick,
+  onOpen,
+}: {
+  item: Item;
+  by: string;
+  state: Status | undefined;
+  onPick: (s: Status) => void;
+  /** Tap the name or picture: the whole thing, with links out. */
+  onOpen: () => void;
+}) {
   const loved = state === "read";
   const wanted = state === "want" || state === "reading";
   return (
-    <li className="flex items-center gap-3 px-1 py-2">
-      {item.kind === "place" ? (
-        <SpotTile spot={item} size={44} />
-      ) : (
-        <Cover book={item} shape={VOCAB[item.kind].shape} className="w-11 shrink-0" rounded="rounded-[3px]" />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px] font-medium">{item.title}</span>
-        <span className="block truncate text-[13px] text-muted">{(item.kind === "place" ? spotLine(item) : item.author) || VOCAB[item.kind].one}</span>
-        {item.note && (
-          <span className="block truncate text-[13px] text-ink-2 italic">
-            {by}: “{item.note}”
-          </span>
+    <li className="flex items-start gap-3 px-1 py-2.5">
+      <button onClick={onOpen} aria-label={`Open ${item.title}`} className="shrink-0 active:scale-95">
+        {item.kind === "place" ? (
+          <SpotTile spot={item} size={44} />
+        ) : (
+          <Cover book={item} shape={VOCAB[item.kind].shape} className="w-11 shrink-0" rounded="rounded-[3px]" />
         )}
-      </span>
-      <span className="flex shrink-0 gap-1.5">
-        <Toggle on={loved} onClick={() => onPick("read")} label={`${item.title}: ${LOVED(item.kind)}`}>
-          {loved && <Icon name="check" size={14} />}
-          {LOVED(item.kind)}
-        </Toggle>
-        <Toggle on={wanted} onClick={() => onPick("want")} label={`${item.title}: ${WANT(item.kind)}`}>
-          {wanted && <Icon name="check" size={14} />}
-          {WANT(item.kind)}
-        </Toggle>
-      </span>
+      </button>
+      <div className="min-w-0 flex-1">
+        <button onClick={onOpen} className="block w-full text-left active:opacity-70">
+          <span className="block truncate text-[15px] font-medium">{item.title}</span>
+          <span className="block truncate text-[13px] text-muted">{(item.kind === "place" ? spotLine(item) : item.author) || VOCAB[item.kind].one}</span>
+          {item.note && (
+            <span className="line-clamp-2 text-[13px] leading-snug text-ink-2 italic">
+              {by}: “{item.note}”
+            </span>
+          )}
+        </button>
+        <span className="mt-1.5 flex gap-1.5">
+          <Toggle on={loved} onClick={() => onPick("read")} label={`${item.title}: ${LOVED(item.kind)}`}>
+            {loved && <Icon name="check" size={14} />}
+            {LOVED(item.kind)}
+          </Toggle>
+          <Toggle on={wanted} onClick={() => onPick("want")} label={`${item.title}: ${WANT(item.kind)}`}>
+            {wanted && <Icon name="check" size={14} />}
+            {WANT(item.kind)}
+          </Toggle>
+        </span>
+      </div>
     </li>
   );
 }
