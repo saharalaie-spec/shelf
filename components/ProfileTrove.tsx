@@ -332,7 +332,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
                   rel="noreferrer"
                   className="flex h-11 flex-1 items-center justify-center rounded-full px-4 text-[15px] font-medium whitespace-nowrap text-ink-2 active:bg-surface-2"
                 >
-                  {l.label}
+                  {shown.kind === "place" ? `Open in ${l.label}` : l.label}
                 </a>
               ))}
             </div>

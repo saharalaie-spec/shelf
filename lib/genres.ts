@@ -20,9 +20,9 @@ export const PODCAST_CATEGORIES = [
   "Leisure",
 ] as const;
 
-/** Movie & TV categories. The first two are the formats; every hit leads with one of them. */
+/** Film & TV categories. The first two are the formats; every hit leads with one of them. */
 export const SCREEN_CATEGORIES = [
-  "Movies",
+  "Film",
   "TV",
   "Drama",
   "Comedy",
@@ -104,18 +104,19 @@ export function categorizePodcast(genres: string[]): string[] {
   ).slice(0, 4);
 }
 
-const FORMATS = ["Movies", "TV"];
+// "Movies" is the film tag's old name, still on anything saved before it was renamed.
+const FORMATS = ["Film", "Movies", "TV"];
 
 /**
- * A movie or a TV show, never both: of "Movies" and "TV", only the one chosen last stays (the later in the list), and
+ * A film or a TV show, never both: of "Film" and "TV", only the one chosen last stays (the later in the list), and
  * it leads the tags.
  */
 export function oneFormat(categories: string[]): string[] {
   const format = [...categories].reverse().find((c) => FORMATS.includes(c));
-  return format ? [format, ...categories.filter((c) => !FORMATS.includes(c))] : categories;
+  return format ? [format === "Movies" ? "Film" : format, ...categories.filter((c) => !FORMATS.includes(c))] : categories;
 }
 
-/** The format ("Movies" or "TV") first, then up to three genres mapped from Apple, TMDB or TVmaze names. */
+/** The format ("Film" or "TV") first, then up to three genres mapped from Apple, TMDB or TVmaze names. */
 export function categorizeScreen(genres: string[], format: "movie" | "tv"): string[] {
-  return [format === "tv" ? "TV" : "Movies", ...mapGenres(genres, SCREEN_RULES).slice(0, 3)];
+  return [format === "tv" ? "TV" : "Film", ...mapGenres(genres, SCREEN_RULES).slice(0, 3)];
 }

@@ -2,7 +2,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { fillCovers } from "@/lib/covers";
-import { databaseUrl, signInChannels, siteUrl } from "@/lib/config";
+import { databaseUrl, iosAppUrl, signInChannels, siteUrl } from "@/lib/config";
 import { listDestinations } from "@/lib/destinations";
 import { refreshSampleFriendFor } from "@/lib/sample-friend";
 import { suggestEnabled } from "@/lib/suggest";
@@ -13,13 +13,19 @@ import { summarize } from "@/lib/trove";
 import { unreadCount } from "@/lib/messages";
 import { incomingRequests } from "@/lib/social";
 import { Home } from "@/components/Home";
+import { GetTheApp } from "@/components/GetTheApp";
 import { Login } from "@/components/Login";
 import { SetupNeeded } from "@/components/SetupNeeded";
 
 export default async function HomePage() {
   if (!databaseUrl()) return <SetupNeeded />;
   const user = await getCurrentUser();
-  if (!user) return <Login channels={signInChannels()} />;
+  if (!user)
+    return (
+      <GetTheApp appUrl={iosAppUrl()}>
+        <Login channels={signInChannels()} />
+      </GetTheApp>
+    );
   // New here: get started first (it can be skipped).
   if (!user.started) redirect("/start");
   await refreshSampleFriendFor(user.id);

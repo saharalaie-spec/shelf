@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
+import { emailLink, shareLink } from "@/lib/share";
 import { api, trackAction } from "@/lib/client";
 import { guessCountry, parseIdentifier } from "@/lib/identifier";
 import { isSampleId, SAMPLE_FRIEND_NAME } from "@/lib/sample";
@@ -286,21 +287,10 @@ function InviteCard({
     toast("Invite link copied");
   };
 
+  const inviteText = `${name ? `${name} here. ` : ""}Let’s swap books, podcasts, films, shows and places on Trove:`;
   const share = async () => {
     if (!url) return;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: "Be my friend on Trove",
-          text: `${name ? `${name} here. ` : ""}Let’s swap books, podcasts, shows and places on Trove:`,
-          url,
-        });
-        trackAction("invite_share", "share");
-        return;
-      } catch (err) {
-        if ((err as DOMException).name === "AbortError") return;
-      }
-    }
+    if (await shareLink({ text: inviteText, url })) return trackAction("invite_share", "share");
     copy();
   };
 
@@ -317,10 +307,19 @@ function InviteCard({
           </div>
         </div>
       )}
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <Button onClick={share} disabled={!url} icon={<Icon name="share" size={18} />}>
-          Send invite link
+      <div className="grid grid-cols-[1fr_auto_auto] gap-2">
+        <Button onClick={share} disabled={!url} icon={<Icon name="share" size={18} />} className="px-4 whitespace-nowrap">
+          Send invite
         </Button>
+        {/* Email with the subject filled in ("Trove"), which the share sheet's Mail can leave empty. */}
+        <a
+          href={url ? emailLink({ text: inviteText, url }) : undefined}
+          onClick={() => trackAction("invite_share", "email")}
+          aria-label="Email the invite"
+          className="inline-flex h-12 items-center justify-center gap-1.5 rounded-full bg-surface-2 px-4 text-[16px] font-medium text-ink active:scale-[0.97]"
+        >
+          <Icon name="mail" size={17} />
+        </a>
         <Button variant="secondary" onClick={copy} disabled={!url} icon={<Icon name={copied ? "check" : "copy"} size={17} />}>
           {copied ? "Copied" : "Copy"}
         </Button>

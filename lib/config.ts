@@ -18,6 +18,12 @@ export const smsConfigured = () =>
       (process.env.TWILIO_FROM || process.env.TWILIO_MESSAGING_SERVICE_SID),
   );
 
+/** Where to get the iPhone app: the TestFlight public link for now, the App Store link later. Unset: no app prompt. */
+export const iosAppUrl = () => process.env.IOS_APP_URL?.trim() || null;
+
+/** The Apple Developer Team ID, for links that open the app (apple-app-site-association). */
+export const appleTeamId = () => process.env.APPLE_TEAM_ID?.trim() || null;
+
 export const emailConfigured = () => Boolean(process.env.RESEND_API_KEY && process.env.EMAIL_FROM);
 
 const isProduction = () => process.env.NODE_ENV === "production";

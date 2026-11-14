@@ -92,6 +92,8 @@ Pick one or both.
 
 - [x] The app runs on your own iPhone from Xcode (free Apple ID; renew every 7 days with ▶).
 - [ ] **Apple Developer Program**: enroll as an individual at developer.apple.com ($99 a year).
+- [ ] **Invites open the app** (APP.md, "Invite links that send people to the app"): set `IOS_APP_URL` and
+  `APPLE_TEAM_ID`, and add Associated Domains in Xcode.
 - [ ] **TestFlight public link**: App Store Connect → the app → TestFlight → External Testing → add a group, add the
   build, turn on the public link. Apple checks the first build (about a day). Builds expire after 90 days: upload a
   fresh one from Xcode before then; the link stays the same.

@@ -104,9 +104,9 @@ export const VOCAB: Record<Kind, Vocab> = {
   screen: {
     kind: "screen",
     slug: "movies",
-    label: "Movies & TV",
-    ...words("movie or show", "movies & shows"),
-    addLabel: "Add movies & TV",
+    label: "Film & TV",
+    ...words("film or show", "films & shows"),
+    addLabel: "Add film & TV",
     doneToast: (t) => `Watched “${t}”`,
     statuses: STATUSES,
     sections: { read: "Watched", reading: "Watching", want: "Watchlist" },
@@ -115,17 +115,17 @@ export const VOCAB: Record<Kind, Vocab> = {
     finish: "Mark as watched",
     started: "Started",
     shape: "portrait",
-    placeholder: "Type a movie or show, hit enter, repeat",
+    placeholder: "Type a film or show, hit enter, repeat",
     pastePlaceholder: "Dune\nSeverance\nThe Bear\nParasite, Past Lives, Succession",
-    catalog: "the movie & TV catalog",
-    creatorFallback: "Movie or show",
+    catalog: "the film & TV catalog",
+    creatorFallback: "Film or show",
     nowVerb: "Watching",
     tint: "var(--tint-screen)",
-    empty: ["Your movies & TV", "Type what you’ve watched, paste a list, screenshot a streaming app or import from Letterboxd, IMDb or Netflix."],
+    empty: ["Your film & TV", "Type what you’ve watched, paste a list, screenshot a streaming app or import from Letterboxd, IMDb or Netflix."],
     sectionEmpty: {
-      read: ["Nothing watched yet", "Movies and shows you’ve seen land here. Add your favorites."],
+      read: ["Nothing watched yet", "Films and shows you’ve seen land here. Add your favorites."],
       reading: ["Not watching anything", "Add the show you’re halfway through."],
-      want: ["Your watchlist is empty", "Save what you want to watch next, so movie night is easy."],
+      want: ["Your watchlist is empty", "Save what you want to watch next, so film night is easy."],
     },
   },
   place: {
@@ -181,7 +181,7 @@ export function troveTitle(name: string | null, category: string | null, status:
     const list = { book: "want-to-read list", podcast: "podcast queue", screen: "watchlist" }[kind as Exclude<Kind, "place">];
     return `${name ? possessive(name) : "A"} ${cat}${list}`;
   }
-  const done = { book: "books", podcast: "podcasts", screen: category ? "picks" : "movies & TV" }[kind as Exclude<Kind, "place">];
+  const done = { book: "books", podcast: "podcasts", screen: category ? "picks" : "film & TV" }[kind as Exclude<Kind, "place">];
   // Without a name: "Philosophy books", "Favorite podcasts".
   return name ? `${possessive(name)} ${cat}${done}` : `${category ? cat : "Favorite "}${done}`;
 }
@@ -200,10 +200,10 @@ export function spotTally(items: readonly { status: Status }[]) {
 /** Movies & TV: which one a title is, when we can tell (catalog category, then source, then how it's labelled). */
 export function screenFormat(h: { key: string; categories: string[]; author: string | null }): "movie" | "tv" | null {
   if (h.categories.includes("TV")) return "tv";
-  if (h.categories.includes("Movies")) return "movie";
+  if (h.categories.includes("Film") || h.categories.includes("Movies")) return "movie";
   if (/^(tmdb:tv:|imdb:tv:|tvmaze:)/.test(h.key)) return "tv";
   if (/^(tmdb:movie:|imdb:movie:|itunes:movie:)/.test(h.key)) return "movie";
   if (h.author?.startsWith("TV ·")) return "tv";
-  if (h.author?.startsWith("Movie ·")) return "movie";
+  if (h.author?.startsWith("Film ·") || h.author?.startsWith("Movie ·")) return "movie";
   return null;
 }

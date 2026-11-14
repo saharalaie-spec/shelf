@@ -17,6 +17,6 @@ export function typedHit(kind: Kind, c: Candidate): Hit {
     author: c.author?.trim() || null,
     year: c.year ?? null,
     coverUrl: kind === "book" && c.isbn ? `https://covers.openlibrary.org/b/isbn/${c.isbn}-M.jpg?default=false` : null,
-    categories: kind === "screen" && c.format ? [c.format === "tv" ? "TV" : "Movies"] : [],
+    categories: kind === "screen" && c.format ? [c.format === "tv" ? "TV" : "Film"] : [],
   };
 }
