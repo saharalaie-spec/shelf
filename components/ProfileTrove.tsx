@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -8,15 +9,19 @@ import { toast } from "sonner";
 import { ago, api, itemLinks } from "@/lib/client";
 import { VOCAB, type Vocab } from "@/lib/kinds";
 import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
+import { placesOnMap } from "@/lib/world";
 import { Cover } from "./Cover";
 import { Login, type Channels } from "./Login";
 import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
-import { BookViewSwitch, Bookshelf, useBookStacks } from "./Bookshelf";
+import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+
+// The world map (and its coastlines) loads only when their places are on screen.
+const WorldMap = dynamic(() => import("./WorldMap").then((m) => m.WorldMap), { ssr: false });
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -61,8 +66,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   const [section, setSectionState] = useState<Status>(() => firstSection(counts[kind]));
   // A category picked from their tags, like on your own lists; cleared when the list changes.
   const [chosenFilter, setFilter] = useState<string | null>(null);
-  // Their books as the covers grid or as stacks: the same choice as on your own lists.
-  const [stack, setStack] = useBookStacks();
+  // Their collection as the covers grid or its own look (stacks, film strips, tapes): the same choice as on your own lists.
+  const [stack, setStack] = useShelfView(kind);
   const setSection = (s: Status) => {
     setSectionState(s);
     setFilter(null);
@@ -87,6 +92,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
 
   // Places have no sections: every spot shows, under its destination, marked Been or Want to go.
   const isPlace = kind === "place";
+  const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items.filter((i) => i.kind === "place")) : []), [isPlace, destinations, items]);
   const inSection = isPlace ? books : books.filter((b) => b.status === section);
   const categories = (() => {
     const tally = new Map<string, number>();
@@ -194,12 +200,17 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       {!isPlace && categories.length > 1 && (
         <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} />
       )}
-      {kind === "book" && section !== "reading" && visible.length > 1 && (
+      {hasShelf(kind) && section !== "reading" && visible.length > 1 && (
         <div className="flex justify-end px-5 pb-3">
-          <BookViewSwitch stack={stack} onChange={setStack} />
+          <ShelfViewSwitch kind={kind} on={stack} onChange={setStack} />
         </div>
       )}
 
+      {!focus && isPlace && mapPlaces.length > 0 && (
+        <div className="px-5">
+          <WorldMap places={mapPlaces} onOpen={(id) => setFocus(destinations.find((d) => d.id === id) ?? null)} openLabel="See" />
+        </div>
+      )}
       {focus && kind === "place" && (
         <div className="mx-5 mb-3 flex items-center justify-between gap-3">
           <h2 className="font-serif text-[24px] font-medium tracking-tight">
@@ -224,8 +235,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             transition={{ duration: 0.18 }}
             className="px-5"
           >
-            {kind === "book" && stack && section !== "reading" ? (
-              <Bookshelf items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
+            {hasShelf(kind) && stack && section !== "reading" ? (
+              <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : isPlace ? (
               <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : section === "reading" ? (

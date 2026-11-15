@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -9,10 +10,11 @@ import { api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
 import { isSampleId } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
+import { placesOnMap } from "@/lib/world";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
-import { BookViewSwitch, Bookshelf, useBookStacks } from "./Bookshelf";
+import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
 import { ItemSheet } from "./ItemSheet";
 import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
@@ -56,6 +58,8 @@ type Props = {
 };
 
 // The key predates the name Trove; keeping it keeps everyone's remembered section.
+// The world map (and its coastlines) loads only when places are on screen.
+const WorldMap = dynamic(() => import("./WorldMap").then((m) => m.WorldMap), { ssr: false });
 const sectionKey = (kind: Kind) => `shelf:section:${kind}`;
 const byNewest = (a: Item, b: Item) => b.statusAt - a.statusAt || b.addedAt - a.addedAt;
 
@@ -108,8 +112,8 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   const { name } = profile;
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
-  // Books: the covers grid, or stacks by tag (remembered on this device).
-  const [stack, setStack] = useBookStacks();
+  // Each collection as the covers grid, or its own look by tag: stacks, film strips, tapes (remembered on this device).
+  const [stack, setStack] = useShelfView(kind);
   const [adding, setAdding] = useState(initialItems.length === 0 && initialDestinations.length === 0);
   // Each opening of the add sheet starts it fresh, so "New place" reliably opens on "Where?".
   const [addRound, setAddRound] = useState(0);
@@ -167,6 +171,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
     return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [inSection]);
   const allCategories = useMemo(() => [...new Set(items.flatMap((b) => b.categories))], [items]);
+  const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items) : []), [isPlace, destinations, items]);
   const privateCount = useMemo(() => items.filter((b) => b.private).length, [items]);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
@@ -558,6 +563,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                       {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
                     </p>
                   </div>
+                  {mapPlaces.length > 0 && <WorldMap places={mapPlaces} onOpen={showDest} />}
                   <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
                 </>
               )}
@@ -576,14 +582,14 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             >
               <div className="flex items-start justify-between gap-3">
                 <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
-                {kind === "book" && section !== "reading" && visible.length > 0 && (
-                  <BookViewSwitch stack={stack} onChange={setStack} className="mt-4" />
+                {hasShelf(kind) && section !== "reading" && visible.length > 0 && (
+                  <ShelfViewSwitch kind={kind} on={stack} onChange={setStack} className="mt-4" />
                 )}
               </div>
               {visible.length === 0 ? (
                 <SectionEmpty v={v} section={section} onAdd={openAdd} />
-              ) : kind === "book" && stack && section !== "reading" ? (
-                <Bookshelf items={visible} tags={categories} single={filter} onOpen={open} />
+              ) : hasShelf(kind) && stack && section !== "reading" ? (
+                <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={open} />
               ) : section === "reading" ? (
                 <ul className="space-y-3">
                   <AnimatePresence initial={false} mode="popLayout">
