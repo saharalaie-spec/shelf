@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import { ago, api, itemLinks } from "@/lib/client";
 import { VOCAB, type Vocab } from "@/lib/kinds";
 import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
+import { placesOnMap } from "@/lib/world";
 import { Cover } from "./Cover";
 import { Login, type Channels } from "./Login";
 import { PlacesList, StatusTag } from "./PlacesList";
@@ -17,6 +19,9 @@ import { AskBox } from "./AskBox";
 import { BookViewSwitch, Bookshelf, useBookStacks } from "./Bookshelf";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+
+// The world map (and its coastlines) loads only when their places are on screen.
+const WorldMap = dynamic(() => import("./WorldMap").then((m) => m.WorldMap), { ssr: false });
 
 /** How the viewer is connected to the person whose trove this is. */
 export type Relation =
@@ -87,6 +92,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
 
   // Places have no sections: every spot shows, under its destination, marked Been or Want to go.
   const isPlace = kind === "place";
+  const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items.filter((i) => i.kind === "place")) : []), [isPlace, destinations, items]);
   const inSection = isPlace ? books : books.filter((b) => b.status === section);
   const categories = (() => {
     const tally = new Map<string, number>();
@@ -200,6 +206,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
         </div>
       )}
 
+      {!focus && isPlace && mapPlaces.length > 0 && (
+        <div className="px-5">
+          <WorldMap places={mapPlaces} onOpen={(id) => setFocus(destinations.find((d) => d.id === id) ?? null)} openLabel="See" />
+        </div>
+      )}
       {focus && kind === "place" && (
         <div className="mx-5 mb-3 flex items-center justify-between gap-3">
           <h2 className="font-serif text-[24px] font-medium tracking-tight">

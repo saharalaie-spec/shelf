@@ -15,6 +15,14 @@
   --plank: #c4b49a;
   --plank-edge: #a89c88;
   --plank-shadow: rgba(28, 31, 38, 0.12);
+  /* The places map (components/WorldMap.tsx): a pale sea and each continent in one of Trove's stones. */
+  --map-sea: #f6f4ef;
+  --map-grid: rgba(168, 156, 136, 0.2);
+  --map-americas: #dccdb1;
+  --map-europe: #cfc1a8;
+  --map-africa: #e2d2ab;
+  --map-asia: #d3d9e0;
+  --map-oceania: #d9cbae;
   --paper: #f2f0eb;
   --surface: #fbfaf7;
   --surface-2: #e8e4dc;
@@ -41,6 +49,13 @@
     --plank: #4a4137;
     --plank-edge: #3a332b;
     --plank-shadow: rgba(0, 0, 0, 0.35);
+    --map-sea: #181b20;
+    --map-grid: rgba(236, 235, 229, 0.06);
+    --map-americas: #3b3429;
+    --map-europe: #363026;
+    --map-africa: #41392a;
+    --map-asia: #2c3139;
+    --map-oceania: #3a3328;
     --tint-deep: #232a37;
     --paper: #111316;
     --surface: #191c21;

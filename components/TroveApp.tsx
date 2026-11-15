@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -9,6 +10,7 @@ import { api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
 import { isSampleId } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
+import { placesOnMap } from "@/lib/world";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
@@ -56,6 +58,8 @@ type Props = {
 };
 
 // The key predates the name Trove; keeping it keeps everyone's remembered section.
+// The world map (and its coastlines) loads only when places are on screen.
+const WorldMap = dynamic(() => import("./WorldMap").then((m) => m.WorldMap), { ssr: false });
 const sectionKey = (kind: Kind) => `shelf:section:${kind}`;
 const byNewest = (a: Item, b: Item) => b.statusAt - a.statusAt || b.addedAt - a.addedAt;
 
@@ -167,6 +171,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
     return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [inSection]);
   const allCategories = useMemo(() => [...new Set(items.flatMap((b) => b.categories))], [items]);
+  const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items) : []), [isPlace, destinations, items]);
   const privateCount = useMemo(() => items.filter((b) => b.private).length, [items]);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
@@ -558,6 +563,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                       {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
                     </p>
                   </div>
+                  {mapPlaces.length > 0 && <WorldMap places={mapPlaces} onOpen={showDest} />}
                   <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
                 </>
               )}
