@@ -11,6 +11,10 @@
   --tint-screen: #e5e7e9;
   --tint-place: #e8e1d5;
   --tint-deep: #e3e7ee;
+  /* The bookshelf's planks (components/Bookshelf.tsx). */
+  --plank: #c4b49a;
+  --plank-edge: #a89c88;
+  --plank-shadow: rgba(28, 31, 38, 0.12);
   --paper: #f2f0eb;
   --surface: #fbfaf7;
   --surface-2: #e8e4dc;
@@ -34,6 +38,9 @@
     --tint-podcast: #2e2a21;
     --tint-screen: #25282c;
     --tint-place: #2d2a24;
+    --plank: #4a4137;
+    --plank-edge: #3a332b;
+    --plank-shadow: rgba(0, 0, 0, 0.35);
     --tint-deep: #232a37;
     --paper: #111316;
     --surface: #191c21;
