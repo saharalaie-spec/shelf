@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { findBooks, matchCandidates, matchShare, searchText, splitTitleAuthor } from "@/lib/books";
+import { findBooks, matchCandidates, matchShare, pickMatch, searchText, splitTitleAuthor } from "@/lib/books";
 
 describe("splitTitleAuthor", () => {
   it("splits on 'by' and spaced dashes only", () => {
@@ -23,6 +23,23 @@ describe("matchCandidates (offline catalog)", () => {
       null,
     ]);
     expect(results[1].match?.categories).toContain("Philosophy");
+  });
+});
+
+describe("a book read from a photo", () => {
+  const hit = (title: string, author: string | null) => ({ key: `t:${title}`, title, author, year: null, coverUrl: null, categories: [] });
+
+  it("is only matched to a book with that title, subtitle or not", () => {
+    expect(pickMatch({ title: "Sapiens: A Brief History of Humankind" }, [hit("Sapiens", "Yuval Noah Harari")])?.title).toBe("Sapiens");
+    expect(pickMatch({ title: "The Overstory" }, [hit("Overstory: A Novel", "Richard Powers")])?.title).toBe("Overstory: A Novel");
+    // A loosely related result is no match at all, rather than a wrong book.
+    expect(pickMatch({ title: "The Remains of the Day" }, [hit("A Day in the Life", "Someone"), hit("Remains", "Else")])).toBeNull();
+  });
+
+  it("prefers the author read, and skips another author's book of the same name", () => {
+    const hits = [hit("Circe", "Somebody Else"), hit("Circe", "Madeline Miller")];
+    expect(pickMatch({ title: "Circe", author: "Madeline Miller" }, hits)?.author).toBe("Madeline Miller");
+    expect(pickMatch({ title: "Circe", author: "Madeline Miller" }, [hit("Circe", "Somebody Else")])).toBeNull();
   });
 });
 

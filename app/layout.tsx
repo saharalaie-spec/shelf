@@ -33,8 +33,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         {children}
         <Toaster
           position="top-center"
-          offset={16}
-          mobileOffset={12}
+          // Below the iPhone's clock and camera when Trove fills the screen (the app, or added to the home screen).
+          offset={{ top: "calc(env(safe-area-inset-top) + 16px)" }}
+          mobileOffset={{ top: "calc(env(safe-area-inset-top) + 12px)", left: "12px", right: "12px" }}
           toastOptions={{
             classNames: {
               toast:
