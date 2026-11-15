@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import world from "@/lib/data/world.json";
 import { project, WORLD_VIEW, type MapPlace } from "@/lib/world";
-import { Button, Icon } from "./ui";
+import { Icon } from "./ui";
 
 // Each continent's stone, spelled out in full so the stylesheet keeps these colors (app/globals.css).
 const REGIONS = [
@@ -31,12 +31,11 @@ function clamp(v: View): View {
 
 /**
  * All your places on one world map: smooth continents in Trove's stones, a navy circle for each place with its number
- * of spots (nearby places share one until you zoom), and a card below for the one you tap, with Open. Drawn by the
+ * of spots (nearby places share one until you zoom; tapping it zooms in), and tapping a place opens it. Drawn by the
  * app itself, no map service. Zoom with the buttons, a double tap, or a pinch once zoomed in; drag to move around.
  */
-export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPlace[]; onOpen: (id: string) => void; openLabel?: string }) {
+export function WorldMap({ places, onOpen }: { places: MapPlace[]; onOpen: (id: string) => void }) {
   const [view, setView] = useState<View>(HOME);
-  const [chosen, setChosen] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
   const [px, setPx] = useState(350);
 
@@ -72,16 +71,20 @@ export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPl
   // Dragging to move, two fingers to pinch. Only once zoomed in, so on the world view a finger still scrolls the page.
   const pointers = useRef(new Map<number, { x: number; y: number }>());
   const pinch = useRef<number | null>(null);
+  // How far the finger travelled since it went down: a drag or a pinch that ends on a place doesn't open it.
+  const travel = useRef(0);
   const toMap = (e: { clientX: number; clientY: number }) => {
     const r = box.current!.getBoundingClientRect();
     return [vx + ((e.clientX - r.left) / r.width) * w, vy + ((e.clientY - r.top) / r.height) * h] as const;
   };
   const onPointerDown = (e: React.PointerEvent) => {
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.current.size === 1) travel.current = 0;
   };
   const onPointerMove = (e: React.PointerEvent) => {
     const prev = pointers.current.get(e.pointerId);
     if (!prev) return;
+    travel.current += Math.hypot(e.clientX - prev.x, e.clientY - prev.y);
     pointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
     if (pointers.current.size === 2) {
       const [a, b] = [...pointers.current.values()];
@@ -123,8 +126,9 @@ export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPl
   }, []);
 
   const tap = (c: { at: [number, number]; members: MapPlace[] }) => {
+    if (travel.current > 8) return;
     if (c.members.length === 1 || view.z >= MAX_ZOOM) {
-      setChosen(c.members[0].id);
+      onOpen(c.members[0].id);
       return;
     }
     // Several places in one circle: zoom to fit them all, with room around them for their names.
@@ -137,7 +141,6 @@ export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPl
     setView(clamp({ z: want, cx: (Math.max(...xs) + Math.min(...xs)) / 2, cy: (Math.max(...ys) + Math.min(...ys)) / 2 + (WORLD_VIEW.height / want) * 0.04 }));
   };
 
-  const place = places.find((p) => p.id === chosen) ?? null;
   const r = (n: number) => (7 + Math.sqrt(n) * 2.6) * unit;
 
   return (
@@ -170,14 +173,13 @@ export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPl
           ))}
           {circles.map((c) => {
             const spots = c.members.reduce((n, m) => n + m.spots, 0);
-            const on = c.members.some((m) => m.id === chosen);
             const rr = r(spots);
             const label = c.members.length === 1 && view.z >= 2.5 ? c.members[0].name : null;
             return (
               <g key={c.members.map((m) => m.id).join(",")} className="cursor-pointer" onClick={() => tap(c)} role="button" aria-label={c.members.map((m) => m.name).join(", ")}>
                 <circle cx={c.at[0]} cy={c.at[1]} r={rr + 3 * unit} fill="var(--accent)" opacity={0.14} />
-                <circle cx={c.at[0]} cy={c.at[1]} r={rr} fill={on ? "var(--surface)" : "var(--accent)"} stroke={on ? "var(--accent)" : "var(--surface)"} strokeWidth={1.6 * unit} />
-                <text x={c.at[0]} y={c.at[1] + 3.6 * unit} textAnchor="middle" fontSize={10 * unit} fontWeight={600} fill={on ? "var(--accent)" : "var(--accent-ink)"}>
+                <circle cx={c.at[0]} cy={c.at[1]} r={rr} fill="var(--accent)" stroke="var(--surface)" strokeWidth={1.6 * unit} />
+                <text x={c.at[0]} y={c.at[1] + 3.6 * unit} textAnchor="middle" fontSize={10 * unit} fontWeight={600} fill="var(--accent-ink)">
                   {spots}
                 </text>
                 {label && (
@@ -206,36 +208,6 @@ export function WorldMap({ places, onOpen, openLabel = "Open" }: { places: MapPl
         </div>
       </div>
 
-      {place && (
-        <div className="mt-3 rounded-2xl bg-surface p-4 shadow-book">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className="truncate font-serif text-[21px] leading-tight font-medium tracking-tight">{place.name}</p>
-              <p className="text-[14px] text-muted">
-                {[place.country !== place.name ? place.country : null, `${place.spots} ${place.spots === 1 ? "spot" : "spots"}`, `${place.been} been`]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-            </div>
-            <button onClick={() => setChosen(null)} aria-label="Close" className="-mt-1 -mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted active:bg-surface-2">
-              <Icon name="x" size={18} />
-            </button>
-          </div>
-          {place.some.length > 0 && (
-            <ul className="mt-2 space-y-0.5 text-[14px] text-ink-2">
-              {place.some.map((s) => (
-                <li key={s.title} className="flex items-center gap-2 truncate">
-                  {s.been ? <Icon name="check" size={14} className="shrink-0" /> : <span className="h-3 w-3 shrink-0 rounded-full border-[1.5px] border-current" aria-hidden />}
-                  <span className="truncate">{s.title}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <Button className="mt-3 w-full" onClick={() => onOpen(place.id)}>
-            {openLabel} {place.name} ›
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

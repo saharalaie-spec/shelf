@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { api } from "@/lib/client";
 import { spotTally, vocab, type Vocab } from "@/lib/kinds";
+import { isFormat } from "@/lib/genres";
 import { isSampleId } from "@/lib/sample";
 import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } from "@/lib/types";
 import { placesOnMap } from "@/lib/world";
@@ -22,7 +23,8 @@ import { KindMenu } from "./KindMenu";
 import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
-import { Button, FilterChips, Icon, Logo } from "./ui";
+import { Button, Icon, Logo } from "./ui";
+import { TagRow } from "./TagRow";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
@@ -167,11 +169,12 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
 
   const categories = useMemo(() => {
     const tally = new Map<string, number>();
-    for (const b of inSection) for (const c of b.categories) tally.set(c, (tally.get(c) ?? 0) + 1);
+    for (const b of inSection) for (const c of b.categories) if (!isFormat(c)) tally.set(c, (tally.get(c) ?? 0) + 1);
     return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   }, [inSection]);
   const allCategories = useMemo(() => [...new Set(items.flatMap((b) => b.categories))], [items]);
   const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items) : []), [isPlace, destinations, items]);
+  const offMap = destinations.filter((d) => !mapPlaces.some((m) => m.id === d.id));
   const privateCount = useMemo(() => items.filter((b) => b.private).length, [items]);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
@@ -509,7 +512,7 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
           <>
             <SectionTabs value={section} labels={v.sections} counts={counts} onChange={showSection} />
             {categories.length > 0 ? (
-              <FilterChips key={section} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="pt-3 pb-3" />
+              <TagRow key={section} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="pt-3 pb-3" />
             ) : (
               <div className="h-3" />
             )}
@@ -563,8 +566,17 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                       {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
                     </p>
                   </div>
-                  {mapPlaces.length > 0 && <WorldMap places={mapPlaces} onOpen={showDest} />}
-                  <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
+                  {mapPlaces.length > 0 ? (
+                    <>
+                      <WorldMap places={mapPlaces} onOpen={showDest} />
+                      {/* Only the map; a place it can't show (no position yet) is listed under it. */}
+                      {offMap.length > 0 && (
+                        <DestinationCards destinations={offMap} items={items} onOpen={(d) => showDest(d.id)} />
+                      )}
+                    </>
+                  ) : (
+                    <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
+                  )}
                 </>
               )}
             </motion.div>
@@ -712,7 +724,9 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
 }
 
 function SectionHeading({ v, section, count, filter }: { v: Vocab; section: Status; count: number; filter: string | null }) {
-  const noun = `${filter ? `${filter.toLowerCase()} ` : ""}${count === 1 ? v.one : v.many}`;
+  // Film & TV counts "titles": "films & shows" is too long a heading.
+  const [one, many] = v.kind === "screen" ? ["title", "titles"] : [v.one, v.many];
+  const noun = `${filter ? `${filter.toLowerCase()} ` : ""}${count === 1 ? one : many}`;
   return (
     <div className="mt-2 mb-5">
       <h1 className="font-serif text-[34px] leading-tight font-medium tracking-tight">

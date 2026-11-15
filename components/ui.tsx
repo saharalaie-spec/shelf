@@ -51,63 +51,6 @@ export function Wordmark({ size = 20 }: { size?: number }) {
   );
 }
 
-const CHIPS_SHOWN = 4;
-
-/**
- * Tags to filter a list by, most common first. They wrap instead of scrolling sideways, so none hides past the edge:
- * the first few show, then "+N more" for the rest (and the one picked always shows).
- */
-export function FilterChips({
-  tags,
-  total,
-  value,
-  onChange,
-  className = "",
-}: {
-  tags: [string, number][];
-  /** How many are in the list unfiltered, for "All". */
-  total: number;
-  value: string | null;
-  onChange: (tag: string | null) => void;
-  className?: string;
-}) {
-  const [all, setAll] = useState(false);
-  const extra = tags.length - CHIPS_SHOWN;
-  const shown = all || extra <= 1 ? tags : tags.filter(([t], i) => i < CHIPS_SHOWN || t === value);
-  return (
-    <div className={`flex flex-wrap gap-2 ${className}`}>
-      <FilterChip active={!value} onClick={() => onChange(null)} label="All" count={total} />
-      {shown.map(([t, n]) => (
-        <FilterChip key={t} active={value === t} onClick={() => onChange(value === t ? null : t)} label={t} count={n} />
-      ))}
-      {extra > 1 && (
-        <button
-          onClick={() => setAll((a) => !a)}
-          aria-expanded={all}
-          className="flex h-9 shrink-0 items-center rounded-full px-3 text-[14px] font-medium whitespace-nowrap text-link active:scale-95"
-        >
-          {all ? "Fewer" : `+${tags.length - shown.length} more`}
-        </button>
-      )}
-    </div>
-  );
-}
-
-/** A category to filter a list by, with how many are in it. */
-export function FilterChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex h-9 shrink-0 items-center gap-1.5 rounded-full px-4 text-[14px] font-medium whitespace-nowrap transition-[background-color,color,transform] duration-200 active:scale-95 ${
-        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
-      }`}
-    >
-      {label}
-      <span className={`tabular-nums ${active ? "text-paper/60" : "text-muted"}`}>{count}</span>
-    </button>
-  );
-}
-
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} width="18" height="18" viewBox="0 0 24 24" aria-hidden>

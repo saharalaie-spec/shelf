@@ -129,7 +129,8 @@ export function DestinationCards({
   destinations: Destination[];
   items: Item[];
   onOpen: (d: Destination) => void;
-  onNew: () => void;
+  /** A last "New place" card. */
+  onNew?: () => void;
 }) {
   const spotsIn = new Map<string, Item[]>();
   for (const item of items) {
@@ -168,6 +169,7 @@ export function DestinationCards({
           );
         })}
       </AnimatePresence>
+      {onNew && (
       <li>
         <button
           onClick={onNew}
@@ -182,6 +184,7 @@ export function DestinationCards({
           </span>
         </button>
       </li>
+      )}
     </ul>
   );
 }

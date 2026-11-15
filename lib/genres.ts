@@ -106,6 +106,8 @@ export function categorizePodcast(genres: string[]): string[] {
 
 // "Movies" is the film tag's old name, still on anything saved before it was renamed.
 const FORMATS = ["Film", "Movies", "TV"];
+/** Film or TV: what a title is, not a genre, so lists don't group or filter by it. */
+export const isFormat = (c: string) => FORMATS.includes(c);
 
 /**
  * A film or a TV show, never both: of "Film" and "TV", only the one chosen last stays (the later in the list), and
