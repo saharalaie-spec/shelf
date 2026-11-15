@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import type { Item } from "@/lib/types";
-import { Icon } from "./ui";
+import { Icon, useHydrated } from "./ui";
 
 /** Plain bindings for books with no cover image: Trove's navy and stones, with a few warm and muted ones. Text color for each. */
 const BINDINGS: [string, string][] = [
@@ -28,6 +28,55 @@ function hash(s: string) {
 }
 
 const OTHER = "More books";
+const VIEW_KEY = "trove:books:view";
+
+/**
+ * Books as the covers grid (the default) or as stacks, remembered on this device and the same on your lists and on
+ * friends' pages. Until the page is live in the browser it's the grid, as the server drew it.
+ */
+export function useBookStacks(): [boolean, (on: boolean) => void] {
+  const hydrated = useHydrated();
+  const [stack, setStack] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === "stack";
+    } catch {
+      return false;
+    }
+  });
+  const set = (on: boolean) => {
+    setStack(on);
+    try {
+      localStorage.setItem(VIEW_KEY, on ? "stack" : "grid");
+    } catch {
+      // Private browsing: it just won't be remembered.
+    }
+  };
+  return [hydrated && stack, set];
+}
+
+/** Grid | Stack. */
+export function BookViewSwitch({ stack, onChange, className = "" }: { stack: boolean; onChange: (on: boolean) => void; className?: string }) {
+  return (
+    <div className={`flex shrink-0 rounded-full bg-surface-2 p-1 ${className}`} role="radiogroup" aria-label="Show books as">
+      {(
+        [
+          [false, "Grid"],
+          [true, "Stack"],
+        ] as const
+      ).map(([on, label]) => (
+        <button
+          key={label}
+          role="radio"
+          aria-checked={stack === on}
+          onClick={() => onChange(on)}
+          className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${stack === on ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /**
  * Books as stacks on a bookcase: one stack per tag, in order of how many books it holds, each book once (on the

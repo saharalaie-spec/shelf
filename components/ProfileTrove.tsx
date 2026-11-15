@@ -14,6 +14,7 @@ import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
+import { BookViewSwitch, Bookshelf, useBookStacks } from "./Bookshelf";
 import { Sheet } from "./Sheet";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
@@ -60,6 +61,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   const [section, setSectionState] = useState<Status>(() => firstSection(counts[kind]));
   // A category picked from their tags, like on your own lists; cleared when the list changes.
   const [chosenFilter, setFilter] = useState<string | null>(null);
+  // Their books as the covers grid or as stacks: the same choice as on your own lists.
+  const [stack, setStack] = useBookStacks();
   const setSection = (s: Status) => {
     setSectionState(s);
     setFilter(null);
@@ -191,6 +194,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       {!isPlace && categories.length > 1 && (
         <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} />
       )}
+      {kind === "book" && section !== "reading" && visible.length > 1 && (
+        <div className="flex justify-end px-5 pb-3">
+          <BookViewSwitch stack={stack} onChange={setStack} />
+        </div>
+      )}
 
       {focus && kind === "place" && (
         <div className="mx-5 mb-3 flex items-center justify-between gap-3">
@@ -216,7 +224,9 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             transition={{ duration: 0.18 }}
             className="px-5"
           >
-            {isPlace ? (
+            {kind === "book" && stack && section !== "reading" ? (
+              <Bookshelf items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
+            ) : isPlace ? (
               <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
