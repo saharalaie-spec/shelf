@@ -121,20 +121,65 @@ export function splitTitleAuthor(text: string): Query {
   return { q: text.trim() };
 }
 
+// Little words that don't tell titles apart.
+const SMALL = new Set(["the", "a", "an", "of", "and", "in", "on", "to", "for", "la", "le", "el", "de"]);
+/** A title's own words: before any subtitle (":", " - ", "("), without the little ones. */
+const mainWords = (t: string) => words(t.split(/:|\s[-–—]\s|\(/)[0]).filter((w) => !SMALL.has(w));
+
+/** How alike two titles are, 0 to 1: the words their main titles share, out of the longer one's. */
+export function titleOverlap(a: string, b: string) {
+  const x = mainWords(a);
+  const y = mainWords(b);
+  if (!x.length || !y.length) return 0;
+  return x.filter((w) => y.includes(w)).length / Math.max(x.length, y.length);
+}
+
+/**
+ * The catalog hit that is really this book: its title agrees with the one read (either may carry a subtitle the other
+ * lacks), and the author too when one was read. Null when none does, so a wrong book is never shown as the match.
+ */
+export function pickMatch(input: { title: string; author?: string }, hits: Hit[]): Hit | null {
+  let best: Hit | null = null;
+  let bestScore = 0;
+  for (const h of hits) {
+    const title = titleOverlap(input.title, h.title);
+    if (title < 0.6) continue;
+    const author = input.author ? Math.max(matchShare(input.author, h.author ?? ""), matchShare(h.author ?? "", input.author)) : null;
+    // A clear title match with a different author is another book of the same name.
+    if (author !== null && h.author && author === 0) continue;
+    const score = title + (author ?? 0) * 0.5;
+    if (score > bestScore) {
+      best = h;
+      bestScore = score;
+    }
+  }
+  return best;
+}
+
 export async function matchCandidates(items: Candidate[]): Promise<MatchResult[]> {
   return mapLimit(items, 5, async (input) => {
-    let hits: Hit[] = [];
-    try {
-      if (input.isbn) hits = await findBooks({ isbn: input.isbn }, 1);
-      if (!hits.length && input.author) hits = await findBooks({ title: input.title, author: input.author }, 4);
-      if (!hits.length) {
-        hits = await searchText(input.author ? `${input.title} ${input.author}` : input.title, 4);
+    // Each way of asking in turn, until one finds this very book; everything found stays as alternatives.
+    const asks: (() => Promise<Hit[]>)[] = [
+      ...(input.isbn ? [() => findBooks({ isbn: input.isbn! }, 1)] : []),
+      ...(input.author ? [() => findBooks({ title: input.title, author: input.author }, 4)] : []),
+      () => searchText(input.author ? `${input.title} ${input.author}` : input.title, 4),
+      ...(input.author ? [() => findBooks({ q: input.title }, 4)] : []),
+    ];
+    const seen: Hit[] = [];
+    let match: Hit | null = null;
+    for (const [i, ask] of asks.entries()) {
+      let hits: Hit[] = [];
+      try {
+        hits = await ask();
+      } catch (err) {
+        console.warn("Match failed for", input.title, (err as Error).message);
       }
-      if (!hits.length && input.author) hits = await findBooks({ q: input.title }, 4);
-    } catch (err) {
-      console.warn("Match failed for", input.title, (err as Error).message);
+      for (const h of hits) if (!seen.some((x) => x.key === h.key)) seen.push(h);
+      // An ISBN names the edition exactly.
+      match = input.isbn && i === 0 ? (hits[0] ?? null) : pickMatch(input, hits);
+      if (match) break;
     }
-    return { input, match: hits[0] ?? null, alternatives: hits.slice(1) };
+    return { input, match, alternatives: seen.filter((h) => h !== match).slice(0, 6) };
   });
 }
 
