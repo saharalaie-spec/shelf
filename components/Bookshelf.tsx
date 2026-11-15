@@ -1,9 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import type { Item } from "@/lib/types";
-import { Icon } from "./ui";
+import { Icon, useHydrated } from "./ui";
 
-/** Spine colors: Trove's navy and stones, with a few warm and muted bindings between them. Text color for each. */
+/** Plain bindings for books with no cover image: Trove's navy and stones, with a few warm and muted ones. Text color for each. */
 const BINDINGS: [string, string][] = [
   ["#1E2B47", "#F2F0EB"],
   ["#A89C88", "#1C1F26"],
@@ -19,22 +20,69 @@ const BINDINGS: [string, string][] = [
   ["#2F3A33", "#ECE4D3"],
 ];
 
-/** The same book always looks the same: its colors and size come from its key. */
+/** The same book always looks the same: its color, length and offset come from its key. */
 function hash(s: string) {
   let h = 2166136261;
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return h >>> 0;
 }
 
-// Each row of books stands on a plank: the row is this tall, the last PLANK pixels of it being the plank.
-const ROW = 190;
-const PLANK = 12;
 const OTHER = "More books";
+const VIEW_KEY = "trove:books:view";
 
 /**
- * Books as a bookcase: one shelf per tag, in order of how many books it holds, each book once (on the shelf of its
- * most common tag), spines side by side, wrapping onto the next plank when a shelf is full. Tags with a single book
- * share a last "More books" shelf.
+ * Books as the covers grid (the default) or as stacks, remembered on this device and the same on your lists and on
+ * friends' pages. Until the page is live in the browser it's the grid, as the server drew it.
+ */
+export function useBookStacks(): [boolean, (on: boolean) => void] {
+  const hydrated = useHydrated();
+  const [stack, setStack] = useState(() => {
+    try {
+      return localStorage.getItem(VIEW_KEY) === "stack";
+    } catch {
+      return false;
+    }
+  });
+  const set = (on: boolean) => {
+    setStack(on);
+    try {
+      localStorage.setItem(VIEW_KEY, on ? "stack" : "grid");
+    } catch {
+      // Private browsing: it just won't be remembered.
+    }
+  };
+  return [hydrated && stack, set];
+}
+
+/** Grid | Stack. */
+export function BookViewSwitch({ stack, onChange, className = "" }: { stack: boolean; onChange: (on: boolean) => void; className?: string }) {
+  return (
+    <div className={`flex shrink-0 rounded-full bg-surface-2 p-1 ${className}`} role="radiogroup" aria-label="Show books as">
+      {(
+        [
+          [false, "Grid"],
+          [true, "Stack"],
+        ] as const
+      ).map(([on, label]) => (
+        <button
+          key={label}
+          role="radio"
+          aria-checked={stack === on}
+          onClick={() => onChange(on)}
+          className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${stack === on ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Books as stacks on a bookcase: one stack per tag, in order of how many books it holds, each book once (on the
+ * stack of its most common tag), lying flat so its title and author read across the spine. A spine is made from the
+ * book's own cover (catalogs have no spine photos), with the cover itself at its end. Tags with a single book share a
+ * last "More books" stack.
  */
 export function Bookshelf({ items, tags, single, onOpen }: { items: Item[]; tags: [string, number][]; single?: string | null; onOpen: (b: Item) => void }) {
   const rank = new Map(tags.map(([t], i) => [t, i]));
@@ -43,7 +91,6 @@ export function Bookshelf({ items, tags, single, onOpen }: { items: Item[]; tags
     const tag = single ?? [...b.categories].filter((c) => rank.has(c)).sort((x, y) => rank.get(x)! - rank.get(y)!)[0] ?? OTHER;
     shelves.set(tag, [...(shelves.get(tag) ?? []), b]);
   }
-  // A shelf of one looks bare: those books share the last shelf instead (unless one tag is all there is).
   if (!single && shelves.size > 1) {
     for (const [tag, books] of [...shelves]) {
       if (tag === OTHER || books.length > 1) continue;
@@ -57,25 +104,23 @@ export function Bookshelf({ items, tags, single, onOpen }: { items: Item[]; tags
     <div className="space-y-6">
       {order.map((tag) => (
         <section key={tag}>
-          <p className="mb-1 flex items-baseline justify-between px-1">
+          <p className="mb-1.5 flex items-baseline justify-between px-1">
             <span className="font-serif text-[19px] font-medium tracking-tight">{tag}</span>
             <span className="text-[13px] text-muted tabular-nums">{shelves.get(tag)!.length}</span>
           </p>
-          <ul
-            className="flex flex-wrap items-end gap-x-[3px] rounded-t-xl px-2.5"
-            style={{
-              // The back of the bookcase, in the books' stone.
-              backgroundColor: "var(--tint-book)",
-              // A plank under every row of books, wood-toned, with a soft shadow beneath it.
-              backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${ROW - PLANK}px, var(--plank) ${ROW - PLANK}px, var(--plank-edge) ${ROW - 2}px, var(--plank-shadow) ${ROW - 2}px, transparent ${ROW}px)`,
-            }}
-          >
-            {shelves.get(tag)!.map((b) => (
-              <li key={b.key} className="flex items-end" style={{ height: ROW, paddingBottom: PLANK }}>
-                <Spine book={b} onOpen={() => onOpen(b)} />
-              </li>
-            ))}
-          </ul>
+          <div className="rounded-t-xl px-3 pt-3" style={{ backgroundColor: "var(--tint-book)" }}>
+            <ul className="flex flex-col items-start gap-[3px]">
+              {shelves.get(tag)!.map((b) => (
+                <Spine key={b.key} book={b} onOpen={() => onOpen(b)} />
+              ))}
+            </ul>
+            {/* The plank the stack rests on. */}
+            <div
+              className="-mx-3 mt-[3px] h-2.5"
+              style={{ background: "linear-gradient(var(--plank), var(--plank-edge))", boxShadow: "0 3px 4px var(--plank-shadow)" }}
+              aria-hidden
+            />
+          </div>
         </section>
       ))}
     </div>
@@ -85,26 +130,44 @@ export function Bookshelf({ items, tags, single, onOpen }: { items: Item[]; tags
 function Spine({ book, onOpen }: { book: Item; onOpen: () => void }) {
   const h = hash(book.key);
   const [bg, ink] = BINDINGS[h % BINDINGS.length];
-  // Taller and thicker books for longer titles, with a little variety so the row isn't even.
-  const height = 132 + (h % 6) * 7 + Math.min(book.title.length, 30) * 0.4;
-  const width = 30 + ((h >> 4) % 4) * 4 + (book.title.length > 24 ? 6 : 0);
+  // A cover that doesn't load falls back to the plain binding.
+  const [failed, setFailed] = useState(false);
+  const cover = book.coverUrl && !failed ? book.coverUrl : null;
+  // Not every book the same size, nor squared off: lengths and a slight offset vary, as in a real stack.
+  const width = 74 + (h % 23);
+  const offset = (h >> 5) % 14;
   return (
-    <button
-      onClick={onOpen}
-      aria-label={`${book.title}${book.author ? ` by ${book.author}` : ""}`}
-      className="relative flex flex-col items-center overflow-hidden rounded-[3px] py-2 shadow-[inset_-3px_0_4px_rgba(0,0,0,0.12),inset_2px_0_0_rgba(255,255,255,0.12),0_1px_2px_rgba(0,0,0,0.18)] transition-transform duration-150 active:-translate-y-1.5"
-      style={{ height, width, background: bg, color: ink }}
-    >
-      {/* Bands across the top and bottom of the spine, like a cloth binding. */}
-      <span className="absolute inset-x-0 top-2.5 h-px opacity-40" style={{ background: ink }} aria-hidden />
-      <span className="absolute inset-x-0 bottom-2.5 h-px opacity-40" style={{ background: ink }} aria-hidden />
-      <span
-        className="mt-3 line-clamp-1 max-h-[78%] overflow-hidden font-serif text-[12px] leading-none font-medium tracking-tight whitespace-nowrap text-ellipsis"
-        style={{ writingMode: "vertical-rl" }}
+    <li className="max-w-full" style={{ width: `calc(${width}% - ${offset}px)`, marginLeft: offset }}>
+      <button
+        onClick={onOpen}
+        aria-label={`${book.title}${book.author ? ` by ${book.author}` : ""}`}
+        className="relative flex h-[34px] w-full items-center gap-2 overflow-hidden rounded-[3px] pr-3 pl-1 text-left shadow-[inset_0_-2px_0_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.14),0_1px_2px_rgba(0,0,0,0.18)] transition-transform duration-150 active:translate-x-1"
+        style={{ background: bg, color: cover ? "#FBFAF7" : ink }}
       >
-        {book.title}
-      </span>
-      {book.private && <Icon name="lock" size={11} className="absolute bottom-4 opacity-70" />}
-    </button>
+        {cover && (
+          <>
+            {/* The spine's surface: the book's own cover, enlarged and softened, so it carries the book's colors. */}
+            <span
+              className="absolute inset-0 scale-125 bg-cover bg-center blur-[6px] saturate-[1.15]"
+              style={{ backgroundImage: `url("${cover}")` }}
+              aria-hidden
+            />
+            {/* A shade over it, so the title reads on any cover. */}
+            <span className="absolute inset-0 bg-gradient-to-r from-black/45 via-black/30 to-black/20" aria-hidden />
+          </>
+        )}
+        <span className="relative h-[26px] w-[19px] shrink-0 overflow-hidden rounded-[2px] shadow-[0_0_0_1px_rgba(0,0,0,0.12)]" style={{ background: bg }}>
+          {cover && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={cover} alt="" className="h-full w-full object-cover" loading="lazy" onError={() => setFailed(true)} />
+          )}
+        </span>
+        <span className="relative min-w-0 flex-1 truncate">
+          <span className="font-serif text-[13.5px] font-medium tracking-tight">{book.title}</span>
+          {book.author && <span className="ml-2 text-[11.5px] opacity-80">{book.author}</span>}
+        </span>
+        {book.private && <Icon name="lock" size={12} className="relative shrink-0 opacity-70" />}
+      </button>
+    </li>
   );
 }

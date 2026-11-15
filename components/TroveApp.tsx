@@ -12,7 +12,7 @@ import { STATUSES, type Hit, type Item, type Kind, type RecBy, type Status } fro
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
-import { Bookshelf } from "./Bookshelf";
+import { BookViewSwitch, Bookshelf, useBookStacks } from "./Bookshelf";
 import { ItemSheet } from "./ItemSheet";
 import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
@@ -20,7 +20,7 @@ import { KindMenu } from "./KindMenu";
 import { DestinationCards, DestinationHeader, PlacesList } from "./PlacesList";
 import { ShareSheet } from "./ShareSheet";
 import { SectionTabs } from "./SectionTabs";
-import { Button, FilterChips, Icon, Logo, useHydrated } from "./ui";
+import { Button, FilterChips, Icon, Logo } from "./ui";
 
 /** A catalog hit to add; imports may already know which section it belongs in (and bring a note). */
 export type NewHit = Hit & { status?: Status; note?: string; recBy?: RecBy | null };
@@ -108,25 +108,8 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   const { name } = profile;
   const [section, setSection] = useState<Status>("read");
   const [chosenFilter, setFilter] = useState<string | null>(null);
-  // Books: a bookcase by tag, or the covers grid; remembered on this device.
-  const [shelf, setShelfState] = useState(() => {
-    try {
-      return localStorage.getItem("trove:books:view") !== "grid";
-    } catch {
-      return true;
-    }
-  });
-  // The server can't know this device's choice: the shelf until the page is live here.
-  const hydrated = useHydrated();
-  const shelfOn = !hydrated || shelf;
-  const setShelf = (on: boolean) => {
-    setShelfState(on);
-    try {
-      localStorage.setItem("trove:books:view", on ? "shelf" : "grid");
-    } catch {
-      // Private browsing: it just won't be remembered.
-    }
-  };
+  // Books: the covers grid, or stacks by tag (remembered on this device).
+  const [stack, setStack] = useBookStacks();
   const [adding, setAdding] = useState(initialItems.length === 0 && initialDestinations.length === 0);
   // Each opening of the add sheet starts it fresh, so "New place" reliably opens on "Where?".
   const [addRound, setAddRound] = useState(0);
@@ -594,27 +577,12 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
               <div className="flex items-start justify-between gap-3">
                 <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
                 {kind === "book" && section !== "reading" && visible.length > 0 && (
-                  <div className="mt-4 flex shrink-0 rounded-full bg-surface-2 p-1" role="radiogroup" aria-label="Show books as">
-                    {([
-                      [true, "Shelf"],
-                      [false, "Grid"],
-                    ] as const).map(([on, label]) => (
-                      <button
-                        key={label}
-                        role="radio"
-                        aria-checked={shelfOn === on}
-                        onClick={() => setShelf(on)}
-                        className={`h-8 rounded-full px-3 text-[13px] font-medium transition-colors ${shelfOn === on ? "bg-surface text-ink shadow-book" : "text-ink-2"}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
+                  <BookViewSwitch stack={stack} onChange={setStack} className="mt-4" />
                 )}
               </div>
               {visible.length === 0 ? (
                 <SectionEmpty v={v} section={section} onAdd={openAdd} />
-              ) : kind === "book" && shelfOn && section !== "reading" ? (
+              ) : kind === "book" && stack && section !== "reading" ? (
                 <Bookshelf items={visible} tags={categories} single={filter} onOpen={open} />
               ) : section === "reading" ? (
                 <ul className="space-y-3">
