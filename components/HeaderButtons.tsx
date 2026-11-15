@@ -46,10 +46,11 @@ export function AvatarButton({
       <button
         onClick={onClick}
         aria-label="Account"
-        className="ml-1 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-2 transition-transform active:scale-95"
+        onContextMenu={(e) => e.preventDefault()}
+        className="ml-1 h-10 w-10 shrink-0 overflow-hidden rounded-full bg-surface-2 transition-transform select-none [-webkit-touch-callout:none] active:scale-95"
       >
         {/* eslint-disable-next-line @next/next/no-img-element -- a small, already-sized photo from our own API */}
-        <img src={photo} alt="" className="h-full w-full object-cover" />
+        <img src={photo} alt="" draggable={false} className="pointer-events-none select-none [-webkit-touch-callout:none] h-full w-full object-cover" />
       </button>
     );
   }

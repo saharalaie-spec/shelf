@@ -386,8 +386,9 @@ function PhotoPeek({ src, name, size, className }: { src: string; name: string |
         className={`block shrink-0 overflow-hidden rounded-full bg-surface-2 select-none [-webkit-touch-callout:none] ${className}`}
         style={{ width: size, height: size }}
       >
+        {/* The image itself never takes the touch, so a long press can't bring up Save to Photos or Copy. */}
         {/* eslint-disable-next-line @next/next/no-img-element -- a small, already-sized photo from our own API */}
-        <img src={src} alt="" draggable={false} className="h-full w-full object-cover" />
+        <img src={src} alt="" draggable={false} className="pointer-events-none select-none [-webkit-touch-callout:none] h-full w-full object-cover" />
       </span>
       {hydrated &&
         createPortal(
@@ -408,7 +409,8 @@ function PhotoPeek({ src, name, size, className }: { src: string; name: string |
                   animate={{ scale: 1 }}
                   exit={{ scale: 0.8 }}
                   transition={{ type: "spring", bounce: 0.2, duration: 0.35 }}
-                  className="aspect-square w-[min(78vw,420px)] rounded-[32px] object-cover shadow-2xl"
+                  draggable={false}
+                  className="pointer-events-none select-none [-webkit-touch-callout:none] aspect-square w-[min(78vw,420px)] rounded-[32px] object-cover shadow-2xl"
                 />
               </motion.div>
             )}
