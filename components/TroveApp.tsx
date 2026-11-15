@@ -594,22 +594,14 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
             >
               <div className="flex items-start justify-between gap-3">
                 <SectionHeading v={v} section={section} count={visible.length} filter={filter} />
-                {hasShelf(kind) && section !== "reading" && visible.length > 0 && (
+                {hasShelf(kind) && visible.length > 0 && (
                   <ShelfViewSwitch kind={kind} on={stack} onChange={setStack} className="mt-4" />
                 )}
               </div>
               {visible.length === 0 ? (
                 <SectionEmpty v={v} section={section} onAdd={openAdd} />
-              ) : hasShelf(kind) && stack && section !== "reading" ? (
+              ) : hasShelf(kind) && stack ? (
                 <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={open} />
-              ) : section === "reading" ? (
-                <ul className="space-y-3">
-                  <AnimatePresence initial={false} mode="popLayout">
-                    {visible.map((book) => (
-                      <ReadingCard key={book.key} v={v} book={book} onOpen={() => open(book)} onFinish={() => changeStatus(book, "read")} />
-                    ))}
-                  </AnimatePresence>
-                </ul>
               ) : (
                 <motion.ul layout={animateLayout} className="grid grid-cols-3 gap-x-3 gap-y-4 sm:grid-cols-4 md:grid-cols-5">
                   <AnimatePresence initial={false} mode="popLayout">
@@ -629,6 +621,8 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                         >
                           <Cover book={book} shape={v.shape} locked={book.private} />
                         </button>
+                        {/* Books and shows get finished; a podcast goes on, so it has no button. */}
+                        {section === "reading" && kind !== "podcast" && <FinishButton title={book.title} onFinish={() => changeStatus(book, "read")} />}
                       </motion.li>
                     ))}
                   </AnimatePresence>
@@ -740,8 +734,8 @@ function SectionHeading({ v, section, count, filter }: { v: Vocab; section: Stat
   );
 }
 
-function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOpen: () => void; onFinish: () => void }) {
-  // The circle fills with a check for a moment, then the card moves to the finished section.
+/** Under a cover in Reading or Watching: tap and the circle fills with a check, then it moves to Read or Watched. */
+function FinishButton({ title, onFinish }: { title: string; onFinish: () => void }) {
   const [ticked, setTicked] = useState(false);
   const finish = () => {
     if (ticked) return;
@@ -750,40 +744,19 @@ function ReadingCard({ v, book, onOpen, onFinish }: { v: Vocab; book: Item; onOp
     setTimeout(onFinish, 380);
   };
   return (
-    <motion.li
-      layout="position"
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: 40 }}
-      transition={{ type: "spring", stiffness: 400, damping: 34 }}
-      className="flex items-center gap-4 rounded-3xl bg-surface p-3 pr-4 shadow-book"
+    <button
+      onClick={finish}
+      aria-label={`Finished: ${title}`}
+      className={`mt-2 flex h-8 w-full items-center justify-center gap-1.5 rounded-full border text-[13px] font-medium transition-colors active:scale-95 ${
+        ticked ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface text-ink"
+      }`}
     >
-      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-4 text-left active:opacity-80">
-        <Cover book={book} shape={v.shape} className="w-16 shrink-0" rounded="rounded-[4px]" locked={book.private} />
-        <span className="min-w-0">
-          <span className="block font-serif text-[19px] leading-tight font-medium line-clamp-2">{book.title}</span>
-          {book.author && <span className="mt-0.5 block truncate text-[14px] text-ink-2">{book.author}</span>}
-          {book.recBy && <span className="mt-1 block truncate text-[13px] text-muted">from {book.recBy.name}</span>}
-        </span>
-      </button>
-      <button
-        onClick={finish}
-        aria-label={`${v.finish}: ${book.title}`}
-        className={`flex h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-[14px] font-medium transition-colors active:scale-95 ${
-          ticked ? "border-accent bg-accent text-accent-ink" : "border-line bg-surface text-ink"
-        }`}
-      >
-        {/* An empty circle until tapped: an action, not a state. */}
-        <span
-          className={`flex h-[18px] w-[18px] items-center justify-center rounded-full border-2 transition-colors ${
-            ticked ? "border-accent-ink" : "border-ink-2"
-          }`}
-        >
-          {ticked && <Icon name="check" size={11} />}
-        </span>
-        {v.finish}
-      </button>
-    </motion.li>
+      {/* An empty circle until tapped: an action, not a state. */}
+      <span className={`flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors ${ticked ? "border-accent-ink" : "border-ink-2"}`}>
+        {ticked && <Icon name="check" size={10} />}
+      </span>
+      Finished
+    </button>
   );
 }
 

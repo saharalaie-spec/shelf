@@ -6,9 +6,9 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { ago, api, itemLinks } from "@/lib/client";
+import { api, itemLinks } from "@/lib/client";
 import { isFormat } from "@/lib/genres";
-import { VOCAB, type Vocab } from "@/lib/kinds";
+import { VOCAB } from "@/lib/kinds";
 import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
 import { placesOnMap } from "@/lib/world";
 import { Cover } from "./Cover";
@@ -20,7 +20,7 @@ import { AskBox } from "./AskBox";
 import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
 import { Sheet } from "./Sheet";
 import { TagRow } from "./TagRow";
-import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
+import { Avatar, Button, Icon, KIND_ICON, Wordmark } from "./ui";
 
 // The world map (and its coastlines) loads only when their places are on screen.
 const WorldMap = dynamic(() => import("./WorldMap").then((m) => m.WorldMap), { ssr: false });
@@ -202,7 +202,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       {!isPlace && categories.length > 1 && (
         <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="px-5 pt-1 pb-4" />
       )}
-      {hasShelf(kind) && section !== "reading" && visible.length > 1 && (
+      {hasShelf(kind) && visible.length > 1 && (
         <div className="flex justify-end px-5 pb-3">
           <ShelfViewSwitch kind={kind} on={stack} onChange={setStack} />
         </div>
@@ -237,7 +237,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             transition={{ duration: 0.18 }}
             className="px-5"
           >
-            {hasShelf(kind) && stack && section !== "reading" ? (
+            {hasShelf(kind) && stack ? (
               <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : isPlace ? (
               <PlacesList
@@ -245,12 +245,6 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
                 items={focus ? inSection : inSection.filter((i) => !mapPlaces.some((m) => m.id === i.destinationId))}
                 destinations={destinations}
                 groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
-            ) : section === "reading" ? (
-              <ul className="space-y-3">
-                {visible.map((b) => (
-                  <ReadingRow key={b.id} v={v} book={b} onOpen={() => (setOpen(b), setLastOpen(b), setAsking(false))} />
-                ))}
-              </ul>
             ) : (
               <ul className="grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-5">
                 {visible.map((b, i) => (
@@ -547,18 +541,3 @@ function BookActions({
   );
 }
 
-function ReadingRow({ v, book, onOpen }: { v: Vocab; book: Item; onOpen: () => void }) {
-  const hydrated = useHydrated();
-  return (
-    <li>
-      <button onClick={onOpen} className="flex w-full items-center gap-4 rounded-3xl bg-surface p-3 pr-4 text-left shadow-book active:opacity-80">
-        <Cover book={book} shape={v.shape} className="w-16 shrink-0" rounded="rounded-[4px]" />
-        <span className="min-w-0">
-          <span className="block font-serif text-[19px] leading-tight font-medium line-clamp-2">{book.title}</span>
-          {book.author && <span className="mt-0.5 block truncate text-[14px] text-ink-2">{book.author}</span>}
-          <span className="mt-1 block min-h-5 text-[13px] text-muted">{hydrated && book.statusAt ? `${v.started} ${ago(book.statusAt)}` : ""}</span>
-        </span>
-      </button>
-    </li>
-  );
-}
