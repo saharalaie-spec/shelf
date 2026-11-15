@@ -30,10 +30,10 @@ function hash(s: string) {
 /** Where single-item tags gather, per collection. */
 const OTHER: Record<ShelfKind, string> = { book: "More books", screen: "More film & TV", podcast: "More podcasts" };
 
-/** The collections with a second look: books as stacks, film & TV as film strips, podcasts as tape cases. */
+/** The collections with a second look: books as stacks, film & TV as film strips, podcasts as a list of tape cases. */
 export type ShelfKind = Exclude<Kind, "place">;
 export const hasShelf = (k: Kind): k is ShelfKind => k !== "place";
-const SHELF_LABEL: Record<ShelfKind, string> = { book: "Stack", screen: "Film strip", podcast: "Tapes" };
+const SHELF_LABEL: Record<ShelfKind, string> = { book: "Stack", screen: "Film strip", podcast: "List" };
 // Books keep the key they were first saved under ("stack" / "grid").
 const viewKey = (k: ShelfKind) => (k === "book" ? "trove:books:view" : `trove:${k}:view`);
 
@@ -67,7 +67,7 @@ export function useShelfView(kind: Kind): [boolean, (on: boolean) => void] {
   return [hydrated && hasShelf(kind) && !!views[kind], set];
 }
 
-/** Grid | Stack, Grid | Film strip, Grid | Tapes. */
+/** Grid | Stack, Grid | Film strip, Grid | List. */
 export function ShelfViewSwitch({ kind, on, onChange, className = "" }: { kind: ShelfKind; on: boolean; onChange: (on: boolean) => void; className?: string }) {
   return (
     <div className={`flex shrink-0 rounded-full bg-surface-2 p-1 ${className}`} role="radiogroup" aria-label="Show as">
@@ -99,14 +99,19 @@ export function Shelf({ kind, ...props }: { kind: ShelfKind } & ShelfProps) {
 type ShelfProps = { items: Item[]; tags: [string, number][]; single?: string | null; onOpen: (b: Item) => void };
 
 /**
- * One group per tag, in order of how many items it holds, each item once (under its most common tag). Tags with a
- * single item share a last "More…" group.
+ * One group per tag, in order of how many items it holds, each item once (under its most common tag that doesn't
+ * cover nearly everything). Tags with a single item share a last "More…" group.
  */
 function groupByTag(items: Item[], tags: [string, number][], single: string | null | undefined, other: string): [string, Item[]][] {
   const rank = new Map(tags.map(([t], i) => [t, i]));
+  // A tag on nearly everything ("Drama" on most films) sorts nothing, so an item goes under its next tag when it has one.
+  const count = new Map<string, number>();
+  for (const b of items) for (const c of b.categories) count.set(c, (count.get(c) ?? 0) + 1);
+  const everywhere = (c: string) => items.length >= 4 && count.get(c)! > items.length * 0.6;
   const groups = new Map<string, Item[]>();
   for (const b of items) {
-    const tag = single ?? [...b.categories].filter((c) => rank.has(c)).sort((x, y) => rank.get(x)! - rank.get(y)!)[0] ?? other;
+    const own = [...b.categories].filter((c) => rank.has(c)).sort((x, y) => rank.get(x)! - rank.get(y)!);
+    const tag = single ?? own.find((c) => !everywhere(c)) ?? own[0] ?? other;
     groups.set(tag, [...(groups.get(tag) ?? []), b]);
   }
   if (!single && groups.size > 1) {
@@ -244,7 +249,7 @@ function Filmstrips({ items, tags, single, onOpen }: ShelfProps) {
                   {row.map((b) => (
                     <button key={b.key} onClick={() => onOpen(b)} className="min-w-0 text-left" tabIndex={-1} aria-hidden>
                       <span className="line-clamp-2 text-[12.5px] leading-tight font-medium">{b.title}</span>
-                      {b.year && <span className="block text-[11.5px] text-muted">{b.year}</span>}
+                      <span className="block text-[11.5px] text-muted">{[b.year, b.categories.includes("TV") ? "TV" : null].filter(Boolean).join(" · ")}</span>
                     </button>
                   ))}
                 </div>

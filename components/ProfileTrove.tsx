@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ago, api, itemLinks } from "@/lib/client";
+import { isFormat } from "@/lib/genres";
 import { VOCAB, type Vocab } from "@/lib/kinds";
 import { KINDS, STATUSES, type Destination, type Item, type Kind, type Status } from "@/lib/types";
 import { placesOnMap } from "@/lib/world";
@@ -18,6 +19,7 @@ import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
 import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
 import { Sheet } from "./Sheet";
+import { TagRow } from "./TagRow";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark, useHydrated } from "./ui";
 
 // The world map (and its coastlines) loads only when their places are on screen.
@@ -96,7 +98,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   const inSection = isPlace ? books : books.filter((b) => b.status === section);
   const categories = (() => {
     const tally = new Map<string, number>();
-    for (const b of inSection) for (const c of b.categories) tally.set(c, (tally.get(c) ?? 0) + 1);
+    for (const b of inSection) for (const c of b.categories) if (!isFormat(c)) tally.set(c, (tally.get(c) ?? 0) + 1);
     return [...tally.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   })();
   const filter = !isPlace && chosenFilter && categories.some(([c]) => c === chosenFilter) ? chosenFilter : null;
@@ -198,7 +200,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       </div>
       {/* Their tags, on one line; the rest are a tap away. Scrolls away with the list. */}
       {!isPlace && categories.length > 1 && (
-        <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} />
+        <TagRow key={`${kind}:${section}`} tags={categories} total={inSection.length} value={filter} onChange={setFilter} className="px-5 pt-1 pb-4" />
       )}
       {hasShelf(kind) && section !== "reading" && visible.length > 1 && (
         <div className="flex justify-end px-5 pb-3">
@@ -208,7 +210,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
 
       {!focus && isPlace && mapPlaces.length > 0 && (
         <div className="px-5">
-          <WorldMap places={mapPlaces} onOpen={(id) => setFocus(destinations.find((d) => d.id === id) ?? null)} openLabel="See" />
+          <WorldMap places={mapPlaces} onOpen={(id) => setFocus(destinations.find((d) => d.id === id) ?? null)} />
         </div>
       )}
       {focus && kind === "place" && (
@@ -238,7 +240,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
             {hasShelf(kind) && stack && section !== "reading" ? (
               <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : isPlace ? (
-              <PlacesList items={inSection} destinations={destinations} groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
+              <PlacesList
+                // All their places: just the map, and under it any place it can't show.
+                items={focus ? inSection : inSection.filter((i) => !mapPlaces.some((m) => m.id === i.destinationId))}
+                destinations={destinations}
+                groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : section === "reading" ? (
               <ul className="space-y-3">
                 {visible.map((b) => (
@@ -385,85 +391,6 @@ function SelfNote({ hidden, isPublic }: { hidden: number; isPublic: boolean }) {
         {hidden > 0 ? ` · ${hidden.toLocaleString()} private hidden` : ""}
       </span>
     </p>
-  );
-}
-
-/**
- * Tags to filter by, on a single line: All, the most common few that fit, and "More" for the full list in a sheet.
- * The one picked always shows on the line.
- */
-function TagRow({
-  tags,
-  total,
-  value,
-  onChange,
-}: {
-  tags: [string, number][];
-  total: number;
-  value: string | null;
-  onChange: (tag: string | null) => void;
-}) {
-  const [all, setAll] = useState(false);
-  const FEW = 2;
-  const shown = tags.slice(0, FEW);
-  if (value && !shown.some(([t]) => t === value)) shown.splice(FEW - 1, 1, tags.find(([t]) => t === value)!);
-  const rest = tags.length - shown.length;
-  const pick = (t: string | null) => {
-    onChange(t);
-    setAll(false);
-  };
-  return (
-    <>
-      <div className="flex items-center gap-2 overflow-hidden px-5 pt-1 pb-4">
-        <TagChip active={!value} label="All" count={total} onClick={() => pick(null)} />
-        {shown.map(([t, n]) => (
-          <TagChip key={t} active={value === t} label={t} count={n} onClick={() => pick(value === t ? null : t)} />
-        ))}
-        {rest > 0 && (
-          <button
-            onClick={() => setAll(true)}
-            className="flex h-8 shrink-0 items-center gap-1 rounded-full px-2.5 text-[13px] font-medium whitespace-nowrap text-link active:scale-95"
-          >
-            More <span className="tabular-nums">({rest})</span>
-          </button>
-        )}
-      </div>
-      <Sheet open={all} onOpenChange={setAll} title="Tags">
-        <ul className="max-h-[60dvh] overflow-y-auto px-3 pb-safe" data-vaul-no-drag="">
-          {[["All", total] as [string, number], ...tags].map(([t, n], i) => {
-            const on = i === 0 ? !value : value === t;
-            return (
-              <li key={t}>
-                <button
-                  onClick={() => pick(i === 0 ? null : t)}
-                  className={`flex w-full items-center justify-between rounded-2xl px-3 py-3 text-left text-[16px] active:bg-surface-2 ${on ? "font-semibold" : ""}`}
-                >
-                  <span className="truncate">{t}</span>
-                  <span className="flex shrink-0 items-center gap-2 text-[14px] text-muted tabular-nums">
-                    {n}
-                    {on && <Icon name="check" size={16} className="text-ink" />}
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </Sheet>
-    </>
-  );
-}
-
-function TagChip({ active, label, count, onClick }: { active: boolean; label: string; count: number; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`flex h-8 max-w-[42%] min-w-0 shrink-0 items-center gap-1.5 rounded-full px-3 text-[13px] font-medium transition-colors active:scale-95 ${
-        active ? "bg-accent text-accent-ink" : "bg-surface-2 text-ink-2"
-      }`}
-    >
-      <span className="truncate">{label}</span>
-      <span className={`shrink-0 tabular-nums ${active ? "text-paper/60" : "text-muted"}`}>{count}</span>
-    </button>
   );
 }
 
