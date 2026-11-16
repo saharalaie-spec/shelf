@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import type { Row } from "@libsql/client";
 import { AuthError } from "./auth";
 import { db } from "./db";
+import { searchAreas } from "./places";
 import type { Area, BBox, Destination } from "./types";
 
 /** A destination plus how many spots it holds (in the view asked for). */
@@ -157,3 +158,41 @@ export function cleanArea(raw: unknown): Area | null {
     bbox,
   };
 }
+
+const fold = (s: string) =>
+  s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+
+/**
+ * Places saved without a position (typed by hand, or picked from the built-in countries while the map was down) are
+ * looked up on the map, so they can go on the world map. A few at a time, after the page is sent; a name the map
+ * doesn't know as such stays as it is.
+ */
+export async function locateDestinations(userId: string) {
+  const client = await db();
+  const { rows } = await client.execute({
+    sql: "SELECT id, name, country FROM destinations WHERE user_id = ? AND (lat IS NULL OR lon IS NULL) LIMIT 5",
+    args: [userId],
+  });
+  for (const r of rows) {
+    const name = String(r.name);
+    const country = r.country == null ? null : String(r.country);
+    try {
+      const hits = await searchAreas(name, 5);
+      const hit = hits.find(
+        (h) => h.lat != null && h.lon != null && fold(h.name) === fold(name) && (!country || !h.country || fold(h.country) === fold(country)),
+      );
+      if (!hit) continue;
+      await client.execute({
+        sql: "UPDATE destinations SET lat = ?, lon = ?, bbox = COALESCE(bbox, ?), country = COALESCE(country, ?) WHERE id = ? AND user_id = ?",
+        args: [hit.lat, hit.lon, validBBox(hit.bbox) ? JSON.stringify(hit.bbox) : null, hit.country, String(r.id), userId],
+      });
+    } catch (err) {
+      console.warn(`Couldn't find ${name} on the map:`, (err as Error).message);
+    }
+  }
+}
+

@@ -7,7 +7,7 @@ import { fillCovers } from "@/lib/covers";
 import { fillSpotDetails } from "@/lib/spot-details";
 import { databaseUrl, signInChannels, siteUrl } from "@/lib/config";
 import { kindFromSlug, vocab } from "@/lib/kinds";
-import { listDestinations } from "@/lib/destinations";
+import { listDestinations, locateDestinations } from "@/lib/destinations";
 import { listItems } from "@/lib/trove";
 import { unreadCount } from "@/lib/messages";
 import { incomingRequests } from "@/lib/social";
@@ -30,7 +30,11 @@ export default async function CollectionPage({ params }: PageProps<"/[kind]">) {
   // Anything saved without a cover gets one looked up, after the page is sent.
   if (kind !== "place") after(() => fillCovers(user.id));
   // Spots saved by name only get their details filled in the same way.
-  else after(() => fillSpotDetails(user.id));
+  else {
+    after(() => fillSpotDetails(user.id));
+    // Places saved without a position are looked up, so they go on the world map.
+    after(() => locateDestinations(user.id));
+  }
   const [items, incoming, unread, destinations] = await Promise.all([
     listItems(user.id, { kind, includePrivate: true }),
     incomingRequests(user),

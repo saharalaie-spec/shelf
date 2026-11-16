@@ -69,12 +69,45 @@ export function useShelfView(kind: Kind): [boolean, (on: boolean) => void] {
 
 /** Grid | Stack, Grid | Film strip, Grid | List. */
 export function ShelfViewSwitch({ kind, on, onChange, className = "" }: { kind: ShelfKind; on: boolean; onChange: (on: boolean) => void; className?: string }) {
+  return <ViewSwitch labels={["Grid", SHELF_LABEL[kind]]} on={on} onChange={onChange} className={className} />;
+}
+
+const PLACES_KEY = "trove:places:view";
+
+/** Places as the world map (the default) or as a list, remembered on this device; the same on friends' pages. */
+export function usePlacesList(): [boolean, (on: boolean) => void] {
+  const hydrated = useHydrated();
+  const [list, setList] = useState(() => {
+    try {
+      return localStorage.getItem(PLACES_KEY) === "list";
+    } catch {
+      return false;
+    }
+  });
+  const set = (on: boolean) => {
+    setList(on);
+    try {
+      localStorage.setItem(PLACES_KEY, on ? "list" : "map");
+    } catch {
+      // Private browsing: it just won't be remembered.
+    }
+  };
+  return [hydrated && list, set];
+}
+
+/** Map | List. */
+export function PlacesViewSwitch({ list, onChange, className = "" }: { list: boolean; onChange: (on: boolean) => void; className?: string }) {
+  return <ViewSwitch labels={["Map", "List"]} on={list} onChange={onChange} className={className} />;
+}
+
+/** Two looks for one list: the first is off, the second on. */
+function ViewSwitch({ labels, on, onChange, className }: { labels: [string, string]; on: boolean; onChange: (on: boolean) => void; className: string }) {
   return (
     <div className={`flex shrink-0 rounded-full bg-surface-2 p-1 ${className}`} role="radiogroup" aria-label="Show as">
       {(
         [
-          [false, "Grid"],
-          [true, SHELF_LABEL[kind]],
+          [false, labels[0]],
+          [true, labels[1]],
         ] as const
       ).map(([value, label]) => (
         <button

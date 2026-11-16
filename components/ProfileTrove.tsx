@@ -17,7 +17,7 @@ import { PlacesList, StatusTag } from "./PlacesList";
 import { SpotTile, spotLine } from "./Spot";
 import { SectionTabs } from "./SectionTabs";
 import { AskBox } from "./AskBox";
-import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
+import { PlacesViewSwitch, Shelf, ShelfViewSwitch, hasShelf, usePlacesList, useShelfView } from "./Bookshelf";
 import { Sheet } from "./Sheet";
 import { TagRow } from "./TagRow";
 import { Avatar, Button, Icon, KIND_ICON, Wordmark } from "./ui";
@@ -70,6 +70,7 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
   const [chosenFilter, setFilter] = useState<string | null>(null);
   // Their collection as the covers grid or its own look (stacks, film strips, tapes): the same choice as on your own lists.
   const [stack, setStack] = useShelfView(kind);
+  const [placesList, setPlacesList] = usePlacesList();
   const setSection = (s: Status) => {
     setSectionState(s);
     setFilter(null);
@@ -209,6 +210,11 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
       )}
 
       {!focus && isPlace && mapPlaces.length > 0 && (
+        <div className="flex justify-end px-5 pb-3">
+          <PlacesViewSwitch list={placesList} onChange={setPlacesList} />
+        </div>
+      )}
+      {!focus && isPlace && mapPlaces.length > 0 && !placesList && (
         <div className="px-5">
           <WorldMap places={mapPlaces} onOpen={(id) => setFocus(destinations.find((d) => d.id === id) ?? null)} />
         </div>
@@ -241,8 +247,8 @@ export function ProfileTrove({ person, items, destinations, relation, mine: init
               <Shelf kind={kind} items={visible} tags={categories} single={filter} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : isPlace ? (
               <PlacesList
-                // All their places: just the map, and under it any place it can't show.
-                items={focus ? inSection : inSection.filter((i) => !mapPlaces.some((m) => m.id === i.destinationId))}
+                // All their places: the map alone, unless they chose the list (or none of the places can go on the map).
+                items={focus || placesList || mapPlaces.length === 0 ? inSection : []}
                 destinations={destinations}
                 groupBy={focus ? "category" : "destination"} onOpen={(b) => (setOpen(b), setLastOpen(b), setAsking(false))} />
             ) : (
