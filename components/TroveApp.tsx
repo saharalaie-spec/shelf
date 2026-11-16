@@ -15,7 +15,7 @@ import { placesOnMap } from "@/lib/world";
 import { AccountSheet, type Profile } from "./AccountSheet";
 import { AddSheet } from "./AddSheet";
 import { Cover } from "./Cover";
-import { Shelf, ShelfViewSwitch, hasShelf, useShelfView } from "./Bookshelf";
+import { PlacesViewSwitch, Shelf, ShelfViewSwitch, hasShelf, usePlacesList, useShelfView } from "./Bookshelf";
 import { ItemSheet } from "./ItemSheet";
 import { DestinationSheet, type Dest } from "./Destinations";
 import { AvatarButton, FriendsButton } from "./HeaderButtons";
@@ -174,7 +174,8 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
   }, [inSection]);
   const allCategories = useMemo(() => [...new Set(items.flatMap((b) => b.categories))], [items]);
   const mapPlaces = useMemo(() => (isPlace ? placesOnMap(destinations, items) : []), [isPlace, destinations, items]);
-  const offMap = destinations.filter((d) => !mapPlaces.some((m) => m.id === d.id));
+  // Places: the world map, or the list of them.
+  const [placesList, setPlacesList] = usePlacesList();
   const privateCount = useMemo(() => items.filter((b) => b.private).length, [items]);
 
   const updateProfile = useCallback((patch: Partial<Profile>) => setProfile((p) => ({ ...p, ...patch })), []);
@@ -557,23 +558,20 @@ export function TroveApp({ kind, user, pendingRequests, initialItems, initialDes
                 </>
               ) : (
                 <>
-                  <div className="mt-2 mb-5">
-                    <h1 className="font-serif text-[34px] leading-tight font-medium tracking-tight">
-                      <span className="tabular-nums">{destinations.length.toLocaleString()}</span>{" "}
-                      {destinations.length === 1 ? "place" : "places"}
-                    </h1>
-                    <p className="text-[15px] text-muted">
-                      {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
-                    </p>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="mt-2 mb-5">
+                      <h1 className="font-serif text-[34px] leading-tight font-medium tracking-tight">
+                        <span className="tabular-nums">{destinations.length.toLocaleString()}</span>{" "}
+                        {destinations.length === 1 ? "place" : "places"}
+                      </h1>
+                      <p className="text-[15px] text-muted">
+                        {items.length ? `${v.noun(items.length)} · ${spotTally(items)}` : "Add the spots you loved, or want to try"}
+                      </p>
+                    </div>
+                    {mapPlaces.length > 0 && <PlacesViewSwitch list={placesList} onChange={setPlacesList} className="mt-4" />}
                   </div>
-                  {mapPlaces.length > 0 ? (
-                    <>
-                      <WorldMap places={mapPlaces} onOpen={showDest} />
-                      {/* Only the map; a place it can't show (no position yet) is listed under it. */}
-                      {offMap.length > 0 && (
-                        <DestinationCards destinations={offMap} items={items} onOpen={(d) => showDest(d.id)} />
-                      )}
-                    </>
+                  {mapPlaces.length > 0 && !placesList ? (
+                    <WorldMap places={mapPlaces} onOpen={showDest} />
                   ) : (
                     <DestinationCards destinations={destinations} items={items} onOpen={(d) => showDest(d.id)} onNew={startAdding} />
                   )}
