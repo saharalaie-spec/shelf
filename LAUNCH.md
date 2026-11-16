@@ -23,7 +23,10 @@ Who does each: **you** (accounts, money, testing) or **Claude** (code).
 6. **Brand.** Claude: "Keep what you love. Find what's next." and the new mission on the sign-in screen, the app
    description and BRAND.md.
 7. **North-star metric.** Claude: "weekly next-finders" on the Numbers page.
-8. **Google Maps** (step 3). Claude: city search on Google first; you: the Google Cloud key.
+8. **Google Maps** (step 3). Spot search uses OpenStreetMap today, which misses places Google Maps has (Local Jones
+   in Denver, for one). You: a Google Cloud project with Places API (New), a key restricted to it, a budget alert,
+   then `GOOGLE_PLACES_API_KEY` in Vercel and a redeploy; spots then come from Google Maps. Claude: city search
+   ("New place", "Where?") on Google too.
 9. **App Store**, when you're ready to go public (step 7).
 
 ## 1. The domain (paid, about $10–20 a year)
