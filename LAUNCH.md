@@ -29,6 +29,14 @@ Who does each: **you** (accounts, money, testing) or **Claude** (code).
    ("New place", "Where?") on Google too.
 9. **App Store**, when you're ready to go public (step 7).
 
+**Before inviting people** (from Anthropic's founder's playbook, MVP stage):
+
+- [ ] **Security review.** Claude: sign-in, what friends can and can't see, input checks, outdated libraries.
+- [ ] **"Very disappointed" question.** Claude: "How would you feel if you could no longer use Trove?" on the
+  feedback page; more than 40% "very disappointed" is a meaningful sign people need it.
+- [ ] **Coming back.** Claude: day-7 and day-30 return rates on the Numbers page, next to weekly next-finders. You:
+  pick the targets before inviting (for example, 40% back after 7 days, 25% after 30).
+
 ## 1. The domain (paid, about $10–20 a year)
 
 - [x] Buy a domain: **mytrove.me**, at Vercel.
