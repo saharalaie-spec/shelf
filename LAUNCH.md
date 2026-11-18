@@ -13,8 +13,8 @@ Who does each: **you** (accounts, money, testing) or **Claude** (code).
 1. **Sign-in by text message.** You: start the Twilio sign-up and toll-free number (step 2 below) now, since the
    carriers' approval takes days. Claude: the privacy policy and terms pages, and the consent line on the sign-in
    screen, which the approval asks for.
-2. **Sign-in by email.** You: Resend, with mytrove.me (step 2). Quick, and a backup for text.
-3. **Apple Developer Program** (step 7). You: enroll as an individual ($99 a year); approval takes a day or two.
+2. ~~**Sign-in by email.**~~ Done: codes come from hello@mytrove.me through Resend.
+3. ~~**Apple Developer Program**~~ Done; `APPLE_TEAM_ID` is set.
 4. **Phone features.** Claude, once the Apple account is approved: push notifications (messages, new friends,
    invitees joining), invite links that open the app, the iPhone share sheet. You: one key and the Team ID from the
    Apple account.
@@ -41,7 +41,7 @@ Needed before email codes (step 2), which are sent from an address at your domai
 
 Pick one or both.
 
-- [ ] **Email** with Resend (free for the first few thousand emails a month): create an account at resend.com, add and
+- [x] **Email** with Resend (free for the first few thousand emails a month): create an account at resend.com, add and
   verify your domain from step 1, create an API key. Set `RESEND_API_KEY` and `EMAIL_FROM` (like
   `Trove <hello@trove.example>`).
 - [ ] **Text messages** with Twilio (paid per message, plus a phone number each month). US carriers only deliver texts
@@ -94,7 +94,7 @@ Pick one or both.
 ## 7. The iPhone app (see APP.md)
 
 - [x] The app runs on your own iPhone from Xcode (free Apple ID; renew every 7 days with ▶).
-- [ ] **Apple Developer Program**: enroll as an individual at developer.apple.com ($99 a year).
+- [x] **Apple Developer Program**: enroll as an individual at developer.apple.com ($99 a year).
 - [ ] **Invites open the app** (APP.md, "Invite links that send people to the app"): set `IOS_APP_URL` and
   `APPLE_TEAM_ID`, and add Associated Domains in Xcode.
 - [ ] **TestFlight public link**: App Store Connect → the app → TestFlight → External Testing → add a group, add the
