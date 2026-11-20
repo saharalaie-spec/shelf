@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useEffectEvent, useMemo, useRef, useState, useTransition } from "react";
@@ -270,8 +271,23 @@ function EnterStep({
       <Button type="submit" className="mt-2 w-full" loading={sending} disabled={!parsed || none}>
         Send me a code
       </Button>
-      <p className="mt-4 text-center text-[13px] text-muted">
-        We&rsquo;ll {mode === "phone" ? "text" : "email"} you a 6-digit code. That&rsquo;s it.
+      {/* The consent line carriers ask for before approving sign-in texts. */}
+      <p className="mt-4 text-center text-[13px] leading-snug text-muted">
+        {mode === "phone" ? (
+          <>
+            By tapping Send me a code, you agree to get a text with a one-time sign-in code. Message and data rates may
+            apply. Reply STOP to opt out.
+          </>
+        ) : (
+          <>We&rsquo;ll email you a 6-digit code. That&rsquo;s it.</>
+        )}{" "}
+        <Link href="/terms" className="underline underline-offset-2">
+          Terms
+        </Link>{" "}
+        ·{" "}
+        <Link href="/privacy" className="underline underline-offset-2">
+          Privacy
+        </Link>
       </p>
     </form>
   );
