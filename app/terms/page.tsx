@@ -11,7 +11,7 @@ export default function TermsPage() {
 
       <h2>Using Trove</h2>
       <ul>
-        <li>Trove is free for personal use. You need to be at least 13.</li>
+        <li>Trove is free for personal use. You need to be at least 18.</li>
         <li>Keep your sign-in codes to yourself; you&rsquo;re responsible for what happens in your account.</li>
         <li>
           Be decent: don&rsquo;t post anything unlawful, hateful or harassing, don&rsquo;t pretend to be someone else, and

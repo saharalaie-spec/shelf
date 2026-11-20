@@ -71,8 +71,11 @@ export default function PrivacyPage() {
         tap <strong>Delete account</strong>: your account, what you saved, your photo and your messages are removed.
       </p>
 
-      <h2>Children</h2>
-      <p>Trove isn&rsquo;t meant for children under 13, and we don&rsquo;t knowingly keep their information.</p>
+      <h2>Age</h2>
+      <p>
+        Trove is for people 18 and older. We don&rsquo;t knowingly keep information about anyone younger; if we learn
+        we have, we delete it.
+      </p>
 
       <h2>Changes and questions</h2>
       <p>
